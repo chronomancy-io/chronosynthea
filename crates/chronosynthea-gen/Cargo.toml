@@ -1,0 +1,28 @@
+[package]
+name = "chronosynthea-gen"
+description = "High-performance patient generation for ChronoSynthea"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+chronosynthea-core = { path = "../chronosynthea-core" }
+chronosynthea-cde = { path = "../chronosynthea-cde" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+ahash = { workspace = true }
+rayon = { workspace = true }
+bumpalo = { workspace = true }
+crossbeam-channel = { workspace = true }
+rand = { workspace = true }
+rand_xoshiro = { workspace = true }
+rand_distr = "0.4"
+chrono = { workspace = true }
+
+[dev-dependencies]
+criterion = { workspace = true }
+
+[[bench]]
+name = "patient_generation"
+harness = false

@@ -1,0 +1,67 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/chronosynthea",
+    "crates/chronosynthea-core",
+    "crates/chronosynthea-cde",
+    "crates/chronosynthea-gen",
+    "crates/chronosynthea-io",
+    "crates/chronosynthea-mss",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+authors = ["ChronoSynthea Contributors"]
+license = "Apache-2.0"
+repository = "https://github.com/the-chronomancer/chronosynthea"
+
+[workspace.dependencies]
+# Core dependencies
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+simd-json = "0.14"
+thiserror = "2.0"
+
+# Parallelism and performance
+rayon = "1.10"
+bumpalo = { version = "3.16", features = ["collections"] }
+ahash = { version = "0.8", features = ["serde"] }
+crossbeam-channel = "0.5"
+
+# Binary serialization
+rmp-serde = "1.3"
+
+# Random number generation
+rand = "0.8"
+rand_xoshiro = "0.6"
+
+# CLI
+clap = { version = "4.5", features = ["derive"] }
+
+# Compression and hashing
+flate2 = "1.0"
+sha2 = "0.10"
+
+# SIMD
+wide = "0.7"
+
+# Time handling
+chrono = { version = "0.4", features = ["serde"] }
+
+# Development dependencies
+criterion = "0.5"
+
+# Additional dependencies for MSS
+memmap2 = "0.9"
+bytemuck = { version = "1.14", features = ["derive"] }
+smallvec = { version = "1.13", features = ["const_generics", "union"] }
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
+opt-level = 3
+
+[profile.bench]
+inherits = "release"
+debug = true

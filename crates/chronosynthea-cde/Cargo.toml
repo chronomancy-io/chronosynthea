@@ -1,0 +1,22 @@
+[package]
+name = "chronosynthea-cde"
+description = "Coleman Dimensional Encoding for ChronoSynthea"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+chronosynthea-core = { path = "../chronosynthea-core" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+ahash = { workspace = true }
+sha2 = { workspace = true }
+wide = { workspace = true }
+
+[dev-dependencies]
+criterion = { workspace = true }
+
+[[bench]]
+name = "cde_encoding"
+harness = false

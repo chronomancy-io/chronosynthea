@@ -1,0 +1,39 @@
+project:
+  name: chronosynthea
+  type: application
+  language: rust
+  description: Ultra-high-performance synthetic healthcare data generation using CDE and MSS
+
+framework:
+  cde_compliant: true
+  cde_version: "1.0.0"
+  mss_version: "1.0.0"
+  wasp_version: "1.0.0"
+
+dimensions:
+  count: 4
+  list:
+    - name: "Patient Seed"
+      description: "Random seed plus demographic/profile parameters"
+      encoding: "u64 seed + archetype index (u16)"
+    - name: "Clinical Trajectory"
+      description: "Conditions, medications, procedures"
+      encoding: "Sparse bitsets of code indices"
+    - name: "Timing"
+      description: "Event timestamps relative to birth"
+      encoding: "Days since birth (u16) + offsets"
+    - name: "Output Schema"
+      description: "Normalized record shape"
+      encoding: "Format flags (FHIR, JSONL, compact)"
+
+workload:
+  queries:
+    - id: Q1
+      description: "Generate statistically equivalent patient batch"
+      complexity: "O(n) where n = patient count"
+    - id: Q2
+      description: "Validate distribution against Java Synthea baseline"
+      complexity: "O(c) where c = condition count"
+    - id: Q3
+      description: "Extract MSS fingerprint from Synthea module graph"
+      complexity: "O(m × s) where m = modules, s = states per module"

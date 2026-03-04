@@ -1,0 +1,54 @@
+# Universal ignores
+.DS_Store
+.vscode/
+.idea/
+*.swp
+*.swo
+*.log
+.env
+.env.local
+*.tmp
+
+# Rust build artifacts
+target/
+**/*.rs.bk
+*.pdb
+
+# Cargo
+# Note: Cargo.lock is committed for binary crates
+# Uncomment if this becomes a library-only project
+# Cargo.lock
+
+# IDE
+.sublime-*
+*.sublime-*
+
+# Testing
+coverage/
+*.profdata
+*.profraw
+
+# Benchmark outputs
+criterion/
+*.bench
+
+# Generated documentation
+doc/
+
+# OS-specific
+Thumbs.db
+Desktop.ini
+
+# Temporary files
+*.tmp
+*.bak
+*~
+
+# Binary outputs
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Chronoboiler-specific
+.rendered/

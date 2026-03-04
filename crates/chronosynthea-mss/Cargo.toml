@@ -1,0 +1,32 @@
+[package]
+name = "chronosynthea-mss"
+description = "Minimally Sufficient Statistic encoding for ultra-fast patient generation"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+chronosynthea-core = { path = "../chronosynthea-core" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+ahash = { workspace = true }
+rayon = { workspace = true }
+bumpalo = { workspace = true }
+crossbeam-channel = { workspace = true }
+rand = { workspace = true }
+rand_xoshiro = { workspace = true }
+chrono = { workspace = true }
+wide = { workspace = true }
+rmp-serde = { workspace = true }
+flate2 = { workspace = true }
+memmap2 = "0.9"
+bytemuck = { version = "1.14", features = ["derive"] }
+smallvec = { version = "1.13", features = ["const_generics", "union"] }
+
+[dev-dependencies]
+criterion = { workspace = true }
+
+[[bench]]
+name = "mss_generation"
+harness = false

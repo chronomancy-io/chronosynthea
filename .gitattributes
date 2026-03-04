@@ -1,0 +1,27 @@
+# Auto line endings
+* text=auto
+
+# Force LF for source files
+*.md text eol=lf
+*.txt text eol=lf
+*.py text eol=lf
+*.go text eol=lf
+*.rs text eol=lf
+*.js text eol=lf
+*.ts text eol=lf
+*.java text eol=lf
+*.asm text eol=lf
+*.sh text eol=lf
+*.yaml text eol=lf
+*.yml text eol=lf
+
+# Binary files
+*.o binary
+*.exe binary
+*.bin binary
+*.pyc binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+
