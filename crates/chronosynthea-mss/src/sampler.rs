@@ -82,10 +82,15 @@ pub struct SimdSampler {
     /// Pre-allocated random buffer (8 floats for SIMD).
     rand_buffer: [f32; 8],
 
-    /// Number of conditions.
+    /// Number of conditions. Reserved for invariant-checking and future
+    /// per-arch sizing — not read on the hot path.
+    #[allow(dead_code)]
     num_conditions: usize,
 
-    /// Threshold stride (padded to multiple of 8).
+    /// Threshold stride (padded to multiple of 8). Reserved for the legacy
+    /// padded `sample_conditions` path; `sample_active` uses the dense layout
+    /// and gets its stride from the active slice length.
+    #[allow(dead_code)]
     threshold_stride: usize,
 }
 
@@ -106,8 +111,25 @@ impl SimdSampler {
 
     /// Samples conditions for a single patient using SIMD comparisons.
     ///
-    /// This is faster than scalar sampling when there are many conditions (>16).
-    #[inline]
+    /// Hot path. Three optimisations matter:
+    ///
+    /// 1. **Batched RNG.** Xoshiro256++ yields 64 bits per advance. We pull 4 u64s
+    ///    (4 RNG advances), split each into two 32-bit halves, and convert each
+    ///    half to an `f32` in `[0, 1)` using the standard exponent-bias trick
+    ///    (mantissa bits | `0x3F800000`, then subtract `1.0`). That turns 8
+    ///    `rng.gen::<f32>()` calls into 4 RNG advances per 8-condition chunk —
+    ///    the dominant inner-loop saving over the original scalar path.
+    ///
+    /// 2. **Sparse-bit iteration.** A typical patient activates ~25/214 conditions
+    ///    (mask density ≈ 12%). The bit-walking loop uses `trailing_zeros` +
+    ///    `bits &= bits - 1` so we visit only set bits — branch count is
+    ///    `popcount(mask)`, not 8.
+    ///
+    /// 3. **No redundant threshold guard.** Random draws are in `[0, 1)`, so
+    ///    `rand < 0.0` is unsatisfiable. If `threshold == 0.0` the SIMD compare
+    ///    produces a clear mask bit unconditionally — no need to re-check
+    ///    `thresholds[base + bit] > 0.0` after the SIMD compare.
+    #[inline(always)]
     pub fn sample_conditions<R: Rng>(
         &mut self,
         thresholds: &[f32],
@@ -116,43 +138,117 @@ impl SimdSampler {
     ) {
         output.clear();
 
-        // Process 8 conditions at a time
         let chunks = thresholds.len() / 8;
 
         for chunk in 0..chunks {
-            // Generate 8 random numbers
-            for i in 0..8 {
-                self.rand_buffer[i] = rng.gen();
-            }
-
             let base = chunk * 8;
             let thresh = f32x8::from(&thresholds[base..base + 8]);
+
+            // Skip all-zero chunks before paying RNG cost. Per-archetype threshold
+            // vectors are sparse — many conditions don't apply to a given demographic
+            // profile (e.g. pregnancy-coded conditions for male archetypes). One
+            // SIMD compare against zero + move_mask is much cheaper than four
+            // `next_u64()` advances and the full compare path; for sparse archetypes
+            // (most thresholds == 0) this is the dominant win.
+            let zero = f32x8::splat(0.0);
+            if zero.cmp_lt(thresh).move_mask() == 0 {
+                continue;
+            }
+
+            // 4 RNG advances → 8 mantissa-randomised f32 in [0, 1).
+            let u0 = rng.next_u64();
+            let u1 = rng.next_u64();
+            let u2 = rng.next_u64();
+            let u3 = rng.next_u64();
+            let mantissa_bits = |u: u32| -> f32 {
+                f32::from_bits((u >> 9) | 0x3F80_0000) - 1.0
+            };
+            self.rand_buffer[0] = mantissa_bits(u0 as u32);
+            self.rand_buffer[1] = mantissa_bits((u0 >> 32) as u32);
+            self.rand_buffer[2] = mantissa_bits(u1 as u32);
+            self.rand_buffer[3] = mantissa_bits((u1 >> 32) as u32);
+            self.rand_buffer[4] = mantissa_bits(u2 as u32);
+            self.rand_buffer[5] = mantissa_bits((u2 >> 32) as u32);
+            self.rand_buffer[6] = mantissa_bits(u3 as u32);
+            self.rand_buffer[7] = mantissa_bits((u3 >> 32) as u32);
+
             let rands = f32x8::new(self.rand_buffer);
 
-            // Compare: rand < threshold
-            let mask = rands.cmp_lt(thresh);
+            // rand < threshold; for inactive conditions (threshold == 0.0) the
+            // compare can never succeed because rand ∈ [0, 1).
+            let mut mask_bits = rands.cmp_lt(thresh).move_mask();
 
-            // Extract mask bits
-            let mask_bits = mask.move_mask();
-
-            // Process set bits
-            if mask_bits != 0 {
-                for bit in 0..8 {
-                    if (mask_bits & (1 << bit)) != 0 {
-                        // Also check threshold > 0 to skip inactive conditions
-                        if thresholds[base + bit] > 0.0 {
-                            output.push((base + bit) as u16);
-                        }
-                    }
-                }
+            // Walk only the set bits.
+            while mask_bits != 0 {
+                let bit = mask_bits.trailing_zeros() as usize;
+                output.push((base + bit) as u16);
+                mask_bits &= mask_bits - 1;
             }
         }
 
-        // Handle remaining conditions (scalar)
-        let remainder_start = chunks * 8;
-        for i in remainder_start..thresholds.len() {
+        // Remainder: scalar, with the short-circuit threshold guard intact.
+        for i in (chunks * 8)..thresholds.len() {
             if thresholds[i] > 0.0 && rng.gen::<f32>() < thresholds[i] {
                 output.push(i as u16);
+            }
+        }
+    }
+
+    /// Samples conditions from a dense (active-only) per-archetype view.
+    ///
+    /// This is the production hot path. The caller passes a slice of only the
+    /// active condition thresholds for the chosen archetype (typically
+    /// ~25–60 entries, padded to a multiple of 8) and the matching original
+    /// condition indices. We never visit the ~150 zero-threshold conditions
+    /// the padded `condition_thresholds` layout would include.
+    ///
+    /// Same three optimisations as `sample_conditions`:
+    /// 1. Batched RNG (4 × `next_u64` → 8 × f32 in [0, 1)).
+    /// 2. Sparse bit-walk via `trailing_zeros` + `bits &= bits - 1`.
+    /// 3. No redundant `threshold > 0.0` guard — the SIMD compare cannot
+    ///    succeed for padding slots because `rand ∈ [0, 1)`.
+    #[inline(always)]
+    pub fn sample_active<R: Rng>(
+        &mut self,
+        active_thresholds: &[f32],
+        active_indices: &[u16],
+        rng: &mut R,
+        output: &mut SmallVec<[u16; 8]>,
+    ) {
+        debug_assert_eq!(active_thresholds.len(), active_indices.len());
+        debug_assert!(active_thresholds.len() % 8 == 0);
+
+        output.clear();
+        let chunks = active_thresholds.len() / 8;
+
+        for chunk in 0..chunks {
+            let base = chunk * 8;
+            let thresh = f32x8::from(&active_thresholds[base..base + 8]);
+
+            // 4 RNG advances → 8 mantissa-randomised f32 in [0, 1).
+            let u0 = rng.next_u64();
+            let u1 = rng.next_u64();
+            let u2 = rng.next_u64();
+            let u3 = rng.next_u64();
+            let m = |u: u32| -> f32 { f32::from_bits((u >> 9) | 0x3F80_0000) - 1.0 };
+            self.rand_buffer[0] = m(u0 as u32);
+            self.rand_buffer[1] = m((u0 >> 32) as u32);
+            self.rand_buffer[2] = m(u1 as u32);
+            self.rand_buffer[3] = m((u1 >> 32) as u32);
+            self.rand_buffer[4] = m(u2 as u32);
+            self.rand_buffer[5] = m((u2 >> 32) as u32);
+            self.rand_buffer[6] = m(u3 as u32);
+            self.rand_buffer[7] = m((u3 >> 32) as u32);
+
+            let rands = f32x8::new(self.rand_buffer);
+            let mut mask_bits = rands.cmp_lt(thresh).move_mask();
+
+            while mask_bits != 0 {
+                let bit = mask_bits.trailing_zeros() as usize;
+                // Padding slot? threshold is 0.0 so the SIMD compare cannot
+                // have set this bit. (No runtime check needed.)
+                output.push(active_indices[base + bit]);
+                mask_bits &= mask_bits - 1;
             }
         }
     }
@@ -164,7 +260,7 @@ impl SimdSampler {
     pub fn sample_conditions_batch<R: Rng>(
         &mut self,
         registry: &ArchetypeRegistry,
-        archetype_ids: &[u16],
+        archetype_ids: &[crate::types::ArchetypeId],
         rng: &mut R,
         outputs: &mut [SmallVec<[u16; 8]>],
     ) {
@@ -465,35 +561,55 @@ impl EventSampler {
     }
 
     /// Samples medications directly from archetype thresholds using SIMD.
-    /// This is faster than per-condition sampling because thresholds are pre-computed.
-    #[inline]
+    /// Same three optimisations as `SimdSampler::sample_active`:
+    ///   1. Skip all-zero chunks before paying RNG cost.
+    ///   2. Batched RNG (4 × `next_u64` → 8 × f32 in [0,1) via mantissa trick).
+    ///   3. Sparse bit-walk via `trailing_zeros` + `bits &= bits - 1`.
+    #[inline(always)]
     pub fn sample_medications_simd<R: Rng>(&mut self, thresholds: &[f32], rng: &mut R) -> &[u16] {
         self.medication_buffer.clear();
 
         let chunks = thresholds.len() / 8;
 
         for chunk in 0..chunks {
-            for i in 0..8 {
-                self.rand_buffer[i] = rng.gen();
-            }
-
             let base = chunk * 8;
             let thresh = f32x8::from(&thresholds[base..base + 8]);
+
+            // Skip all-zero chunks before paying RNG cost.
+            let zero = f32x8::splat(0.0);
+            if zero.cmp_lt(thresh).move_mask() == 0 {
+                continue;
+            }
+
+            // 4 RNG advances → 8 mantissa-randomised f32 in [0, 1).
+            let u0 = rng.next_u64();
+            let u1 = rng.next_u64();
+            let u2 = rng.next_u64();
+            let u3 = rng.next_u64();
+            let m = |u: u32| -> f32 { f32::from_bits((u >> 9) | 0x3F80_0000) - 1.0 };
+            self.rand_buffer[0] = m(u0 as u32);
+            self.rand_buffer[1] = m((u0 >> 32) as u32);
+            self.rand_buffer[2] = m(u1 as u32);
+            self.rand_buffer[3] = m((u1 >> 32) as u32);
+            self.rand_buffer[4] = m(u2 as u32);
+            self.rand_buffer[5] = m((u2 >> 32) as u32);
+            self.rand_buffer[6] = m(u3 as u32);
+            self.rand_buffer[7] = m((u3 >> 32) as u32);
+
             let rands = f32x8::new(self.rand_buffer);
+            let mut mask_bits = rands.cmp_lt(thresh).move_mask();
 
-            let mask = rands.cmp_lt(thresh);
-            let mask_bits = mask.move_mask();
-
-            if mask_bits != 0 {
-                for bit in 0..8 {
-                    if (mask_bits & (1 << bit)) != 0 && thresholds[base + bit] > 0.0 {
-                        self.medication_buffer.push((base + bit) as u16);
-                    }
-                }
+            while mask_bits != 0 {
+                let bit = mask_bits.trailing_zeros() as usize;
+                // Padding/zero-threshold slots can't have set bits because
+                // rand ∈ [0, 1) is never < 0.0; the rand < threshold compare
+                // already filters these. No redundant guard needed.
+                self.medication_buffer.push((base + bit) as u16);
+                mask_bits &= mask_bits - 1;
             }
         }
 
-        // Handle remainder
+        // Scalar remainder
         let remainder_start = chunks * 8;
         for i in remainder_start..thresholds.len() {
             if thresholds[i] > 0.0 && rng.gen::<f32>() < thresholds[i] {
@@ -506,7 +622,7 @@ impl EventSampler {
 
     /// Samples observations and procedures for multiple encounters in a batch.
     /// Uses probability scaling: P(sampled at least once in N encounters) ≈ min(p * N, 1.0)
-    #[inline]
+    #[inline(always)]
     pub fn sample_events_batch<R: Rng>(
         &mut self,
         obs_frequencies: &[f32],
@@ -521,31 +637,47 @@ impl EventSampler {
         let n_vec = f32x8::splat(n);
         let one_vec = f32x8::splat(1.0);
 
-        // Sample observations with SIMD scaling
+        // Helper: 4 next_u64 advances → 8 f32 in [0,1) via mantissa-bias trick.
+        // Same as the SimdSampler hot path; inlined here so the compiler can
+        // hoist the rand_buffer load.
+        let zero = f32x8::splat(0.0);
+
+        // Sample observations with SIMD scaling + sparse chunk skip + batched RNG.
         let obs_chunks = obs_frequencies.len() / 8;
         for chunk in 0..obs_chunks {
-            for i in 0..8 {
-                self.rand_buffer[i] = rng.gen();
-            }
-
             let base = chunk * 8;
             let freq = f32x8::from(&obs_frequencies[base..base + 8]);
             let scaled = (freq * n_vec).min(one_vec);
+
+            // Skip chunks where every observation has zero frequency.
+            if zero.cmp_lt(scaled).move_mask() == 0 {
+                continue;
+            }
+
+            let u0 = rng.next_u64();
+            let u1 = rng.next_u64();
+            let u2 = rng.next_u64();
+            let u3 = rng.next_u64();
+            let m = |u: u32| -> f32 { f32::from_bits((u >> 9) | 0x3F80_0000) - 1.0 };
+            self.rand_buffer[0] = m(u0 as u32);
+            self.rand_buffer[1] = m((u0 >> 32) as u32);
+            self.rand_buffer[2] = m(u1 as u32);
+            self.rand_buffer[3] = m((u1 >> 32) as u32);
+            self.rand_buffer[4] = m(u2 as u32);
+            self.rand_buffer[5] = m((u2 >> 32) as u32);
+            self.rand_buffer[6] = m(u3 as u32);
+            self.rand_buffer[7] = m((u3 >> 32) as u32);
+
             let rands = f32x8::new(self.rand_buffer);
-
-            let mask = rands.cmp_lt(scaled);
-            let mask_bits = mask.move_mask();
-
-            if mask_bits != 0 {
-                for bit in 0..8 {
-                    if (mask_bits & (1 << bit)) != 0 {
-                        self.observation_buffer.push((base + bit) as u16);
-                    }
-                }
+            let mut mask_bits = rands.cmp_lt(scaled).move_mask();
+            while mask_bits != 0 {
+                let bit = mask_bits.trailing_zeros() as usize;
+                self.observation_buffer.push((base + bit) as u16);
+                mask_bits &= mask_bits - 1;
             }
         }
 
-        // Handle observation remainder
+        // Observation scalar remainder
         let obs_remainder = obs_chunks * 8;
         for i in obs_remainder..obs_frequencies.len() {
             let scaled_p = (obs_frequencies[i] * n).min(1.0);
@@ -554,31 +686,41 @@ impl EventSampler {
             }
         }
 
-        // Sample procedures with SIMD scaling
+        // Sample procedures with SIMD scaling + sparse chunk skip + batched RNG.
         let proc_chunks = proc_frequencies.len() / 8;
         for chunk in 0..proc_chunks {
-            for i in 0..8 {
-                self.rand_buffer[i] = rng.gen();
-            }
-
             let base = chunk * 8;
             let freq = f32x8::from(&proc_frequencies[base..base + 8]);
             let scaled = (freq * n_vec).min(one_vec);
+
+            if zero.cmp_lt(scaled).move_mask() == 0 {
+                continue;
+            }
+
+            let u0 = rng.next_u64();
+            let u1 = rng.next_u64();
+            let u2 = rng.next_u64();
+            let u3 = rng.next_u64();
+            let m = |u: u32| -> f32 { f32::from_bits((u >> 9) | 0x3F80_0000) - 1.0 };
+            self.rand_buffer[0] = m(u0 as u32);
+            self.rand_buffer[1] = m((u0 >> 32) as u32);
+            self.rand_buffer[2] = m(u1 as u32);
+            self.rand_buffer[3] = m((u1 >> 32) as u32);
+            self.rand_buffer[4] = m(u2 as u32);
+            self.rand_buffer[5] = m((u2 >> 32) as u32);
+            self.rand_buffer[6] = m(u3 as u32);
+            self.rand_buffer[7] = m((u3 >> 32) as u32);
+
             let rands = f32x8::new(self.rand_buffer);
-
-            let mask = rands.cmp_lt(scaled);
-            let mask_bits = mask.move_mask();
-
-            if mask_bits != 0 {
-                for bit in 0..8 {
-                    if (mask_bits & (1 << bit)) != 0 {
-                        self.procedure_buffer.push((base + bit) as u16);
-                    }
-                }
+            let mut mask_bits = rands.cmp_lt(scaled).move_mask();
+            while mask_bits != 0 {
+                let bit = mask_bits.trailing_zeros() as usize;
+                self.procedure_buffer.push((base + bit) as u16);
+                mask_bits &= mask_bits - 1;
             }
         }
 
-        // Handle procedure remainder
+        // Procedure scalar remainder
         let proc_remainder = proc_chunks * 8;
         for i in proc_remainder..proc_frequencies.len() {
             let scaled_p = (proc_frequencies[i] * n).min(1.0);

@@ -60,6 +60,14 @@ pub struct MssFingerprint {
     /// Code co-occurrence probabilities (sparse).
     pub cooccurrence: AHashMap<(String, String), f64>,
 
+    /// Per-dependent-condition boost scale produced by the recalibration loop
+    /// (see `e1_recalibrate_marginals`). When non-empty, the
+    /// `CooccurrenceModel::from_fingerprint` constructor seeds its
+    /// `dependent_scale` vector from here so the d5 `pairwise-empirical`
+    /// joint sampler converges to the calibrated marginal targets.
+    #[serde(default)]
+    pub cooccurrence_dependent_scale: AHashMap<String, f64>,
+
     /// Encounter statistics.
     pub encounter_stats: EncounterStats,
 }
@@ -420,6 +428,7 @@ mod tests {
             observations: vec![],
             procedures: vec![],
             cooccurrence: AHashMap::new(),
+            cooccurrence_dependent_scale: AHashMap::new(),
             encounter_stats: EncounterStats::default(),
         };
 

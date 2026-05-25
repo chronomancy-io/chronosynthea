@@ -75,6 +75,7 @@ fn create_test_fingerprint() -> MssFingerprint {
         observations: vec![],
         procedures: vec![],
         cooccurrence: AHashMap::new(),
+            cooccurrence_dependent_scale: AHashMap::new(),
         encounter_stats: EncounterStats {
             mean_by_age: AHashMap::new(),
             type_distribution: AHashMap::new(),
