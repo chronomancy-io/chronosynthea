@@ -12,6 +12,7 @@
 pub mod archetype;
 pub mod arena;
 pub mod batch;
+pub mod causal_dag;
 pub mod error;
 pub mod extractor;
 pub mod fingerprint;
@@ -31,6 +32,7 @@ pub use error::{MssError, MssResult};
 pub use extractor::MssExtractor;
 pub use fingerprint::MssFingerprint;
 pub use java_compat::{CalibratedRegistry, JavaValidation};
+pub use causal_dag::{CausalDagModel, GIBBS_ITERATIONS};
 pub use sampler::{EventBitset, EventSampler, SimdSampler};
 pub use stats::StreamingStatistics;
 pub use types::{ArchetypeId, ConditionIndex};
