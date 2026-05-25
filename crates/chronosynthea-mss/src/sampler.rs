@@ -52,6 +52,16 @@ impl EventBitset {
         was_set
     }
 
+    /// Clears a single bit. No-op if `idx` is out of range.
+    #[inline]
+    pub fn clear_bit(&mut self, idx: u16) {
+        let word_idx = (idx >> 6) as usize;
+        let bit_idx = idx & 63;
+        if word_idx < 8 {
+            self.words[word_idx] &= !(1u64 << bit_idx);
+        }
+    }
+
     /// Tests if a bit is set.
     #[inline]
     pub fn test(&self, idx: u16) -> bool {

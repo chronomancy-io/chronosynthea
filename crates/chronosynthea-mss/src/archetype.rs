@@ -224,6 +224,18 @@ pub struct ArchetypeRegistry {
     /// Each entry contains procedure indices and their frequencies.
     condition_to_procedures: Vec<SmallVec<[(u16, f32); 4]>>,
 
+    /// Medication -> Conditions inverse lookup (indexed by medication_idx).
+    /// Each entry contains the condition indices that can cause this med
+    /// and their P(med | cond) frequencies. Used for **REASONCODE linkage**:
+    /// when a medication is prescribed to a patient, sample which of the
+    /// patient's currently-active conditions caused it (weighted by P(med | cond)
+    /// over active conditions).
+    medication_to_conditions: Vec<SmallVec<[(u16, f32); 4]>>,
+
+    /// Procedure -> Conditions inverse lookup (indexed by procedure_idx).
+    /// Same shape as `medication_to_conditions` but for procedures' REASONCODE.
+    procedure_to_conditions: Vec<SmallVec<[(u16, f32); 4]>>,
+
     /// Medication frequencies (indexed by medication_idx).
     medication_frequencies: Vec<f32>,
 
@@ -463,6 +475,29 @@ impl ArchetypeRegistry {
             }
         }
 
+        // Inverse lookups for REASONCODE linkage: medication_idx → conditions
+        // that can cause it (with P(med | cond)).
+        let mut medication_to_conditions: Vec<SmallVec<[(u16, f32); 4]>> =
+            vec![SmallVec::new(); num_medications];
+        for (med_idx, med) in fp.medications.iter().enumerate() {
+            for indication in &med.indications {
+                if let Some(&cond_idx) = condition_code_to_idx.get(indication.as_str()) {
+                    medication_to_conditions[med_idx]
+                        .push((cond_idx, med.frequency as f32));
+                }
+            }
+        }
+        let mut procedure_to_conditions: Vec<SmallVec<[(u16, f32); 4]>> =
+            vec![SmallVec::new(); num_procedures];
+        for (proc_idx, proc) in fp.procedures.iter().enumerate() {
+            for indication in &proc.indications {
+                if let Some(&cond_idx) = condition_code_to_idx.get(indication.as_str()) {
+                    procedure_to_conditions[proc_idx]
+                        .push((cond_idx, proc.frequency as f32));
+                }
+            }
+        }
+
         // Build frequency arrays
         let medication_frequencies: Vec<f32> =
             fp.medications.iter().map(|m| m.frequency as f32).collect();
@@ -515,6 +550,8 @@ impl ArchetypeRegistry {
             medication_stride,
             condition_to_medications,
             condition_to_procedures,
+            medication_to_conditions,
+            procedure_to_conditions,
             medication_frequencies,
             observation_frequencies,
             procedure_frequencies,
@@ -533,6 +570,106 @@ impl ArchetypeRegistry {
             &self.active_thresholds_flat[base..base + len],
             &self.active_indices_flat[base..base + len],
         )
+    }
+
+    /// REASONCODE inverse: returns the conditions that can cause this
+    /// medication and their `P(med | cond)` weights. Used by event sampling
+    /// to link each prescribed medication to a triggering condition (the
+    /// equivalent of Java Synthea's `medications.csv:REASONCODE` column).
+    #[inline]
+    pub fn medication_to_conditions(&self, med_idx: u16) -> &[(u16, f32)] {
+        self.medication_to_conditions
+            .get(med_idx as usize)
+            .map(|v| v.as_slice())
+            .unwrap_or(&[])
+    }
+
+    /// REASONCODE inverse for procedures (matches the Java Synthea
+    /// `procedures.csv:REASONCODE` column).
+    #[inline]
+    pub fn procedure_to_conditions(&self, proc_idx: u16) -> &[(u16, f32)] {
+        self.procedure_to_conditions
+            .get(proc_idx as usize)
+            .map(|v| v.as_slice())
+            .unwrap_or(&[])
+    }
+
+    /// Sample which condition caused a particular medication for a patient
+    /// with the given active condition set, weighted by `P(med | cond)`
+    /// over the intersection of `active_conditions` and the medication's
+    /// indication list. Returns `u16::MAX` as a sentinel when no active
+    /// condition is an indication for this medication (matches Java's
+    /// empty-REASONCODE rows for prophylactic or routine prescriptions).
+    #[inline]
+    pub fn sample_medication_cause<R: Rng>(
+        &self,
+        med_idx: u16,
+        active_conditions: &[u16],
+        rng: &mut R,
+    ) -> u16 {
+        let candidates = self.medication_to_conditions(med_idx);
+        let mut total = 0.0f32;
+        for &(cond_idx, freq) in candidates {
+            if active_conditions.contains(&cond_idx) {
+                total += freq;
+            }
+        }
+        if total <= 0.0 {
+            return u16::MAX;
+        }
+        let mut pick = rng.gen::<f32>() * total;
+        for &(cond_idx, freq) in candidates {
+            if !active_conditions.contains(&cond_idx) {
+                continue;
+            }
+            pick -= freq;
+            if pick <= 0.0 {
+                return cond_idx;
+            }
+        }
+        // Fallback: return the last-considered candidate (shouldn't usually fire)
+        candidates
+            .iter()
+            .rev()
+            .find(|(c, _)| active_conditions.contains(c))
+            .map(|(c, _)| *c)
+            .unwrap_or(u16::MAX)
+    }
+
+    /// REASONCODE-for-procedure equivalent of `sample_medication_cause`.
+    #[inline]
+    pub fn sample_procedure_cause<R: Rng>(
+        &self,
+        proc_idx: u16,
+        active_conditions: &[u16],
+        rng: &mut R,
+    ) -> u16 {
+        let candidates = self.procedure_to_conditions(proc_idx);
+        let mut total = 0.0f32;
+        for &(cond_idx, freq) in candidates {
+            if active_conditions.contains(&cond_idx) {
+                total += freq;
+            }
+        }
+        if total <= 0.0 {
+            return u16::MAX;
+        }
+        let mut pick = rng.gen::<f32>() * total;
+        for &(cond_idx, freq) in candidates {
+            if !active_conditions.contains(&cond_idx) {
+                continue;
+            }
+            pick -= freq;
+            if pick <= 0.0 {
+                return cond_idx;
+            }
+        }
+        candidates
+            .iter()
+            .rev()
+            .find(|(c, _)| active_conditions.contains(c))
+            .map(|(c, _)| *c)
+            .unwrap_or(u16::MAX)
     }
 
     /// Sample an onset age (days since birth) for the given condition.

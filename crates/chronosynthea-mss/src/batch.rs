@@ -16,10 +16,27 @@ use smallvec::SmallVec;
 
 use crate::archetype::{ArchetypeRegistry, CooccurrenceModel, PatientArchetype};
 use crate::arena::{CompactEvent, CompactPatient, FullEncounter, FullPatient};
+use crate::causal_dag::CausalDagModel;
 use crate::fingerprint::MssFingerprint;
 use crate::sampler::{EventSampler, SimdSampler};
 use crate::stats::StreamingStatistics;
 use crate::tables::CodeTable;
+
+/// Joint-structure sampling mode. d5 axis value in code.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum JointMode {
+    /// Independent per-condition Bernoulli draws against calibrated marginals.
+    /// Default when no cooccurrence data is loaded.
+    MarginalOnly,
+    /// Additive boost from empirical conditional probabilities with two-knob
+    /// recalibration. Activated when `cooccurrence_pairs` is populated.
+    PairwiseEmpirical,
+    /// Single-site Gibbs sampler over the full condition vector — handles
+    /// both positive and negative correlations and three-way+ joint structure
+    /// via iteration. Activated when `CHRONOSYNTHEA_JOINT_MODE = "causal-dag"`
+    /// AND a cooccurrence file is loaded.
+    CausalDag,
+}
 
 /// Configuration for batch generation.
 #[derive(Debug, Clone)]
@@ -258,6 +275,16 @@ pub struct BatchGenerator {
 
     /// Co-occurrence model for condition dependencies.
     cooccurrence: Arc<CooccurrenceModel>,
+
+    /// Optional Gibbs Ising-model sampler for d5 = `causal-DAG`. Constructed
+    /// from the fingerprint's cooccurrence map but only consulted when
+    /// `joint_mode == CausalDag`. `Arc` so it can be shared across Rayon
+    /// workers without per-thread cloning of the interaction table.
+    causal_dag: Arc<CausalDagModel>,
+
+    /// Active d5 joint-structure mode. Set once at construction from the
+    /// fingerprint contents and `CHRONOSYNTHEA_JOINT_MODE` env var.
+    joint_mode: JointMode,
 }
 
 impl BatchGenerator {
@@ -266,6 +293,23 @@ impl BatchGenerator {
         let archetypes = Arc::new(ArchetypeRegistry::from_fingerprint(&fingerprint));
         let code_table = Arc::new(CodeTable::from_fingerprint(&fingerprint));
         let cooccurrence = Arc::new(CooccurrenceModel::from_fingerprint(&fingerprint));
+        let causal_dag = Arc::new(CausalDagModel::from_fingerprint(&fingerprint));
+
+        // d5 mode selection. Defaults to MarginalOnly; promotes to
+        // PairwiseEmpirical when cooccurrence is loaded; promotes further
+        // to CausalDag when the env var asks for it (and there's data to
+        // build a meaningful Ising model from).
+        let joint_mode = if std::env::var("CHRONOSYNTHEA_JOINT_MODE").as_deref()
+            == Ok("causal-dag")
+            && !causal_dag.is_empty()
+        {
+            JointMode::CausalDag
+        } else if !cooccurrence.is_empty() {
+            JointMode::PairwiseEmpirical
+        } else {
+            JointMode::MarginalOnly
+        };
+
         let fingerprint = Arc::new(fingerprint);
 
         Self {
@@ -274,7 +318,14 @@ impl BatchGenerator {
             code_table,
             fingerprint,
             cooccurrence,
+            causal_dag,
+            joint_mode,
         }
+    }
+
+    /// Returns the active d5 joint-structure mode.
+    pub fn joint_mode(&self) -> JointMode {
+        self.joint_mode
     }
 
     /// Generates patients and returns aggregate statistics only (fastest path).
@@ -285,6 +336,8 @@ impl BatchGenerator {
         let num_conditions = self.archetypes.num_conditions();
         let base_seed = self.config.seed;
         let cooccurrence = Arc::clone(&self.cooccurrence);
+        let causal_dag = Arc::clone(&self.causal_dag);
+        let joint_mode = self.joint_mode;
         let archetypes = Arc::clone(&self.archetypes);
 
         struct LocalStats {
@@ -322,20 +375,51 @@ impl BatchGenerator {
 
                     let archetype = archetypes.sample(&mut s.rng);
 
-                    if cooccurrence.is_empty() {
-                        let (thr, idx) = archetypes.active_view(archetype.id);
-                        s.sampler.sample_active(
-                            thr,
-                            idx,
-                            &mut s.rng,
-                            &mut s.condition_buffer,
-                        );
-                    } else {
-                        archetype.sample_conditions_with_cooccurrence(
-                            &mut s.rng,
-                            &mut s.condition_buffer,
-                            &cooccurrence,
-                        );
+                    match joint_mode {
+
+
+                        JointMode::CausalDag => {
+
+
+                            causal_dag.sample(archetype, &mut s.condition_buffer, &mut s.rng);
+
+
+                        }
+
+
+                        JointMode::PairwiseEmpirical => {
+
+
+                            archetype.sample_conditions_with_cooccurrence(
+
+
+                                &mut s.rng,
+
+
+                                &mut s.condition_buffer,
+
+
+                                &cooccurrence,
+
+
+                            );
+
+
+                        }
+
+
+                        JointMode::MarginalOnly => {
+
+
+                            let (thr, idx) = archetypes.active_view(archetype.id);
+
+
+                            s.sampler.sample_active(thr, idx, &mut s.rng, &mut s.condition_buffer);
+
+
+                        }
+
+
                     }
 
                     let encounter_count = self.estimate_encounters(archetype, &mut s.rng);
@@ -387,6 +471,9 @@ impl BatchGenerator {
         let base_seed = self.config.seed;
         let reference_days = self.config.reference_days();
         let cooccurrence = Arc::clone(&self.cooccurrence);
+        // causal_dag / joint_mode dispatch happens inside the `generate_compact_patient`
+        // helper method through `self.causal_dag` / `self.joint_mode` — no local capture
+        // needed here.
 
         (0..count)
             .into_par_iter()
@@ -437,11 +524,17 @@ impl BatchGenerator {
         // Sample conditions with co-occurrence modeling — dense SIMD active-view
         // on the fast path; the scalar branch fires only when a populated
         // co-occurrence model is plugged in.
-        if cooccurrence.is_empty() {
-            let (thr, idx) = self.archetypes.active_view(archetype.id);
-            sampler.sample_active(thr, idx, rng, condition_buffer);
-        } else {
-            archetype.sample_conditions_with_cooccurrence(rng, condition_buffer, cooccurrence);
+        match self.joint_mode {
+            JointMode::CausalDag => {
+                self.causal_dag.sample(archetype, condition_buffer, rng);
+            }
+            JointMode::PairwiseEmpirical => {
+                archetype.sample_conditions_with_cooccurrence(rng, condition_buffer, cooccurrence);
+            }
+            JointMode::MarginalOnly => {
+                let (thr, idx) = self.archetypes.active_view(archetype.id);
+                sampler.sample_active(thr, idx, rng, condition_buffer);
+            }
         }
 
         // Sample age within archetype range
@@ -575,11 +668,12 @@ impl BatchGenerator {
 
         let base_seed = self.config.seed;
         let cooccurrence = Arc::clone(&self.cooccurrence);
+        let causal_dag = Arc::clone(&self.causal_dag);
+        let joint_mode = self.joint_mode;
         let archetypes = Arc::clone(&self.archetypes);
 
         let obs_freqs = archetypes.observation_frequencies();
         let proc_freqs = archetypes.procedure_frequencies();
-        let use_cooccurrence = !cooccurrence.is_empty();
         let max_encounters_f = self.config.max_encounters as f32;
 
         struct LocalStats {
@@ -626,20 +720,30 @@ impl BatchGenerator {
                 |mut s, _patient_id| {
                     let archetype = archetypes.sample(&mut s.cond_rng);
 
-                    if use_cooccurrence {
-                        archetype.sample_conditions_with_cooccurrence(
-                            &mut s.cond_rng,
-                            &mut s.condition_buffer,
-                            &cooccurrence,
-                        );
-                    } else {
-                        let (thr, idx) = archetypes.active_view(archetype.id);
-                        s.sampler.sample_active(
-                            thr,
-                            idx,
-                            &mut s.cond_rng,
-                            &mut s.condition_buffer,
-                        );
+                    match joint_mode {
+                        JointMode::CausalDag => {
+                            causal_dag.sample(
+                                archetype,
+                                &mut s.condition_buffer,
+                                &mut s.cond_rng,
+                            );
+                        }
+                        JointMode::PairwiseEmpirical => {
+                            archetype.sample_conditions_with_cooccurrence(
+                                &mut s.cond_rng,
+                                &mut s.condition_buffer,
+                                &cooccurrence,
+                            );
+                        }
+                        JointMode::MarginalOnly => {
+                            let (thr, idx) = archetypes.active_view(archetype.id);
+                            s.sampler.sample_active(
+                                thr,
+                                idx,
+                                &mut s.cond_rng,
+                                &mut s.condition_buffer,
+                            );
+                        }
                     }
 
                     let med_thresholds = archetypes.medication_thresholds(archetype.id);
@@ -736,6 +840,8 @@ impl BatchGenerator {
     pub fn generate_full(&self, count: usize) -> Vec<FullPatient> {
         let base_seed = self.config.seed;
         let cooccurrence = Arc::clone(&self.cooccurrence);
+        // Dispatch via `self.joint_mode` / `self.causal_dag` inside the
+        // `generate_full_patient` helper — no local capture needed.
         let archetypes = Arc::clone(&self.archetypes);
 
         (0..count)
@@ -787,12 +893,18 @@ impl BatchGenerator {
         // Sample archetype
         let archetype = archetypes.sample(rng);
 
-        // Sample conditions with co-occurrence modeling — dense SIMD active-view on the fast path
-        if cooccurrence.is_empty() {
-            let (thr, idx) = archetypes.active_view(archetype.id);
-            sampler.sample_active(thr, idx, rng, condition_buffer);
-        } else {
-            archetype.sample_conditions_with_cooccurrence(rng, condition_buffer, cooccurrence);
+        // Sample conditions with d5 dispatch — dense SIMD active-view on the marginal path.
+        match self.joint_mode {
+            JointMode::CausalDag => {
+                self.causal_dag.sample(archetype, condition_buffer, rng);
+            }
+            JointMode::PairwiseEmpirical => {
+                archetype.sample_conditions_with_cooccurrence(rng, condition_buffer, cooccurrence);
+            }
+            JointMode::MarginalOnly => {
+                let (thr, idx) = archetypes.active_view(archetype.id);
+                sampler.sample_active(thr, idx, rng, condition_buffer);
+            }
         }
 
         // Sample age within archetype range
@@ -820,6 +932,15 @@ impl BatchGenerator {
         let meds =
             event_sampler.sample_medications_for_conditions(condition_buffer, archetypes, rng);
         patient.medications = SmallVec::from_slice(meds);
+
+        // REASONCODE linkage: for each sampled medication, pick the
+        // condition that caused it (matches Java Synthea's
+        // medications.csv:REASONCODE column).
+        patient.medication_causes = patient
+            .medications
+            .iter()
+            .map(|&m| archetypes.sample_medication_cause(m, condition_buffer, rng))
+            .collect();
 
         // Generate encounters and sample procedures per encounter
         let encounter_count = self.estimate_encounters(archetype, rng).min(30) as u32;
@@ -914,6 +1035,14 @@ impl BatchGenerator {
 
         // Copy accumulated procedures to patient
         patient.procedures = SmallVec::from_slice(event_sampler.accumulated_procedures());
+
+        // REASONCODE linkage for procedures (matches Java Synthea's
+        // procedures.csv:REASONCODE column).
+        patient.procedure_causes = patient
+            .procedures
+            .iter()
+            .map(|&p| archetypes.sample_procedure_cause(p, condition_buffer, rng))
+            .collect();
 
         patient
     }

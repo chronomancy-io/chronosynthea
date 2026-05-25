@@ -116,8 +116,16 @@ pub struct FullPatient {
     pub conditions: SmallVec<[u16; 8]>,
     /// Medication indices.
     pub medications: SmallVec<[u16; 8]>,
+    /// REASONCODE per medication — the condition index that caused each
+    /// prescription. Parallel to `medications`. `u16::MAX` means "no
+    /// active condition is an indication" (prophylactic / routine
+    /// prescription, like Java Synthea's empty REASONCODE rows).
+    pub medication_causes: SmallVec<[u16; 8]>,
     /// Procedure indices.
     pub procedures: SmallVec<[u16; 8]>,
+    /// REASONCODE per procedure — same shape as `medication_causes` but
+    /// for the procedure list. Parallel to `procedures`.
+    pub procedure_causes: SmallVec<[u16; 8]>,
     /// Encounters with their events.
     pub encounters: SmallVec<[FullEncounter; 8]>,
 }
@@ -152,7 +160,9 @@ impl FullPatient {
             archetype_id,
             conditions: SmallVec::new(),
             medications: SmallVec::new(),
+            medication_causes: SmallVec::new(),
             procedures: SmallVec::new(),
+            procedure_causes: SmallVec::new(),
             encounters: SmallVec::new(),
         }
     }
