@@ -121,12 +121,26 @@ fn test_generate_matches_java_baseline() {
         num_conditions
     );
 
-    // Allow up to 30% of conditions to be outside tolerance
-    // This is a loose check - production would be stricter
+    // Production gate. Observed across 50 seeds × 100k patients (see seed_sweep test):
+    //   max_deviation: 0.30%–0.31% (variance < 0.01 percentage points, LLN-dominated)
+    //   failure_rate:  0/214 conditions (exact across all seeds tested)
+    //
+    // Gate thresholds (each is well above the observed value, but enforces G1/G3
+    // as actual guarantees rather than as eprintln-only observations):
+    //   max_deviation < 0.5% (16× margin over the worst observed value)
+    //   failure_rate  == 0   (no condition outside 10% tolerance)
     assert!(
-        failure_rate < 0.30,
-        "Too many conditions outside tolerance: {:.1}%",
-        failure_rate * 100.0
+        result.max_deviation < 0.005,
+        "max_deviation {:.4}% exceeds 0.5% gate",
+        result.max_deviation * 100.0
+    );
+    assert_eq!(
+        result.failures.len(),
+        0,
+        "expected 0 conditions outside 10% tolerance, got {} ({:.1}%): {:?}",
+        result.failures.len(),
+        failure_rate * 100.0,
+        result.failures
     );
 }
 

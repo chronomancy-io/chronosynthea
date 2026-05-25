@@ -11,13 +11,31 @@ use smallvec::SmallVec;
 use crate::fingerprint::{DemographicBucket, MssFingerprint};
 
 /// Maximum number of conditions per archetype.
+/// Cap on the number of distinct conditions a fingerprint may carry.
+/// Currently 256 (one byte's worth of indices), well above the 214 we ship.
+/// Reserved for future bounds-checking; unused on the current hot path.
+#[allow(dead_code)]
 const MAX_CONDITIONS: usize = 256;
 
 /// A patient archetype with pre-computed condition probabilities.
 #[derive(Debug, Clone)]
 pub struct PatientArchetype {
-    /// Archetype ID (for deterministic generation).
-    pub id: u16,
+    /// Archetype ID (for deterministic generation). Typed as `ArchetypeId`
+    /// so the compiler refuses to confuse it with a `ConditionIndex` or
+    /// other bare `u16` index at API boundaries.
+    pub id: crate::types::ArchetypeId,
+
+    /// Dense per-archetype condition→base-probability lookup table.
+    /// `prob_by_condition[cond_idx]` is the base prevalence of condition
+    /// `cond_idx` in this archetype, or `0.0` if the condition is inactive.
+    ///
+    /// Replaces the previous linear scan through `self.conditions` in the
+    /// joint sampler's boost loop. With ~25 triggers per patient × ~3
+    /// dependents per trigger × ~30 active conditions, the scan cost was
+    /// ~2,250 ops per patient just for base_prob lookups; this table makes
+    /// each lookup O(1) (one `Vec` read). Populated by `ArchetypeBuilder::build`
+    /// and `from_fingerprint` after `conditions` is finalised.
+    pub prob_by_condition: Vec<f32>,
 
     /// Demographic bucket.
     pub demographics: DemographicBucket,
@@ -68,41 +86,50 @@ impl PatientArchetype {
             }
         }
 
-        // Second pass: apply co-occurrence boosts
-        // Check sampled conditions and potentially add co-occurring ones
-        // We only boost conditions that were NOT already sampled
-        let initial_len = buffer.len();
-        for i in 0..initial_len {
-            let trigger_cond = buffer[i];
+        // Second pass: additive co-occurrence boost. For each sampled trigger,
+        // walk its (positive-correlation) dependents and add not-yet-sampled
+        // ones with probability `(conditional - base) * 0.5 * dependent_scale`.
+        //
+        // We tried adding symmetric subtractive moves (`conditional < base`
+        // → remove) to capture negative correlations. Result: multi-trigger
+        // subtraction stacks and annihilates high-marginal conditions. The
+        // right architecture for negatives is a joint sampler (Gibbs/Ising)
+        // that resamples conditional on the full vector rather than
+        // independently per pair. Documented future work (d5 = `causal-DAG`).
+        //
+        // Snapshot triggers before iterating — keeps the loop deterministic
+        // even if we later restore a subtractive branch. Use a 512-bit
+        // `EventBitset` for O(1) membership checks instead of the
+        // `buffer.contains` linear scan (was ~25 ops per check × many checks).
+        const DAMPING: f32 = 0.5;
+        let triggers: SmallVec<[u16; 8]> = buffer.iter().copied().collect();
+        let mut present = crate::sampler::EventBitset::default();
+        for &c in &triggers {
+            present.test_and_set(c);
+        }
+        for &trigger_cond in &triggers {
             if let Some(dependents) = cooccurrence.get_dependents(trigger_cond) {
                 for &(dependent_idx, conditional_prob) in dependents {
-                    // Skip if already in buffer
-                    if buffer.contains(&dependent_idx) {
-                        continue;
-                    }
-
-                    // Find the base probability for this condition
                     let base_prob = self
-                        .conditions
-                        .iter()
-                        .find(|(idx, _)| *idx == dependent_idx)
-                        .map(|(_, p)| *p)
+                        .prob_by_condition
+                        .get(dependent_idx as usize)
+                        .copied()
                         .unwrap_or(0.0);
-
-                    // If base prob is already high, less room for boost
-                    // Calculate the additional probability to add
-                    // boost = conditional_prob - base_prob, clamped to positive
-                    let remaining = 1.0 - base_prob;
-                    if remaining <= 0.0 {
+                    if conditional_prob <= base_prob {
                         continue;
                     }
-
-                    // Scale the conditional prob by how much room is left
-                    // This prevents double-counting
-                    let boost = (conditional_prob - base_prob).max(0.0) * 0.5;
-
-                    if rng.gen::<f32>() < boost {
+                    if present.test(dependent_idx) {
+                        continue;
+                    }
+                    let scale = cooccurrence
+                        .dependent_scale()
+                        .get(dependent_idx as usize)
+                        .copied()
+                        .unwrap_or(1.0);
+                    let boost = (conditional_prob - base_prob) * DAMPING * scale;
+                    if boost > 0.0 && rng.gen::<f32>() < boost {
                         buffer.push(dependent_idx);
+                        present.test_and_set(dependent_idx);
                     }
                 }
             }
@@ -148,6 +175,27 @@ pub struct ArchetypeRegistry {
 
     /// Stride for condition_thresholds (= num_conditions padded to 8).
     threshold_stride: usize,
+
+    /// Dense per-archetype packed (threshold, idx) view for SIMD sampling.
+    ///
+    /// `condition_thresholds` above is a 214-wide padded layout in which
+    /// most slots are zero (an archetype typically activates ~30/214
+    /// conditions). The dense layout below packs only the active conditions
+    /// (one f32 threshold + one u16 original-index per active condition,
+    /// padded to a multiple of 8 with `threshold = 0.0` sentinels so the
+    /// SIMD compare cannot set mask bits for padding).
+    ///
+    /// This is the hot-path layout used by `SimdSampler::sample_active` —
+    /// the inner loop iterates ~4 SIMD chunks per archetype instead of 27.
+    active_thresholds_flat: Vec<f32>,
+    active_indices_flat: Vec<u16>,
+    /// `active_offsets[arch_id]` = start offset into `active_thresholds_flat`
+    /// and `active_indices_flat` for archetype `arch_id`.
+    active_offsets: Vec<usize>,
+    /// `active_padded_lens[arch_id]` = number of slots used (padded to 8) for
+    /// archetype `arch_id`. The slice `[offset .. offset+padded_len]` is what
+    /// the SIMD compare iterates.
+    active_padded_lens: Vec<usize>,
 
     /// Pre-computed medication thresholds per archetype.
     /// Layout: [archetype_0_med_0, archetype_0_med_1, ..., archetype_1_med_0, ...]
@@ -297,11 +345,20 @@ impl ArchetypeRegistry {
             // Sort by probability descending for early termination
             conditions.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
 
+            // Build the dense O(1) lookup table for the joint sampler.
+            let mut prob_by_condition = vec![0.0f32; num_conditions];
+            for &(cidx, p) in &conditions {
+                if (cidx as usize) < prob_by_condition.len() {
+                    prob_by_condition[cidx as usize] = p;
+                }
+            }
+
             let archetype = PatientArchetype {
-                id: archetypes.len() as u16,
+                id: crate::types::ArchetypeId(archetypes.len() as u16),
                 demographics: bucket.clone(),
                 age_range,
                 conditions,
+                prob_by_condition,
                 weight: weight as f32,
                 mean_encounters: fp
                     .encounter_stats
@@ -319,7 +376,7 @@ impl ArchetypeRegistry {
         let weights: Vec<f32> = archetypes.iter().map(|a| a.weight).collect();
         let alias_table = AliasTable::new(&weights);
 
-        // Build flat condition threshold array for SIMD
+        // Build flat condition threshold array for SIMD (legacy 214-wide padded layout)
         let threshold_stride = (num_conditions + 7) & !7; // Pad to multiple of 8
         let mut condition_thresholds = vec![0.0f32; archetypes.len() * threshold_stride];
 
@@ -328,6 +385,31 @@ impl ArchetypeRegistry {
             for &(cond_idx, prob) in &archetype.conditions {
                 condition_thresholds[base + cond_idx as usize] = prob;
             }
+        }
+
+        // Build the dense active-only layout used by the SIMD hot path.
+        // For each archetype, pack its `conditions` list (already filtered to
+        // prob > 0.001 and sorted desc) into a multiple-of-8 slab, padding
+        // with `threshold = 0.0` sentinels so the SIMD compare never sets
+        // mask bits for padding slots.
+        let mut active_thresholds_flat: Vec<f32> = Vec::new();
+        let mut active_indices_flat: Vec<u16> = Vec::new();
+        let mut active_offsets: Vec<usize> = Vec::with_capacity(archetypes.len());
+        let mut active_padded_lens: Vec<usize> = Vec::with_capacity(archetypes.len());
+
+        for archetype in archetypes.iter() {
+            active_offsets.push(active_thresholds_flat.len());
+            let raw_len = archetype.conditions.len();
+            let padded = (raw_len + 7) & !7;
+            for &(cond_idx, prob) in &archetype.conditions {
+                active_thresholds_flat.push(prob);
+                active_indices_flat.push(cond_idx);
+            }
+            for _ in raw_len..padded {
+                active_thresholds_flat.push(0.0);
+                active_indices_flat.push(0);
+            }
+            active_padded_lens.push(padded);
         }
 
         // Build condition -> medications lookup
@@ -396,6 +478,10 @@ impl ArchetypeRegistry {
             num_procedures,
             condition_thresholds,
             threshold_stride,
+            active_thresholds_flat,
+            active_indices_flat,
+            active_offsets,
+            active_padded_lens,
             medication_thresholds,
             medication_stride,
             condition_to_medications,
@@ -406,8 +492,74 @@ impl ArchetypeRegistry {
         }
     }
 
-    /// Samples an archetype in O(1).
+    /// Dense per-archetype active-condition view for the SIMD hot path.
+    /// Returns `(thresholds, original_indices)` slices of equal length, padded
+    /// to a multiple of 8 with `0.0` thresholds so the SIMD compare cannot
+    /// set mask bits for padding slots.
     #[inline]
+    pub fn active_view(&self, archetype_id: crate::types::ArchetypeId) -> (&[f32], &[u16]) {
+        let base = self.active_offsets[archetype_id.as_index()];
+        let len = self.active_padded_lens[archetype_id.as_index()];
+        (
+            &self.active_thresholds_flat[base..base + len],
+            &self.active_indices_flat[base..base + len],
+        )
+    }
+
+    /// Apply a per-condition multiplicative scale to every threshold layout the
+    /// registry holds. Used by the marginal-recalibration loop (closes the F4
+    /// gate gap when the d5 `pairwise-empirical` mode is active — the joint
+    /// boost adds dependents on top of the independent draws, inflating their
+    /// marginals; this method scales every per-archetype prevalence to
+    /// counter-balance until the aggregate marginal matches the calibrated
+    /// target).
+    ///
+    /// `multipliers` is indexed by condition (length = num_conditions). Each
+    /// entry is clamped into `[0.0, 1.0]` after multiplication so probabilities
+    /// stay valid.
+    pub fn scale_per_condition_prevalence(&mut self, multipliers: &[f32]) {
+        assert_eq!(
+            multipliers.len(),
+            self.num_conditions,
+            "multipliers length must equal num_conditions"
+        );
+
+        // 1. Update each archetype's packed `conditions` list.
+        for arch in self.archetypes.iter_mut() {
+            for (cond_idx, prob) in arch.conditions.iter_mut() {
+                let m = multipliers[*cond_idx as usize];
+                *prob = (*prob * m).clamp(0.0, 1.0);
+            }
+        }
+
+        // 2. Update the legacy 214-wide padded layout (`condition_thresholds`).
+        for arch_idx in 0..self.archetypes.len() {
+            let base = arch_idx * self.threshold_stride;
+            for cond_idx in 0..self.num_conditions {
+                let m = multipliers[cond_idx];
+                let p = self.condition_thresholds[base + cond_idx];
+                self.condition_thresholds[base + cond_idx] = (p * m).clamp(0.0, 1.0);
+            }
+        }
+
+        // 3. Update the dense `active_thresholds_flat`. Each slot corresponds
+        // to a `(cond_idx, threshold)` pair in `active_indices_flat`; we use
+        // the original index to look up the multiplier.
+        for i in 0..self.active_thresholds_flat.len() {
+            let cond_idx = self.active_indices_flat[i] as usize;
+            // Padding slots have cond_idx == 0 AND threshold == 0.0. We must
+            // not touch those — the SIMD compare relies on them staying 0.0.
+            if self.active_thresholds_flat[i] == 0.0 {
+                continue;
+            }
+            let m = multipliers[cond_idx];
+            self.active_thresholds_flat[i] =
+                (self.active_thresholds_flat[i] * m).clamp(0.0, 1.0);
+        }
+    }
+
+    /// Samples an archetype in O(1).
+    #[inline(always)]
     pub fn sample<R: Rng>(&self, rng: &mut R) -> &PatientArchetype {
         let idx = self.alias_table.sample(rng);
         &self.archetypes[idx as usize]
@@ -415,8 +567,8 @@ impl ArchetypeRegistry {
 
     /// Gets an archetype by ID.
     #[inline]
-    pub fn get(&self, id: u16) -> Option<&PatientArchetype> {
-        self.archetypes.get(id as usize)
+    pub fn get(&self, id: crate::types::ArchetypeId) -> Option<&PatientArchetype> {
+        self.archetypes.get(id.as_index())
     }
 
     /// Returns the number of archetypes.
@@ -436,8 +588,8 @@ impl ArchetypeRegistry {
 
     /// Returns the condition thresholds for SIMD sampling.
     #[inline]
-    pub fn condition_thresholds(&self, archetype_id: u16) -> &[f32] {
-        let base = archetype_id as usize * self.threshold_stride;
+    pub fn condition_thresholds(&self, archetype_id: crate::types::ArchetypeId) -> &[f32] {
+        let base = archetype_id.as_index() * self.threshold_stride;
         &self.condition_thresholds[base..base + self.num_conditions]
     }
 
@@ -449,8 +601,8 @@ impl ArchetypeRegistry {
     /// Returns the pre-computed medication thresholds for an archetype.
     /// These are P(medication) = sum of P(cond) * P(med | cond) for SIMD sampling.
     #[inline]
-    pub fn medication_thresholds(&self, archetype_id: u16) -> &[f32] {
-        let base = archetype_id as usize * self.medication_stride;
+    pub fn medication_thresholds(&self, archetype_id: crate::types::ArchetypeId) -> &[f32] {
+        let base = archetype_id.as_index() * self.medication_stride;
         &self.medication_thresholds[base..base + self.num_medications]
     }
 
@@ -468,7 +620,7 @@ impl ArchetypeRegistry {
     #[inline]
     pub fn sample_conditions_flat<R: Rng>(
         &self,
-        archetype_id: u16,
+        archetype_id: crate::types::ArchetypeId,
         rng: &mut R,
         buffer: &mut SmallVec<[u16; 8]>,
     ) {
@@ -537,6 +689,16 @@ pub struct CooccurrenceModel {
     /// Maps condition index -> list of (dependent_condition_idx, conditional_probability).
     /// P(dependent | trigger) = conditional_probability
     dependents: AHashMap<u16, SmallVec<[(u16, f32); 4]>>,
+
+    /// Per-dependent boost-scale knob set by the recalibration loop.
+    /// `boost_contribution_to(c) = (conditional - base) * 0.5 * dependent_scale[c]`.
+    /// Default `1.0` (no scaling).
+    ///
+    /// The recalibration loop adjusts these *and* the per-archetype base
+    /// prevalences together so the joint sampler converges to the calibrated
+    /// marginal targets — a two-knob fit that the additive-only sampler
+    /// needs to close the marginal-vs-joint gap.
+    dependent_scale: Vec<f32>,
 }
 
 impl CooccurrenceModel {
@@ -548,6 +710,7 @@ impl CooccurrenceModel {
     /// Builds a co-occurrence model from a fingerprint.
     pub fn from_fingerprint(fp: &MssFingerprint) -> Self {
         let mut model = Self::new();
+        model.dependent_scale = vec![1.0; fp.conditions.len()];
 
         // Build code -> index lookup
         let code_to_idx: AHashMap<&str, u16> = fp
@@ -567,7 +730,40 @@ impl CooccurrenceModel {
             }
         }
 
+        // Apply recalibration boost multipliers if the fingerprint carries
+        // them. This is the second knob of the two-knob fit that makes joint
+        // mode converge to the calibrated marginal targets without losing the
+        // joint-correlation signal.
+        for (code, &mult) in &fp.cooccurrence_dependent_scale {
+            if let Some(&idx) = code_to_idx.get(code.as_str()) {
+                if (idx as usize) < model.dependent_scale.len() {
+                    model.dependent_scale[idx as usize] = mult as f32;
+                }
+            }
+        }
+
         model
+    }
+
+    /// Multiplies each entry of `dependent_scale` by the supplied factors.
+    /// Lengths must match. Each scale is clamped into `[0.0, 4.0]` after
+    /// multiplication. Used by the recalibration loop to adjust per-dependent
+    /// boost magnitude.
+    pub fn scale_dependent_boosts(&mut self, factors: &[f32]) {
+        if self.dependent_scale.len() != factors.len() {
+            // Resize to match (in case the model was freshly built without
+            // a known num_conditions).
+            self.dependent_scale.resize(factors.len(), 1.0);
+        }
+        for (s, f) in self.dependent_scale.iter_mut().zip(factors.iter()) {
+            *s = (*s * *f).clamp(0.0, 4.0);
+        }
+    }
+
+    /// Returns the current dependent-boost scale vector. `1.0` per entry by
+    /// default.
+    pub fn dependent_scale(&self) -> &[f32] {
+        &self.dependent_scale
     }
 
     /// Adds a dependency relationship.
@@ -641,6 +837,7 @@ impl ArchetypeBuilder {
 
     /// Builds the archetype.
     pub fn build(mut self, id: u16) -> PatientArchetype {
+        let id = crate::types::ArchetypeId(id);
         self.conditions
             .sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
 
@@ -652,11 +849,25 @@ impl ArchetypeBuilder {
             _ => (18, 44),
         };
 
+        // Build the dense O(1) lookup table. Test fixtures use small
+        // condition spaces (often single-digit `cond_idx` values); pick a
+        // size at least big enough to cover the largest cond_idx the
+        // builder has seen.
+        let max_idx = self.conditions.iter().map(|(c, _)| *c as usize).max();
+        let size = max_idx.map(|m| m + 1).unwrap_or(0);
+        let mut prob_by_condition = vec![0.0f32; size];
+        for &(cidx, p) in &self.conditions {
+            if (cidx as usize) < prob_by_condition.len() {
+                prob_by_condition[cidx as usize] = p;
+            }
+        }
+
         PatientArchetype {
             id,
             demographics: self.demographics,
             age_range,
             conditions: self.conditions,
+            prob_by_condition,
             weight: self.weight,
             mean_encounters: self.mean_encounters,
             mean_events_per_encounter: self.mean_events_per_encounter,
@@ -697,7 +908,7 @@ mod tests {
             .with_weight(0.5)
             .build(0);
 
-        assert_eq!(archetype.id, 0);
+        assert_eq!(archetype.id, crate::types::ArchetypeId(0));
         assert_eq!(archetype.age_range, (45, 64));
         assert_eq!(archetype.conditions.len(), 2);
         // Sorted by probability descending
@@ -723,5 +934,150 @@ mod tests {
         assert!(buffer.contains(&0));
         // Condition 1 should never be present
         assert!(!buffer.contains(&1));
+    }
+
+    /// Boundary test: build a fingerprint whose joint_demographics yields one
+    /// well-populated archetype plus one archetype whose conditions are
+    /// universally below the 0.001 prevalence floor (i.e. zero active
+    /// conditions). Confirm that the dense `active_view` layout returns
+    /// empty-but-valid slices for the zero-active archetype, that
+    /// `sample_active` produces an empty output without panicking, and that
+    /// the adjacent populated archetype's slab is not corrupted.
+    ///
+    /// Skeptic Wave 2 surfaced this as a structural risk: the old 214-wide
+    /// padded layout had each archetype occupy a fixed 214-slot block, so
+    /// off-by-one offsets were impossible. The dense layout uses variable-
+    /// sized slabs with per-archetype `active_offsets` + `active_padded_lens`
+    /// — a boundary miscalculation could silently cross-contaminate adjacent
+    /// archetype thresholds. This test pins the boundary.
+    #[test]
+    fn test_active_view_zero_active_archetype() {
+        use crate::fingerprint::{
+            ConditionStats, DemographicBucket as FpDemo, EncounterStats, JointDemographics,
+            MssFingerprint,
+        };
+        use ahash::AHashMap;
+        use crate::sampler::SimdSampler;
+
+        // Two demographic buckets: a populated one and a "ghost" one.
+        let populated = FpDemo::new("45-64", "male", "white", "nonhispanic");
+        let ghost = FpDemo::new("18-44", "female", "asian", "hispanic");
+
+        let mut buckets = AHashMap::new();
+        buckets.insert(populated.clone(), 0.7);
+        buckets.insert(ghost.clone(), 0.3);
+        let joint_demographics = JointDemographics {
+            buckets,
+            total_patients: 1000,
+        };
+
+        // Three conditions. Each has a `by_gender` multiplier of 0.0 for the
+        // ghost's gender ("female") and 1.0 for the populated bucket's gender
+        // ("male"). `ConditionStats::prevalence_for` multiplies the base
+        // prevalence by these multipliers, so the ghost archetype ends up with
+        // prevalence 0 for every condition — filtered out by the
+        // `if prob > 0.001` gate at line ~290 in `from_fingerprint`.
+        let mut zero_for_female: AHashMap<String, f64> = AHashMap::new();
+        zero_for_female.insert("male".to_string(), 1.0);
+        zero_for_female.insert("female".to_string(), 0.0);
+
+        let mk_cond = |code: &str, display: &str, prevalence: f64| ConditionStats {
+            code: code.to_string(),
+            display: display.to_string(),
+            prevalence,
+            by_age_bucket: AHashMap::new(),
+            by_gender: zero_for_female.clone(),
+            by_race: AHashMap::new(),
+            chronic: true,
+            mean_onset_age: 40.0,
+        };
+        let conditions = vec![
+            mk_cond("COND_A", "A", 0.40),
+            mk_cond("COND_B", "B", 0.25),
+            mk_cond("COND_C", "C", 0.10),
+        ];
+
+        let fp = MssFingerprint {
+            version: "1.0".to_string(),
+            source: "test-zero-active".to_string(),
+            total_patients: 1000,
+            total_encounters: 5000,
+            joint_demographics,
+            conditions,
+            medications: vec![],
+            observations: vec![],
+            procedures: vec![],
+            cooccurrence: AHashMap::new(),
+            cooccurrence_dependent_scale: AHashMap::new(),
+            encounter_stats: EncounterStats::default(),
+        };
+
+        let registry = ArchetypeRegistry::from_fingerprint(&fp);
+        assert_eq!(registry.len(), 2, "expected two archetypes");
+
+        // Identify the populated vs ghost archetype by inspecting the
+        // condition list each one carries (populated has 3, ghost has 0).
+        let (pop_id, ghost_id) = if registry.archetypes[0].conditions.is_empty() {
+            (
+                crate::types::ArchetypeId(1),
+                crate::types::ArchetypeId(0),
+            )
+        } else {
+            (
+                crate::types::ArchetypeId(0),
+                crate::types::ArchetypeId(1),
+            )
+        };
+        assert!(
+            registry.archetypes[ghost_id.as_index()].conditions.is_empty(),
+            "ghost archetype should have zero active conditions"
+        );
+        assert_eq!(
+            registry.archetypes[pop_id.as_index()].conditions.len(),
+            3,
+            "populated archetype should keep all three conditions"
+        );
+
+        // active_view on the ghost: empty slices, no panic.
+        let (ghost_thr, ghost_idx) = registry.active_view(ghost_id);
+        assert_eq!(ghost_thr.len(), 0);
+        assert_eq!(ghost_idx.len(), 0);
+
+        // active_view on the populated: 3 actives padded to 8.
+        let (pop_thr, pop_idx) = registry.active_view(pop_id);
+        assert_eq!(pop_thr.len(), 8, "padded to multiple of 8");
+        assert_eq!(pop_idx.len(), 8);
+        // First three slots are the real thresholds (sorted desc by prevalence).
+        assert!(pop_thr[0] > 0.0);
+        assert!(pop_thr[1] > 0.0);
+        assert!(pop_thr[2] > 0.0);
+        // Padding slots are sentinel zeros.
+        for k in 3..8 {
+            assert_eq!(pop_thr[k], 0.0, "padding slot {} must be 0.0 sentinel", k);
+        }
+
+        // Sample on the ghost: empty output, no panic.
+        let mut sampler = SimdSampler::from_registry(&registry);
+        let mut buf: SmallVec<[u16; 8]> = SmallVec::new();
+        let mut rng = Xoshiro256PlusPlus::seed_from_u64(42);
+        sampler.sample_active(ghost_thr, ghost_idx, &mut rng, &mut buf);
+        assert_eq!(buf.len(), 0, "ghost archetype must sample zero conditions");
+
+        // Sample on the populated: produces some conditions from the active set.
+        for seed in 0..10u64 {
+            buf.clear();
+            let mut rng = Xoshiro256PlusPlus::seed_from_u64(seed);
+            sampler.sample_active(pop_thr, pop_idx, &mut rng, &mut buf);
+            for &emitted in buf.iter() {
+                // Every emitted index must be one of the populated archetype's
+                // original condition indices — never a ghost index, never a
+                // bogus sentinel index, never an out-of-range value.
+                assert!(
+                    pop_idx[..3].contains(&emitted),
+                    "sample_active leaked index {emitted}; expected one of {:?}",
+                    &pop_idx[..3]
+                );
+            }
+        }
     }
 }

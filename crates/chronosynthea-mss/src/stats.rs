@@ -164,10 +164,20 @@ impl StreamingStatistics {
             max_deviation = max_deviation.max(deviation);
             deviations.push((cond.code.clone(), observed, expected, deviation));
 
-            // KL divergence contribution (with smoothing)
-            let p = observed.max(1e-10);
-            let q = expected.max(1e-10);
-            kl_divergence += p * (p / q).ln();
+            // Bernoulli-pair KL contribution.
+            //
+            // Each condition is an independent Bernoulli(p_i) observed vs Bernoulli(q_i)
+            // expected. The per-pair KL is:
+            //
+            //     D_KL(P_i || Q_i) = p log(p/q) + (1-p) log((1-p)/(1-q))
+            //
+            // which is non-negative by Gibbs' inequality (Cover & Thomas, Elements of
+            // Information Theory, 2nd ed., §2.6). Summing across independent conditions
+            // gives a quantity bounded in [0, ∞) — unlike the prior `Σ p log(p/q)` form
+            // which could be negative because the marginals do not sum to 1.
+            let p = observed.clamp(1e-10, 1.0 - 1e-10);
+            let q = expected.clamp(1e-10, 1.0 - 1e-10);
+            kl_divergence += p * (p / q).ln() + (1.0 - p) * ((1.0 - p) / (1.0 - q)).ln();
         }
 
         // Sort by deviation descending

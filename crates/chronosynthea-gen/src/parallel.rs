@@ -6,7 +6,7 @@
 use std::sync::Arc;
 use std::thread;
 
-use crossbeam_channel::{bounded, Sender};
+use crossbeam_channel::bounded;
 use rand::SeedableRng;
 use rand_xoshiro::Xoshiro256PlusPlus;
 use rayon::prelude::*;

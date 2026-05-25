@@ -19,6 +19,7 @@ pub mod java_compat;
 pub mod sampler;
 pub mod stats;
 pub mod tables;
+pub mod types;
 
 pub use archetype::{ArchetypeRegistry, CooccurrenceModel, PatientArchetype};
 pub use arena::{
@@ -32,3 +33,4 @@ pub use fingerprint::MssFingerprint;
 pub use java_compat::{CalibratedRegistry, JavaValidation};
 pub use sampler::{EventBitset, EventSampler, SimdSampler};
 pub use stats::StreamingStatistics;
+pub use types::{ArchetypeId, ConditionIndex};
