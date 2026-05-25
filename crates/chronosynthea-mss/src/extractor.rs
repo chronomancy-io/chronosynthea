@@ -716,6 +716,7 @@ impl MssExtractor {
             procedures,
             cooccurrence: cooccurrence.into_iter().collect(),
             cooccurrence_dependent_scale: AHashMap::new(),
+            onset_stats: Vec::new(),
             encounter_stats: Default::default(),
         }
     }

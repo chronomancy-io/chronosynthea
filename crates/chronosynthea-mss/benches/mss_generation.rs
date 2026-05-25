@@ -146,6 +146,7 @@ fn create_realistic_fingerprint() -> MssFingerprint {
         procedures: vec![],
         cooccurrence: AHashMap::new(),
             cooccurrence_dependent_scale: AHashMap::new(),
+            onset_stats: Vec::new(),
         encounter_stats: EncounterStats {
             mean_by_age: AHashMap::new(),
             type_distribution: AHashMap::new(),

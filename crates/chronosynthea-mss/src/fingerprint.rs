@@ -57,6 +57,15 @@ pub struct MssFingerprint {
     /// Procedure statistics.
     pub procedures: Vec<ProcedureStats>,
 
+    /// Per-condition onset-age distribution `(code, mean_age_years, std_age_years)`.
+    /// Populated by `CalibratedRegistry::load` when a sibling `onset_stats.json`
+    /// is present. Empty = default constant onset (40y) — no temporal output.
+    /// Non-empty activates the d5 `temporal-ordered` value: per-emitted-condition
+    /// onset days drawn from a Normal, clipped to the patient's age range, and
+    /// the patient's conditions are emitted sorted by onset.
+    #[serde(default)]
+    pub onset_stats: Vec<(String, f64, f64)>,
+
     /// Code co-occurrence probabilities (sparse).
     pub cooccurrence: AHashMap<(String, String), f64>,
 
@@ -429,6 +438,7 @@ mod tests {
             procedures: vec![],
             cooccurrence: AHashMap::new(),
             cooccurrence_dependent_scale: AHashMap::new(),
+            onset_stats: Vec::new(),
             encounter_stats: EncounterStats::default(),
         };
 

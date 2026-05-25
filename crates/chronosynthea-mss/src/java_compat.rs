@@ -59,6 +59,14 @@ pub struct CalibratedRegistry {
     pub recalibration_prevalence: Vec<(String, f32)>,
     #[serde(skip)]
     pub recalibration_boost: Vec<(String, f32)>,
+
+    /// Per-condition onset-age distribution loaded from optional sibling
+    /// `onset_stats.json`. Format: `[{"code": "...", "mean_onset_age": years,
+    /// "onset_age_std": years}, ...]`. Plumbed into `MssFingerprint.onset_stats`
+    /// and consumed by `ArchetypeRegistry::from_fingerprint` to build the
+    /// per-condition onset sampling table used by `generate_compact_full`.
+    #[serde(skip)]
+    pub onset_records: Vec<(String, f64, f64)>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -238,6 +246,30 @@ impl CalibratedRegistry {
             }
         }
 
+        // Companion onset-stats file (extracted from Java Synthea conditions.csv
+        // via `extract_temporal_stats.py`).
+        let onset_path = std::env::var("CHRONOSYNTHEA_ONSET_PATH")
+            .ok()
+            .map(std::path::PathBuf::from)
+            .or_else(|| path_ref.parent().map(|p| p.join("onset_stats.json")));
+        if let Some(op) = onset_path {
+            if op.exists() {
+                #[derive(Deserialize)]
+                struct OnsetIn {
+                    code: String,
+                    mean_onset_age: f64,
+                    onset_age_std: f64,
+                }
+                let f = File::open(&op)?;
+                let r = BufReader::new(f);
+                let parsed: Vec<OnsetIn> = serde_json::from_reader(r)?;
+                registry.onset_records = parsed
+                    .into_iter()
+                    .map(|o| (o.code, o.mean_onset_age, o.onset_age_std))
+                    .collect();
+            }
+        }
+
         Ok(registry)
     }
 
@@ -369,6 +401,8 @@ impl CalibratedRegistry {
             .map(|(c, m)| (c.clone(), *m as f64))
             .collect();
 
+        let onset_stats: Vec<(String, f64, f64)> = self.onset_records.clone();
+
         MssFingerprint {
             version: self.version.clone(),
             source: "java-synthea-calibrated".to_string(),
@@ -381,6 +415,7 @@ impl CalibratedRegistry {
             procedures,
             cooccurrence,
             cooccurrence_dependent_scale,
+            onset_stats,
             encounter_stats: EncounterStats {
                 mean_by_age: self.build_encounter_stats_by_age(),
                 type_distribution: self.build_encounter_type_distribution(),
@@ -801,6 +836,7 @@ mod tests {
             cooccurrence_pairs: Vec::new(),
             recalibration_prevalence: Vec::new(),
             recalibration_boost: Vec::new(),
+            onset_records: Vec::new(),
         };
 
         let demo = registry.default_demographics();
@@ -832,6 +868,7 @@ mod tests {
             cooccurrence_pairs: Vec::new(),
             recalibration_prevalence: Vec::new(),
             recalibration_boost: Vec::new(),
+            onset_records: Vec::new(),
         };
 
         let fp = registry.to_fingerprint();
