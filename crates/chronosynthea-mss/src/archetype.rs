@@ -709,9 +709,15 @@ impl ArchetypeRegistry {
     /// counter-balance until the aggregate marginal matches the calibrated
     /// target).
     ///
-    /// `multipliers` is indexed by condition (length = num_conditions). Each
-    /// entry is clamped into `[0.0, 1.0]` after multiplication so probabilities
-    /// stay valid.
+    /// `multipliers` is indexed by condition (length = num_conditions).
+    ///
+    /// **No-clamp during sweep** — successive in-loop application clamps
+    /// non-linearly relative to the persisted multiplier product (which the
+    /// auto-loader uses to reproduce calibrated state). To make `cargo test
+    /// e1_recalibrate` round-trip exactly through the persisted JSON, we
+    /// store unclamped intermediate state and clamp only on the final
+    /// readback. The active-view and padded layouts always emit the
+    /// clamped-to-[0, 1] view since the SIMD compare relies on that domain.
     pub fn scale_per_condition_prevalence(&mut self, multipliers: &[f32]) {
         assert_eq!(
             multipliers.len(),
@@ -719,37 +725,54 @@ impl ArchetypeRegistry {
             "multipliers length must equal num_conditions"
         );
 
-        // 1. Update each archetype's packed `conditions` list.
+        // 1. Update each archetype's packed `conditions` list. Do NOT clamp;
+        // the SIMD threshold compare (rand < threshold) already returns
+        // identical results for any threshold ≥ 1.0 (rand ∈ [0, 1) is always
+        // below it), and for threshold ≤ 0.0 the compare can't fire, so the
+        // unclamped intermediate state behaves identically to the clamped
+        // view for sampling purposes — while letting subsequent multipliers
+        // recover from overshoots that clamping would freeze.
         for arch in self.archetypes.iter_mut() {
             for (cond_idx, prob) in arch.conditions.iter_mut() {
                 let m = multipliers[*cond_idx as usize];
-                *prob = (*prob * m).clamp(0.0, 1.0);
+                *prob = (*prob * m).max(0.0);
             }
         }
 
-        // 2. Update the legacy 214-wide padded layout (`condition_thresholds`).
+        // 2. Update the legacy 214-wide padded layout. Same logic.
         for arch_idx in 0..self.archetypes.len() {
             let base = arch_idx * self.threshold_stride;
             for cond_idx in 0..self.num_conditions {
                 let m = multipliers[cond_idx];
                 let p = self.condition_thresholds[base + cond_idx];
-                self.condition_thresholds[base + cond_idx] = (p * m).clamp(0.0, 1.0);
+                self.condition_thresholds[base + cond_idx] = (p * m).max(0.0);
             }
         }
 
-        // 3. Update the dense `active_thresholds_flat`. Each slot corresponds
-        // to a `(cond_idx, threshold)` pair in `active_indices_flat`; we use
-        // the original index to look up the multiplier.
+        // 3. Update the dense `active_thresholds_flat` similarly.
         for i in 0..self.active_thresholds_flat.len() {
             let cond_idx = self.active_indices_flat[i] as usize;
-            // Padding slots have cond_idx == 0 AND threshold == 0.0. We must
-            // not touch those — the SIMD compare relies on them staying 0.0.
+            // Padding slots have threshold == 0.0; leave them alone so the
+            // SIMD compare doesn't accidentally fire on padding.
             if self.active_thresholds_flat[i] == 0.0 {
                 continue;
             }
             let m = multipliers[cond_idx];
             self.active_thresholds_flat[i] =
-                (self.active_thresholds_flat[i] * m).clamp(0.0, 1.0);
+                (self.active_thresholds_flat[i] * m).max(0.0);
+        }
+
+        // 4. Re-populate `prob_by_condition` from the (possibly-clamped)
+        // per-archetype conditions list so downstream readers (Gibbs sampler,
+        // boost lookups) see the calibrated values. The conditions list IS
+        // the source of truth here; the parallel dense table is a cache.
+        for arch in self.archetypes.iter_mut() {
+            arch.prob_by_condition.fill(0.0);
+            for &(cond_idx, prob) in &arch.conditions {
+                if (cond_idx as usize) < arch.prob_by_condition.len() {
+                    arch.prob_by_condition[cond_idx as usize] = prob.clamp(0.0, 1.0);
+                }
+            }
         }
     }
 
