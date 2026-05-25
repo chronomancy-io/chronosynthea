@@ -88,6 +88,13 @@ pub struct CompactPatient {
     pub archetype_id: crate::types::ArchetypeId,
     /// Condition indices (stored inline for cache efficiency).
     pub conditions: SmallVec<[u16; 8]>,
+    /// Per-condition onset age in days since birth — parallel to `conditions`.
+    /// Empty when the d5 axis value is not `temporal-ordered` (no onset_stats
+    /// loaded). When populated, `conditions[i]` onset at
+    /// `birth_date_days + condition_onset_days[i]`, and the pair is sorted
+    /// ascending by onset so consumers can walk the patient's trajectory in
+    /// temporal order without re-sorting.
+    pub condition_onset_days: SmallVec<[u16; 8]>,
 }
 
 /// Full patient with complete encounter and event data.
