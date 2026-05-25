@@ -5574,7 +5574,13 @@
       "indication_code": "59621000",
       "chronic": true,
       "frequency": 0.08392492860057119,
-      "java_per_patient": 2.1228070175438596
+      "java_per_patient": 2.1228070175438596,
+      "indication_distribution": [
+        [
+          "59621000",
+          1.0
+        ]
+      ]
     },
     {
       "code": "314076",
@@ -5582,7 +5588,13 @@
       "indication_code": "59621000",
       "chronic": true,
       "frequency": 0.0754283965728274,
-      "java_per_patient": 1.9078947368421053
+      "java_per_patient": 1.9078947368421053,
+      "indication_distribution": [
+        [
+          "59621000",
+          1.0
+        ]
+      ]
     },
     {
       "code": "106892",
@@ -5590,7 +5602,17 @@
       "indication_code": "44054006",
       "chronic": true,
       "frequency": 0.06849245206038351,
-      "java_per_patient": 1.7324561403508771
+      "java_per_patient": 1.7324561403508771,
+      "indication_distribution": [
+        [
+          "714628002",
+          0.5616012686711098
+        ],
+        [
+          "44054006",
+          0.4383987313288901
+        ]
+      ]
     },
     {
       "code": "310798",
@@ -5598,7 +5620,13 @@
       "indication_code": "59621000",
       "chronic": true,
       "frequency": 0.052539779681762544,
-      "java_per_patient": 1.3289473684210527
+      "java_per_patient": 1.3289473684210527,
+      "indication_distribution": [
+        [
+          "59621000",
+          1.0
+        ]
+      ]
     },
     {
       "code": "904419",
@@ -5606,7 +5634,13 @@
       "indication_code": "64859006",
       "chronic": true,
       "frequency": 0.04699102407180742,
-      "java_per_patient": 1.1885964912280702
+      "java_per_patient": 1.1885964912280702,
+      "indication_distribution": [
+        [
+          "64859006",
+          1.0
+        ]
+      ]
     },
     {
       "code": "314231",
@@ -5614,7 +5648,13 @@
       "indication_code": "55822004",
       "chronic": true,
       "frequency": 0.036760505915952674,
-      "java_per_patient": 0.9298245614035088
+      "java_per_patient": 0.9298245614035088,
+      "indication_distribution": [
+        [
+          "55822004",
+          1.0
+        ]
+      ]
     },
     {
       "code": "856987",
@@ -5630,7 +5670,13 @@
       "indication_code": "44054006",
       "chronic": true,
       "frequency": 0.02583639330885353,
-      "java_per_patient": 0.6535087719298246
+      "java_per_patient": 0.6535087719298246,
+      "indication_distribution": [
+        [
+          "44054006",
+          1.0
+        ]
+      ]
     },
     {
       "code": "313988",
@@ -5638,7 +5684,13 @@
       "indication_code": "59621000",
       "chronic": true,
       "frequency": 0.023929008567931457,
-      "java_per_patient": 0.6052631578947368
+      "java_per_patient": 0.6052631578947368,
+      "indication_distribution": [
+        [
+          "88805009",
+          1.0
+        ]
+      ]
     },
     {
       "code": "209387",
@@ -5654,7 +5706,13 @@
       "indication_code": "59621000",
       "chronic": true,
       "frequency": 0.02219502243982048,
-      "java_per_patient": 0.5614035087719298
+      "java_per_patient": 0.5614035087719298,
+      "indication_distribution": [
+        [
+          "88805009",
+          1.0
+        ]
+      ]
     },
     {
       "code": "200033",
@@ -5662,7 +5720,13 @@
       "indication_code": "59621000",
       "chronic": true,
       "frequency": 0.022021623827009385,
-      "java_per_patient": 0.5570175438596491
+      "java_per_patient": 0.5570175438596491,
+      "indication_distribution": [
+        [
+          "88805009",
+          1.0
+        ]
+      ]
     },
     {
       "code": "1664463",
@@ -5670,7 +5734,13 @@
       "indication_code": "236578006",
       "chronic": true,
       "frequency": 0.019767441860465116,
-      "java_per_patient": 0.5
+      "java_per_patient": 0.5,
+      "indication_distribution": [
+        [
+          "161665007",
+          1.0
+        ]
+      ]
     },
     {
       "code": "206905",
@@ -5686,7 +5756,13 @@
       "indication_code": "82423001",
       "chronic": true,
       "frequency": 0.015605875152998775,
-      "java_per_patient": 0.39473684210526316
+      "java_per_patient": 0.39473684210526316,
+      "indication_distribution": [
+        [
+          "10509002",
+          1.0
+        ]
+      ]
     },
     {
       "code": "351266",
@@ -5694,7 +5770,13 @@
       "indication_code": "87132004",
       "chronic": false,
       "frequency": 0.011617707058343533,
-      "java_per_patient": 0.29385964912280704
+      "java_per_patient": 0.29385964912280704,
+      "indication_distribution": [
+        [
+          "5602001",
+          1.0
+        ]
+      ]
     },
     {
       "code": "314077",
@@ -5702,7 +5784,13 @@
       "indication_code": "59621000",
       "chronic": false,
       "frequency": 0.010924112607099143,
-      "java_per_patient": 0.27631578947368424
+      "java_per_patient": 0.27631578947368424,
+      "indication_distribution": [
+        [
+          "88805009",
+          1.0
+        ]
+      ]
     },
     {
       "code": "1049625",
@@ -5734,7 +5822,21 @@
       "indication_code": "",
       "chronic": false,
       "frequency": 0.0078029375764993875,
-      "java_per_patient": 0.19736842105263158
+      "java_per_patient": 0.19736842105263158,
+      "indication_distribution": [
+        [
+          "239873007",
+          0.5427251732101617
+        ],
+        [
+          "201834006",
+          0.24133949191685913
+        ],
+        [
+          "239872002",
+          0.21593533487297922
+        ]
+      ]
     },
     {
       "code": "245134",
@@ -5750,7 +5852,13 @@
       "indication_code": "195967001",
       "chronic": false,
       "frequency": 0.00762953896368829,
-      "java_per_patient": 0.19298245614035087
+      "java_per_patient": 0.19298245614035087,
+      "indication_distribution": [
+        [
+          "233678006",
+          1.0
+        ]
+      ]
     },
     {
       "code": "835603",
@@ -5790,7 +5898,21 @@
       "indication_code": "444814009",
       "chronic": false,
       "frequency": 0.005201958384332925,
-      "java_per_patient": 0.13157894736842105
+      "java_per_patient": 0.13157894736842105,
+      "indication_distribution": [
+        [
+          "444814009",
+          0.8996357749898827
+        ],
+        [
+          "75498004",
+          0.05544314042897612
+        ],
+        [
+          "36971009",
+          0.04492108458114124
+        ]
+      ]
     },
     {
       "code": "309362",
@@ -5814,7 +5936,13 @@
       "indication_code": "82423001",
       "chronic": false,
       "frequency": 0.004334965320277438,
-      "java_per_patient": 0.10964912280701754
+      "java_per_patient": 0.10964912280701754,
+      "indication_distribution": [
+        [
+          "10509002",
+          1.0
+        ]
+      ]
     },
     {
       "code": "1049221",
@@ -5862,7 +5990,25 @@
       "indication_code": "195967001",
       "chronic": false,
       "frequency": 0.0031211750305997553,
-      "java_per_patient": 0.07894736842105263
+      "java_per_patient": 0.07894736842105263,
+      "indication_distribution": [
+        [
+          "87433001",
+          0.5124153498871332
+        ],
+        [
+          "185086009",
+          0.45560571858540255
+        ],
+        [
+          "233678006",
+          0.01655379984951091
+        ],
+        [
+          "389087006",
+          0.015425131677953348
+        ]
+      ]
     },
     {
       "code": "349094",
@@ -5870,7 +6016,13 @@
       "indication_code": "",
       "chronic": false,
       "frequency": 0.0031211750305997553,
-      "java_per_patient": 0.07894736842105263
+      "java_per_patient": 0.07894736842105263,
+      "indication_distribution": [
+        [
+          "233678006",
+          1.0
+        ]
+      ]
     },
     {
       "code": "896209",
@@ -5878,7 +6030,17 @@
       "indication_code": "",
       "chronic": false,
       "frequency": 0.0031211750305997553,
-      "java_per_patient": 0.07894736842105263
+      "java_per_patient": 0.07894736842105263,
+      "indication_distribution": [
+        [
+          "87433001",
+          0.5307111024995156
+        ],
+        [
+          "185086009",
+          0.4692888975004844
+        ]
+      ]
     },
     {
       "code": "896001",
@@ -5886,7 +6048,17 @@
       "indication_code": "",
       "chronic": false,
       "frequency": 0.0031211750305997553,
-      "java_per_patient": 0.07894736842105263
+      "java_per_patient": 0.07894736842105263,
+      "indication_distribution": [
+        [
+          "233678006",
+          0.9190829399865138
+        ],
+        [
+          "195967001",
+          0.08091706001348618
+        ]
+      ]
     },
     {
       "code": "313820",
@@ -5934,7 +6106,17 @@
       "indication_code": "",
       "chronic": false,
       "frequency": 0.002427580579355365,
-      "java_per_patient": 0.06140350877192982
+      "java_per_patient": 0.06140350877192982,
+      "indication_distribution": [
+        [
+          "233678006",
+          0.990419557317476
+        ],
+        [
+          "195967001",
+          0.00958044268252395
+        ]
+      ]
     },
     {
       "code": "834102",
@@ -5942,7 +6124,13 @@
       "indication_code": "",
       "chronic": false,
       "frequency": 0.002427580579355365,
-      "java_per_patient": 0.06140350877192982
+      "java_per_patient": 0.06140350877192982,
+      "indication_distribution": [
+        [
+          "43878008",
+          1.0
+        ]
+      ]
     },
     {
       "code": "751905",
@@ -5966,7 +6154,13 @@
       "indication_code": "",
       "chronic": false,
       "frequency": 0.0022541819665442674,
-      "java_per_patient": 0.05701754385964912
+      "java_per_patient": 0.05701754385964912,
+      "indication_distribution": [
+        [
+          "49436004",
+          1.0
+        ]
+      ]
     },
     {
       "code": "831533",
@@ -5998,7 +6192,13 @@
       "indication_code": "",
       "chronic": false,
       "frequency": 0.00208078335373317,
-      "java_per_patient": 0.05263157894736842
+      "java_per_patient": 0.05263157894736842,
+      "indication_distribution": [
+        [
+          "49436004",
+          1.0
+        ]
+      ]
     },
     {
       "code": "197604",
@@ -6006,7 +6206,13 @@
       "indication_code": "",
       "chronic": false,
       "frequency": 0.00208078335373317,
-      "java_per_patient": 0.05263157894736842
+      "java_per_patient": 0.05263157894736842,
+      "indication_distribution": [
+        [
+          "49436004",
+          1.0
+        ]
+      ]
     },
     {
       "code": "855812",
@@ -6030,7 +6236,17 @@
       "indication_code": "",
       "chronic": false,
       "frequency": 0.0017339861281109752,
-      "java_per_patient": 0.043859649122807015
+      "java_per_patient": 0.043859649122807015,
+      "indication_distribution": [
+        [
+          "43878008",
+          0.8578371810449574
+        ],
+        [
+          "195662009",
+          0.1421628189550425
+        ]
+      ]
     },
     {
       "code": "1049630",
@@ -6046,7 +6262,13 @@
       "indication_code": "",
       "chronic": false,
       "frequency": 0.00138718890248878,
-      "java_per_patient": 0.03508771929824561
+      "java_per_patient": 0.03508771929824561,
+      "indication_distribution": [
+        [
+          "307426000",
+          1.0
+        ]
+      ]
     },
     {
       "code": "310436",
@@ -6054,7 +6276,17 @@
       "indication_code": "",
       "chronic": false,
       "frequency": 0.00138718890248878,
-      "java_per_patient": 0.03508771929824561
+      "java_per_patient": 0.03508771929824561,
+      "indication_distribution": [
+        [
+          "26929004",
+          0.8408163265306122
+        ],
+        [
+          "230265002",
+          0.15918367346938775
+        ]
+      ]
     },
     {
       "code": "205532",
@@ -6062,7 +6294,13 @@
       "indication_code": "",
       "chronic": false,
       "frequency": 0.00138718890248878,
-      "java_per_patient": 0.03508771929824561
+      "java_per_patient": 0.03508771929824561,
+      "indication_distribution": [
+        [
+          "190905008",
+          1.0
+        ]
+      ]
     },
     {
       "code": "198767",
@@ -6070,7 +6308,13 @@
       "indication_code": "",
       "chronic": false,
       "frequency": 0.00138718890248878,
-      "java_per_patient": 0.03508771929824561
+      "java_per_patient": 0.03508771929824561,
+      "indication_distribution": [
+        [
+          "190905008",
+          1.0
+        ]
+      ]
     },
     {
       "code": "308182",
@@ -6102,7 +6346,13 @@
       "indication_code": "",
       "chronic": false,
       "frequency": 0.001040391676866585,
-      "java_per_patient": 0.02631578947368421
+      "java_per_patient": 0.02631578947368421,
+      "indication_distribution": [
+        [
+          "307426000",
+          1.0
+        ]
+      ]
     },
     {
       "code": "997488",
@@ -6126,7 +6376,13 @@
       "indication_code": "195967001",
       "chronic": false,
       "frequency": 0.001040391676866585,
-      "java_per_patient": 0.02631578947368421
+      "java_per_patient": 0.02631578947368421,
+      "indication_distribution": [
+        [
+          "233678006",
+          1.0
+        ]
+      ]
     },
     {
       "code": "309309",
@@ -6134,7 +6390,17 @@
       "indication_code": "",
       "chronic": false,
       "frequency": 0.001040391676866585,
-      "java_per_patient": 0.02631578947368421
+      "java_per_patient": 0.02631578947368421,
+      "indication_distribution": [
+        [
+          "307426000",
+          0.9640522875816994
+        ],
+        [
+          "45816000",
+          0.03594771241830065
+        ]
+      ]
     },
     {
       "code": "665078",
@@ -6150,7 +6416,13 @@
       "indication_code": "236578006",
       "chronic": false,
       "frequency": 0.001040391676866585,
-      "java_per_patient": 0.02631578947368421
+      "java_per_patient": 0.02631578947368421,
+      "indication_distribution": [
+        [
+          "161665007",
+          1.0
+        ]
+      ]
     },
     {
       "code": "617311",
@@ -6174,7 +6446,17 @@
       "indication_code": "",
       "chronic": false,
       "frequency": 0.0008669930640554876,
-      "java_per_patient": 0.021929824561403508
+      "java_per_patient": 0.021929824561403508,
+      "indication_distribution": [
+        [
+          "26929004",
+          0.794392523364486
+        ],
+        [
+          "230265002",
+          0.205607476635514
+        ]
+      ]
     },
     {
       "code": "197378",
@@ -6206,7 +6488,17 @@
       "indication_code": "",
       "chronic": false,
       "frequency": 0.0008669930640554876,
-      "java_per_patient": 0.021929824561403508
+      "java_per_patient": 0.021929824561403508,
+      "indication_distribution": [
+        [
+          "26929004",
+          0.8653846153846154
+        ],
+        [
+          "230265002",
+          0.1346153846153846
+        ]
+      ]
     },
     {
       "code": "106258",
@@ -6214,7 +6506,17 @@
       "indication_code": "",
       "chronic": false,
       "frequency": 0.00069359445124439,
-      "java_per_patient": 0.017543859649122806
+      "java_per_patient": 0.017543859649122806,
+      "indication_distribution": [
+        [
+          "40275004",
+          0.6575342465753424
+        ],
+        [
+          "24079001",
+          0.3424657534246575
+        ]
+      ]
     },
     {
       "code": "197454",
@@ -6222,7 +6524,17 @@
       "indication_code": "",
       "chronic": false,
       "frequency": 0.0005201958384332925,
-      "java_per_patient": 0.013157894736842105
+      "java_per_patient": 0.013157894736842105,
+      "indication_distribution": [
+        [
+          "307426000",
+          0.9530685920577617
+        ],
+        [
+          "45816000",
+          0.04693140794223827
+        ]
+      ]
     },
     {
       "code": "1014676",
@@ -6246,7 +6558,13 @@
       "indication_code": "",
       "chronic": false,
       "frequency": 0.0005201958384332925,
-      "java_per_patient": 0.013157894736842105
+      "java_per_patient": 0.013157894736842105,
+      "indication_distribution": [
+        [
+          "192127007",
+          1.0
+        ]
+      ]
     },
     {
       "code": "198335",
@@ -6254,7 +6572,25 @@
       "indication_code": "",
       "chronic": false,
       "frequency": 0.0005201958384332925,
-      "java_per_patient": 0.013157894736842105
+      "java_per_patient": 0.013157894736842105,
+      "indication_distribution": [
+        [
+          "307426000",
+          0.907258064516129
+        ],
+        [
+          "86406008",
+          0.06854838709677419
+        ],
+        [
+          "45816000",
+          0.020161290322580645
+        ],
+        [
+          "62479008",
+          0.004032258064516129
+        ]
+      ]
     },
     {
       "code": "198014",
@@ -6262,7 +6598,21 @@
       "indication_code": "",
       "chronic": false,
       "frequency": 0.0005201958384332925,
-      "java_per_patient": 0.013157894736842105
+      "java_per_patient": 0.013157894736842105,
+      "indication_distribution": [
+        [
+          "90560007",
+          0.4636363636363637
+        ],
+        [
+          "95417003",
+          0.28181818181818186
+        ],
+        [
+          "69896004",
+          0.2545454545454546
+        ]
+      ]
     },
     {
       "code": "308971",
@@ -6270,7 +6620,13 @@
       "indication_code": "",
       "chronic": false,
       "frequency": 0.0005201958384332925,
-      "java_per_patient": 0.013157894736842105
+      "java_per_patient": 0.013157894736842105,
+      "indication_distribution": [
+        [
+          "128613002",
+          1.0
+        ]
+      ]
     },
     {
       "code": "617296",
@@ -6278,7 +6634,13 @@
       "indication_code": "444814009",
       "chronic": false,
       "frequency": 0.0005201958384332925,
-      "java_per_patient": 0.013157894736842105
+      "java_per_patient": 0.013157894736842105,
+      "indication_distribution": [
+        [
+          "307426000",
+          1.0
+        ]
+      ]
     },
     {
       "code": "312938",
@@ -6286,7 +6648,13 @@
       "indication_code": "",
       "chronic": false,
       "frequency": 0.0005201958384332925,
-      "java_per_patient": 0.013157894736842105
+      "java_per_patient": 0.013157894736842105,
+      "indication_distribution": [
+        [
+          "47505003",
+          1.0
+        ]
+      ]
     },
     {
       "code": "856980",
@@ -6294,7 +6662,13 @@
       "indication_code": "82423001",
       "chronic": false,
       "frequency": 0.0005201958384332925,
-      "java_per_patient": 0.013157894736842105
+      "java_per_patient": 0.013157894736842105,
+      "indication_distribution": [
+        [
+          "47505003",
+          1.0
+        ]
+      ]
     },
     {
       "code": "866427",
@@ -6334,7 +6708,17 @@
       "indication_code": "",
       "chronic": false,
       "frequency": 0.000346797225622195,
-      "java_per_patient": 0.008771929824561403
+      "java_per_patient": 0.008771929824561403,
+      "indication_distribution": [
+        [
+          "26929004",
+          0.868421052631579
+        ],
+        [
+          "230265002",
+          0.13157894736842105
+        ]
+      ]
     },
     {
       "code": "310385",
@@ -6342,7 +6726,13 @@
       "indication_code": "",
       "chronic": false,
       "frequency": 0.000346797225622195,
-      "java_per_patient": 0.008771929824561403
+      "java_per_patient": 0.008771929824561403,
+      "indication_distribution": [
+        [
+          "36923009",
+          1.0
+        ]
+      ]
     },
     {
       "code": "617310",
@@ -6358,7 +6748,21 @@
       "indication_code": "",
       "chronic": false,
       "frequency": 0.000346797225622195,
-      "java_per_patient": 0.008771929824561403
+      "java_per_patient": 0.008771929824561403,
+      "indication_distribution": [
+        [
+          "444814009",
+          0.9072164948453608
+        ],
+        [
+          "75498004",
+          0.05154639175257732
+        ],
+        [
+          "36971009",
+          0.041237113402061855
+        ]
+      ]
     },
     {
       "code": "197591",
@@ -6366,7 +6770,13 @@
       "indication_code": "",
       "chronic": false,
       "frequency": 0.000346797225622195,
-      "java_per_patient": 0.008771929824561403
+      "java_per_patient": 0.008771929824561403,
+      "indication_distribution": [
+        [
+          "128613002",
+          1.0
+        ]
+      ]
     },
     {
       "code": "204892",
@@ -6374,7 +6784,13 @@
       "indication_code": "",
       "chronic": false,
       "frequency": 0.000346797225622195,
-      "java_per_patient": 0.008771929824561403
+      "java_per_patient": 0.008771929824561403,
+      "indication_distribution": [
+        [
+          "128613002",
+          1.0
+        ]
+      ]
     },
     {
       "code": "857005",
@@ -6390,7 +6806,13 @@
       "indication_code": "",
       "chronic": false,
       "frequency": 0.0001733986128110975,
-      "java_per_patient": 0.0043859649122807015
+      "java_per_patient": 0.0043859649122807015,
+      "indication_distribution": [
+        [
+          "95417003",
+          1.0
+        ]
+      ]
     },
     {
       "code": "311372",
@@ -6406,7 +6828,17 @@
       "indication_code": "",
       "chronic": false,
       "frequency": 0.0001733986128110975,
-      "java_per_patient": 0.0043859649122807015
+      "java_per_patient": 0.0043859649122807015,
+      "indication_distribution": [
+        [
+          "26929004",
+          0.9615384615384616
+        ],
+        [
+          "230265002",
+          0.038461538461538464
+        ]
+      ]
     },
     {
       "code": "896762",
@@ -6478,7 +6910,13 @@
       "indication_code": "",
       "chronic": false,
       "frequency": 0.0001733986128110975,
-      "java_per_patient": 0.0043859649122807015
+      "java_per_patient": 0.0043859649122807015,
+      "indication_distribution": [
+        [
+          "95417003",
+          1.0
+        ]
+      ]
     },
     {
       "code": "141918",
@@ -6494,7 +6932,13 @@
       "indication_code": "",
       "chronic": false,
       "frequency": 0.0001733986128110975,
-      "java_per_patient": 0.0043859649122807015
+      "java_per_patient": 0.0043859649122807015,
+      "indication_distribution": [
+        [
+          "69896004",
+          1.0
+        ]
+      ]
     },
     {
       "code": "197380",
@@ -8815,7 +9259,37 @@
       "module": "java_calibrated",
       "indication_code": "72892002",
       "frequency": 0.44265605875153,
-      "java_per_patient": 10.574561403508772
+      "java_per_patient": 10.574561403508772,
+      "indication_distribution": [
+        [
+          "72892002",
+          0.5365396627108058
+        ],
+        [
+          "156073000",
+          0.25296689569019365
+        ],
+        [
+          "35999006",
+          0.10680824484697064
+        ],
+        [
+          "79586000",
+          0.04559650218613367
+        ],
+        [
+          "267253006",
+          0.03497813866333541
+        ],
+        [
+          "37849005",
+          0.013741411617738912
+        ],
+        [
+          "609496007",
+          0.009369144284821987
+        ]
+      ]
     },
     {
       "code": "710824005",
@@ -8833,7 +9307,17 @@
       "module": "java_calibrated",
       "indication_code": "431857002",
       "frequency": 0.2208690330477356,
-      "java_per_patient": 5.276315789473684
+      "java_per_patient": 5.276315789473684,
+      "indication_distribution": [
+        [
+          "431857002",
+          0.7235058121592429
+        ],
+        [
+          "46177005",
+          0.27649418784075713
+        ]
+      ]
     },
     {
       "code": "430193006",
@@ -8860,7 +9344,13 @@
       "module": "java_calibrated",
       "indication_code": "66383009",
       "frequency": 0.16542227662178705,
-      "java_per_patient": 3.9517543859649122
+      "java_per_patient": 3.9517543859649122,
+      "indication_distribution": [
+        [
+          "66383009",
+          1.0
+        ]
+      ]
     },
     {
       "code": "34043003",
@@ -8869,7 +9359,29 @@
       "module": "java_calibrated",
       "indication_code": "103697008",
       "frequency": 0.16450428396572828,
-      "java_per_patient": 3.9298245614035086
+      "java_per_patient": 3.9298245614035086,
+      "indication_distribution": [
+        [
+          "103697008",
+          0.4984824896604865
+        ],
+        [
+          "66383009",
+          0.46429526190813164
+        ],
+        [
+          "37320007",
+          0.028274441351763616
+        ],
+        [
+          "61804006",
+          0.0060857668538000665
+        ],
+        [
+          "698306007",
+          0.002862040225818119
+        ]
+      ]
     },
     {
       "code": "243085009",
@@ -8878,7 +9390,21 @@
       "module": "java_calibrated",
       "indication_code": "103697008",
       "frequency": 0.15899632802937577,
-      "java_per_patient": 3.7982456140350878
+      "java_per_patient": 3.7982456140350878,
+      "indication_distribution": [
+        [
+          "103697008",
+          0.5174315219341893
+        ],
+        [
+          "66383009",
+          0.4798766660684862
+        ],
+        [
+          "698306007",
+          0.002691811997324502
+        ]
+      ]
     },
     {
       "code": "225362009",
@@ -8887,7 +9413,21 @@
       "module": "java_calibrated",
       "indication_code": "103697008",
       "frequency": 0.15862913096695228,
-      "java_per_patient": 3.789473684210526
+      "java_per_patient": 3.789473684210526,
+      "indication_distribution": [
+        [
+          "103697008",
+          0.5174315219341893
+        ],
+        [
+          "66383009",
+          0.4798766660684862
+        ],
+        [
+          "698306007",
+          0.002691811997324502
+        ]
+      ]
     },
     {
       "code": "1260009003",
@@ -8896,7 +9436,21 @@
       "module": "java_calibrated",
       "indication_code": "103697008",
       "frequency": 0.15862913096695228,
-      "java_per_patient": 3.789473684210526
+      "java_per_patient": 3.789473684210526,
+      "indication_distribution": [
+        [
+          "103697008",
+          0.5174315219341893
+        ],
+        [
+          "66383009",
+          0.4798766660684862
+        ],
+        [
+          "698306007",
+          0.002691811997324502
+        ]
+      ]
     },
     {
       "code": "1260010008",
@@ -8905,7 +9459,21 @@
       "module": "java_calibrated",
       "indication_code": "103697008",
       "frequency": 0.15862913096695228,
-      "java_per_patient": 3.789473684210526
+      "java_per_patient": 3.789473684210526,
+      "indication_distribution": [
+        [
+          "103697008",
+          0.5174315219341893
+        ],
+        [
+          "66383009",
+          0.4798766660684862
+        ],
+        [
+          "698306007",
+          0.002691811997324502
+        ]
+      ]
     },
     {
       "code": "274788003",
@@ -8914,7 +9482,21 @@
       "module": "java_calibrated",
       "indication_code": "103697008",
       "frequency": 0.15862913096695228,
-      "java_per_patient": 3.789473684210526
+      "java_per_patient": 3.789473684210526,
+      "indication_distribution": [
+        [
+          "103697008",
+          0.5174315219341893
+        ],
+        [
+          "66383009",
+          0.4798766660684862
+        ],
+        [
+          "698306007",
+          0.002691811997324502
+        ]
+      ]
     },
     {
       "code": "385763009",
@@ -8950,7 +9532,29 @@
       "module": "java_calibrated",
       "indication_code": "424132000",
       "frequency": 0.08500611995104039,
-      "java_per_patient": 2.030701754385965
+      "java_per_patient": 2.030701754385965,
+      "indication_distribution": [
+        [
+          "424132000",
+          0.759279711884754
+        ],
+        [
+          "67811000119102",
+          0.21555822328931576
+        ],
+        [
+          "363406005",
+          0.017767106842737097
+        ],
+        [
+          "94260004",
+          0.0037454981992797124
+        ],
+        [
+          "109838007",
+          0.003649459783913566
+        ]
+      ]
     },
     {
       "code": "866148006",
@@ -8977,7 +9581,21 @@
       "module": "java_calibrated",
       "indication_code": "103697008",
       "frequency": 0.08078335373317014,
-      "java_per_patient": 1.9298245614035088
+      "java_per_patient": 1.9298245614035088,
+      "indication_distribution": [
+        [
+          "103697008",
+          0.5174060986781835
+        ],
+        [
+          "66383009",
+          0.4798782881821751
+        ],
+        [
+          "698306007",
+          0.0027156131396414078
+        ]
+      ]
     },
     {
       "code": "763302001",
@@ -9022,7 +9640,13 @@
       "module": "java_calibrated",
       "indication_code": "72892002",
       "frequency": 0.061138310893512855,
-      "java_per_patient": 1.4605263157894737
+      "java_per_patient": 1.4605263157894737,
+      "indication_distribution": [
+        [
+          "72892002",
+          1.0
+        ]
+      ]
     },
     {
       "code": "225158009",
@@ -9031,7 +9655,13 @@
       "module": "java_calibrated",
       "indication_code": "72892002",
       "frequency": 0.061138310893512855,
-      "java_per_patient": 1.4605263157894737
+      "java_per_patient": 1.4605263157894737,
+      "indication_distribution": [
+        [
+          "72892002",
+          1.0
+        ]
+      ]
     },
     {
       "code": "52052004",
@@ -9040,7 +9670,13 @@
       "module": "java_calibrated",
       "indication_code": "6525002",
       "frequency": 0.035250917992656054,
-      "java_per_patient": 0.8421052631578947
+      "java_per_patient": 0.8421052631578947,
+      "indication_distribution": [
+        [
+          "6525002",
+          1.0
+        ]
+      ]
     },
     {
       "code": "715252007",
@@ -9049,7 +9685,13 @@
       "module": "java_calibrated",
       "indication_code": "47505003",
       "frequency": 0.03359853121175031,
-      "java_per_patient": 0.8026315789473685
+      "java_per_patient": 0.8026315789473685,
+      "indication_distribution": [
+        [
+          "47505003",
+          1.0
+        ]
+      ]
     },
     {
       "code": "76601001",
@@ -9067,7 +9709,21 @@
       "module": "java_calibrated",
       "indication_code": "18718003",
       "frequency": 0.031395348837209305,
-      "java_per_patient": 0.75
+      "java_per_patient": 0.75,
+      "indication_distribution": [
+        [
+          "18718003",
+          0.7867005813953488
+        ],
+        [
+          "427898007",
+          0.17814316860465115
+        ],
+        [
+          "61804006",
+          0.03515625
+        ]
+      ]
     },
     {
       "code": "456191000124101",
@@ -9085,7 +9741,17 @@
       "module": "java_calibrated",
       "indication_code": "18718003",
       "frequency": 0.031028151774785805,
-      "java_per_patient": 0.7412280701754386
+      "java_per_patient": 0.7412280701754386,
+      "indication_distribution": [
+        [
+          "18718003",
+          0.8153657847660296
+        ],
+        [
+          "427898007",
+          0.18463421523397044
+        ]
+      ]
     },
     {
       "code": "64544008",
@@ -9094,7 +9760,13 @@
       "module": "java_calibrated",
       "indication_code": "18718003",
       "frequency": 0.02588739290085679,
-      "java_per_patient": 0.618421052631579
+      "java_per_patient": 0.618421052631579,
+      "indication_distribution": [
+        [
+          "18718003",
+          1.0
+        ]
+      ]
     },
     {
       "code": "16830007",
@@ -9121,7 +9793,13 @@
       "module": "java_calibrated",
       "indication_code": "44054006",
       "frequency": 0.02368421052631579,
-      "java_per_patient": 0.5657894736842105
+      "java_per_patient": 0.5657894736842105,
+      "indication_distribution": [
+        [
+          "44054006",
+          1.0
+        ]
+      ]
     },
     {
       "code": "389153003",
@@ -9130,7 +9808,13 @@
       "module": "java_calibrated",
       "indication_code": "44054006",
       "frequency": 0.02368421052631579,
-      "java_per_patient": 0.5657894736842105
+      "java_per_patient": 0.5657894736842105,
+      "indication_distribution": [
+        [
+          "44054006",
+          1.0
+        ]
+      ]
     },
     {
       "code": "314971001",
@@ -9148,7 +9832,13 @@
       "module": "java_calibrated",
       "indication_code": "44054006",
       "frequency": 0.02368421052631579,
-      "java_per_patient": 0.5657894736842105
+      "java_per_patient": 0.5657894736842105,
+      "indication_distribution": [
+        [
+          "44054006",
+          1.0
+        ]
+      ]
     },
     {
       "code": "103750000",
@@ -9157,7 +9847,13 @@
       "module": "java_calibrated",
       "indication_code": "39898005",
       "frequency": 0.020195838433292534,
-      "java_per_patient": 0.4824561403508772
+      "java_per_patient": 0.4824561403508772,
+      "indication_distribution": [
+        [
+          "39898005",
+          1.0
+        ]
+      ]
     },
     {
       "code": "5880005",
@@ -9166,7 +9862,13 @@
       "module": "java_calibrated",
       "indication_code": "72892002",
       "frequency": 0.019094247246022034,
-      "java_per_patient": 0.45614035087719296
+      "java_per_patient": 0.45614035087719296,
+      "indication_distribution": [
+        [
+          "72892002",
+          1.0
+        ]
+      ]
     },
     {
       "code": "868187001",
@@ -9184,7 +9886,29 @@
       "module": "java_calibrated",
       "indication_code": "109570002",
       "frequency": 0.01744186046511628,
-      "java_per_patient": 0.4166666666666667
+      "java_per_patient": 0.4166666666666667,
+      "indication_distribution": [
+        [
+          "109570002",
+          0.5498717126363053
+        ],
+        [
+          "278588009",
+          0.11802437459910199
+        ],
+        [
+          "278598003",
+          0.11257216164207826
+        ],
+        [
+          "278558000",
+          0.11128928800513149
+        ],
+        [
+          "278602001",
+          0.10824246311738293
+        ]
+      ]
     },
     {
       "code": "409023009",
@@ -9211,7 +9935,13 @@
       "module": "java_calibrated",
       "indication_code": "72892002",
       "frequency": 0.014137086903304773,
-      "java_per_patient": 0.33771929824561403
+      "java_per_patient": 0.33771929824561403,
+      "indication_distribution": [
+        [
+          "72892002",
+          1.0
+        ]
+      ]
     },
     {
       "code": "1256042007",
@@ -9220,7 +9950,29 @@
       "module": "java_calibrated",
       "indication_code": "109570002",
       "frequency": 0.013219094247246023,
-      "java_per_patient": 0.3157894736842105
+      "java_per_patient": 0.3157894736842105,
+      "indication_distribution": [
+        [
+          "109570002",
+          0.5599160206718347
+        ],
+        [
+          "278602001",
+          0.11208010335917312
+        ],
+        [
+          "278588009",
+          0.11094961240310078
+        ],
+        [
+          "278598003",
+          0.10965762273901809
+        ],
+        [
+          "278558000",
+          0.10739664082687339
+        ]
+      ]
     },
     {
       "code": "252160004",
@@ -9229,7 +9981,13 @@
       "module": "java_calibrated",
       "indication_code": "72892002",
       "frequency": 0.013219094247246023,
-      "java_per_patient": 0.3157894736842105
+      "java_per_patient": 0.3157894736842105,
+      "indication_distribution": [
+        [
+          "72892002",
+          1.0
+        ]
+      ]
     },
     {
       "code": "386516004",
@@ -9247,7 +10005,13 @@
       "module": "java_calibrated",
       "indication_code": "389087006",
       "frequency": 0.012484700122399021,
-      "java_per_patient": 0.2982456140350877
+      "java_per_patient": 0.2982456140350877,
+      "indication_distribution": [
+        [
+          "389087006",
+          1.0
+        ]
+      ]
     },
     {
       "code": "25656009",
@@ -9256,7 +10020,13 @@
       "module": "java_calibrated",
       "indication_code": "254837009",
       "frequency": 0.012484700122399021,
-      "java_per_patient": 0.2982456140350877
+      "java_per_patient": 0.2982456140350877,
+      "indication_distribution": [
+        [
+          "254837009",
+          1.0
+        ]
+      ]
     },
     {
       "code": "33195004",
@@ -9265,7 +10035,13 @@
       "module": "java_calibrated",
       "indication_code": "254837009",
       "frequency": 0.012484700122399021,
-      "java_per_patient": 0.2982456140350877
+      "java_per_patient": 0.2982456140350877,
+      "indication_distribution": [
+        [
+          "254837009",
+          1.0
+        ]
+      ]
     },
     {
       "code": "431182000",
@@ -9274,7 +10050,13 @@
       "module": "java_calibrated",
       "indication_code": "389087006",
       "frequency": 0.011933904528763771,
-      "java_per_patient": 0.2850877192982456
+      "java_per_patient": 0.2850877192982456,
+      "indication_distribution": [
+        [
+          "389087006",
+          1.0
+        ]
+      ]
     },
     {
       "code": "91251008",
@@ -9292,7 +10074,13 @@
       "module": "java_calibrated",
       "indication_code": "72892002",
       "frequency": 0.01156670746634027,
-      "java_per_patient": 0.27631578947368424
+      "java_per_patient": 0.27631578947368424,
+      "indication_distribution": [
+        [
+          "72892002",
+          1.0
+        ]
+      ]
     },
     {
       "code": "23426006",
@@ -9301,7 +10089,17 @@
       "module": "java_calibrated",
       "indication_code": "10509002",
       "frequency": 0.010648714810281517,
-      "java_per_patient": 0.2543859649122807
+      "java_per_patient": 0.2543859649122807,
+      "indication_distribution": [
+        [
+          "10509002",
+          0.9859894921190894
+        ],
+        [
+          "190905008",
+          0.014010507880910683
+        ]
+      ]
     },
     {
       "code": "117015009",
@@ -9310,7 +10108,17 @@
       "module": "java_calibrated",
       "indication_code": "195662009",
       "frequency": 0.010281517747858017,
-      "java_per_patient": 0.24561403508771928
+      "java_per_patient": 0.24561403508771928,
+      "indication_distribution": [
+        [
+          "195662009",
+          0.7368254970022089
+        ],
+        [
+          "43878008",
+          0.2631745029977911
+        ]
+      ]
     },
     {
       "code": "90226004",
@@ -9319,7 +10127,17 @@
       "module": "java_calibrated",
       "indication_code": "72892002",
       "frequency": 0.010097919216646267,
-      "java_per_patient": 0.2412280701754386
+      "java_per_patient": 0.2412280701754386,
+      "indication_distribution": [
+        [
+          "72892002",
+          0.7926003126628453
+        ],
+        [
+          "254837009",
+          0.20739968733715478
+        ]
+      ]
     },
     {
       "code": "399208008",
@@ -9328,7 +10146,21 @@
       "module": "java_calibrated",
       "indication_code": "10509002",
       "frequency": 0.010097919216646267,
-      "java_per_patient": 0.2412280701754386
+      "java_per_patient": 0.2412280701754386,
+      "indication_distribution": [
+        [
+          "10509002",
+          0.7065217391304348
+        ],
+        [
+          "162573006",
+          0.2798913043478261
+        ],
+        [
+          "190905008",
+          0.01358695652173913
+        ]
+      ]
     },
     {
       "code": "315639002",
@@ -9355,7 +10187,13 @@
       "module": "java_calibrated",
       "indication_code": "72892002",
       "frequency": 0.008812729498164014,
-      "java_per_patient": 0.21052631578947367
+      "java_per_patient": 0.21052631578947367,
+      "indication_distribution": [
+        [
+          "72892002",
+          1.0
+        ]
+      ]
     },
     {
       "code": "29303009",
@@ -9364,7 +10202,13 @@
       "module": "java_calibrated",
       "indication_code": "88805009",
       "frequency": 0.008078335373317013,
-      "java_per_patient": 0.19298245614035087
+      "java_per_patient": 0.19298245614035087,
+      "indication_distribution": [
+        [
+          "88805009",
+          1.0
+        ]
+      ]
     },
     {
       "code": "84478008",
@@ -9382,7 +10226,13 @@
       "module": "java_calibrated",
       "indication_code": "72892002",
       "frequency": 0.007527539779681763,
-      "java_per_patient": 0.17982456140350878
+      "java_per_patient": 0.17982456140350878,
+      "indication_distribution": [
+        [
+          "72892002",
+          1.0
+        ]
+      ]
     },
     {
       "code": "47758006",
@@ -9391,7 +10241,13 @@
       "module": "java_calibrated",
       "indication_code": "72892002",
       "frequency": 0.0073439412484700125,
-      "java_per_patient": 0.17543859649122806
+      "java_per_patient": 0.17543859649122806,
+      "indication_distribution": [
+        [
+          "72892002",
+          1.0
+        ]
+      ]
     },
     {
       "code": "31676001",
@@ -9400,7 +10256,13 @@
       "module": "java_calibrated",
       "indication_code": "72892002",
       "frequency": 0.0073439412484700125,
-      "java_per_patient": 0.17543859649122806
+      "java_per_patient": 0.17543859649122806,
+      "indication_distribution": [
+        [
+          "72892002",
+          1.0
+        ]
+      ]
     },
     {
       "code": "310861008",
@@ -9409,7 +10271,13 @@
       "module": "java_calibrated",
       "indication_code": "72892002",
       "frequency": 0.0073439412484700125,
-      "java_per_patient": 0.17543859649122806
+      "java_per_patient": 0.17543859649122806,
+      "indication_distribution": [
+        [
+          "72892002",
+          1.0
+        ]
+      ]
     },
     {
       "code": "165829005",
@@ -9418,7 +10286,13 @@
       "module": "java_calibrated",
       "indication_code": "72892002",
       "frequency": 0.0073439412484700125,
-      "java_per_patient": 0.17543859649122806
+      "java_per_patient": 0.17543859649122806,
+      "indication_distribution": [
+        [
+          "72892002",
+          1.0
+        ]
+      ]
     },
     {
       "code": "269828009",
@@ -9427,7 +10301,13 @@
       "module": "java_calibrated",
       "indication_code": "72892002",
       "frequency": 0.0073439412484700125,
-      "java_per_patient": 0.17543859649122806
+      "java_per_patient": 0.17543859649122806,
+      "indication_distribution": [
+        [
+          "72892002",
+          1.0
+        ]
+      ]
     },
     {
       "code": "117010004",
@@ -9436,7 +10316,13 @@
       "module": "java_calibrated",
       "indication_code": "72892002",
       "frequency": 0.0073439412484700125,
-      "java_per_patient": 0.17543859649122806
+      "java_per_patient": 0.17543859649122806,
+      "indication_distribution": [
+        [
+          "72892002",
+          1.0
+        ]
+      ]
     },
     {
       "code": "395123002",
@@ -9445,7 +10331,13 @@
       "module": "java_calibrated",
       "indication_code": "72892002",
       "frequency": 0.0073439412484700125,
-      "java_per_patient": 0.17543859649122806
+      "java_per_patient": 0.17543859649122806,
+      "indication_distribution": [
+        [
+          "72892002",
+          1.0
+        ]
+      ]
     },
     {
       "code": "104375008",
@@ -9454,7 +10346,13 @@
       "module": "java_calibrated",
       "indication_code": "72892002",
       "frequency": 0.0073439412484700125,
-      "java_per_patient": 0.17543859649122806
+      "java_per_patient": 0.17543859649122806,
+      "indication_distribution": [
+        [
+          "72892002",
+          1.0
+        ]
+      ]
     },
     {
       "code": "314098000",
@@ -9463,7 +10361,13 @@
       "module": "java_calibrated",
       "indication_code": "72892002",
       "frequency": 0.0073439412484700125,
-      "java_per_patient": 0.17543859649122806
+      "java_per_patient": 0.17543859649122806,
+      "indication_distribution": [
+        [
+          "72892002",
+          1.0
+        ]
+      ]
     },
     {
       "code": "104326007",
@@ -9472,7 +10376,13 @@
       "module": "java_calibrated",
       "indication_code": "72892002",
       "frequency": 0.0073439412484700125,
-      "java_per_patient": 0.17543859649122806
+      "java_per_patient": 0.17543859649122806,
+      "indication_distribution": [
+        [
+          "72892002",
+          1.0
+        ]
+      ]
     },
     {
       "code": "28163009",
@@ -9481,7 +10391,13 @@
       "module": "java_calibrated",
       "indication_code": "72892002",
       "frequency": 0.0073439412484700125,
-      "java_per_patient": 0.17543859649122806
+      "java_per_patient": 0.17543859649122806,
+      "indication_distribution": [
+        [
+          "72892002",
+          1.0
+        ]
+      ]
     },
     {
       "code": "60218003",
@@ -9490,7 +10406,13 @@
       "module": "java_calibrated",
       "indication_code": "72892002",
       "frequency": 0.0073439412484700125,
-      "java_per_patient": 0.17543859649122806
+      "java_per_patient": 0.17543859649122806,
+      "indication_distribution": [
+        [
+          "72892002",
+          1.0
+        ]
+      ]
     },
     {
       "code": "229064008",
@@ -9508,7 +10430,13 @@
       "module": "java_calibrated",
       "indication_code": "254837009",
       "frequency": 0.0069767441860465115,
-      "java_per_patient": 0.16666666666666666
+      "java_per_patient": 0.16666666666666666,
+      "indication_distribution": [
+        [
+          "254837009",
+          1.0
+        ]
+      ]
     },
     {
       "code": "441550005",
@@ -9526,7 +10454,13 @@
       "module": "java_calibrated",
       "indication_code": "72892002",
       "frequency": 0.0067931456548347615,
-      "java_per_patient": 0.16228070175438597
+      "java_per_patient": 0.16228070175438597,
+      "indication_distribution": [
+        [
+          "72892002",
+          1.0
+        ]
+      ]
     },
     {
       "code": "268556000",
@@ -9535,7 +10469,13 @@
       "module": "java_calibrated",
       "indication_code": "72892002",
       "frequency": 0.0067931456548347615,
-      "java_per_patient": 0.16228070175438597
+      "java_per_patient": 0.16228070175438597,
+      "indication_distribution": [
+        [
+          "72892002",
+          1.0
+        ]
+      ]
     },
     {
       "code": "271442007",
@@ -9544,7 +10484,13 @@
       "module": "java_calibrated",
       "indication_code": "72892002",
       "frequency": 0.0066095471236230115,
-      "java_per_patient": 0.15789473684210525
+      "java_per_patient": 0.15789473684210525,
+      "indication_distribution": [
+        [
+          "72892002",
+          1.0
+        ]
+      ]
     },
     {
       "code": "275833003",
@@ -9553,7 +10499,13 @@
       "module": "java_calibrated",
       "indication_code": "72892002",
       "frequency": 0.0066095471236230115,
-      "java_per_patient": 0.15789473684210525
+      "java_per_patient": 0.15789473684210525,
+      "indication_distribution": [
+        [
+          "72892002",
+          1.0
+        ]
+      ]
     },
     {
       "code": "310417005",
@@ -9580,7 +10532,13 @@
       "module": "java_calibrated",
       "indication_code": "72892002",
       "frequency": 0.0060587515299877605,
-      "java_per_patient": 0.14473684210526316
+      "java_per_patient": 0.14473684210526316,
+      "indication_distribution": [
+        [
+          "72892002",
+          1.0
+        ]
+      ]
     },
     {
       "code": "40701008",
@@ -9598,7 +10556,13 @@
       "module": "java_calibrated",
       "indication_code": "44054006",
       "frequency": 0.00587515299877601,
-      "java_per_patient": 0.14035087719298245
+      "java_per_patient": 0.14035087719298245,
+      "indication_distribution": [
+        [
+          "44054006",
+          1.0
+        ]
+      ]
     },
     {
       "code": "58000006",
@@ -9616,7 +10580,13 @@
       "module": "java_calibrated",
       "indication_code": "72892002",
       "frequency": 0.00569155446756426,
-      "java_per_patient": 0.13596491228070176
+      "java_per_patient": 0.13596491228070176,
+      "indication_distribution": [
+        [
+          "72892002",
+          1.0
+        ]
+      ]
     },
     {
       "code": "711446003",
@@ -9625,7 +10595,13 @@
       "module": "java_calibrated",
       "indication_code": "161665007",
       "frequency": 0.0055079559363525096,
-      "java_per_patient": 0.13157894736842105
+      "java_per_patient": 0.13157894736842105,
+      "indication_distribution": [
+        [
+          "161665007",
+          1.0
+        ]
+      ]
     },
     {
       "code": "290045001",
@@ -9679,7 +10655,13 @@
       "module": "java_calibrated",
       "indication_code": "160968000",
       "frequency": 0.005140758873929009,
-      "java_per_patient": 0.12280701754385964
+      "java_per_patient": 0.12280701754385964,
+      "indication_distribution": [
+        [
+          "160968000",
+          1.0
+        ]
+      ]
     },
     {
       "code": "312681000",
@@ -9688,7 +10670,37 @@
       "module": "java_calibrated",
       "indication_code": "254837009",
       "frequency": 0.004957160342717259,
-      "java_per_patient": 0.11842105263157894
+      "java_per_patient": 0.11842105263157894,
+      "indication_distribution": [
+        [
+          "254837009",
+          0.3737373737373737
+        ],
+        [
+          "65966004",
+          0.14702581369248033
+        ],
+        [
+          "58150001",
+          0.1391694725028058
+        ],
+        [
+          "16114001",
+          0.1290684624017957
+        ],
+        [
+          "263102004",
+          0.11223344556677887
+        ],
+        [
+          "33737001",
+          0.07295173961840627
+        ],
+        [
+          "359817006",
+          0.02581369248035914
+        ]
+      ]
     },
     {
       "code": "234745004",
@@ -9697,7 +10709,13 @@
       "module": "java_calibrated",
       "indication_code": "37320007",
       "frequency": 0.004957160342717259,
-      "java_per_patient": 0.11842105263157894
+      "java_per_patient": 0.11842105263157894,
+      "indication_distribution": [
+        [
+          "37320007",
+          1.0
+        ]
+      ]
     },
     {
       "code": "1269321004",
@@ -9706,7 +10724,13 @@
       "module": "java_calibrated",
       "indication_code": "37320007",
       "frequency": 0.004957160342717259,
-      "java_per_patient": 0.11842105263157894
+      "java_per_patient": 0.11842105263157894,
+      "indication_distribution": [
+        [
+          "37320007",
+          1.0
+        ]
+      ]
     },
     {
       "code": "169553002",
@@ -9733,7 +10757,13 @@
       "module": "java_calibrated",
       "indication_code": "10509002",
       "frequency": 0.004589963280293758,
-      "java_per_patient": 0.10964912280701754
+      "java_per_patient": 0.10964912280701754,
+      "indication_distribution": [
+        [
+          "10509002",
+          1.0
+        ]
+      ]
     },
     {
       "code": "308283009",
@@ -9742,7 +10772,17 @@
       "module": "java_calibrated",
       "indication_code": "399261000",
       "frequency": 0.004589963280293758,
-      "java_per_patient": 0.10964912280701754
+      "java_per_patient": 0.10964912280701754,
+      "indication_distribution": [
+        [
+          "399261000",
+          0.8933901918976546
+        ],
+        [
+          "1231000119100",
+          0.10660980810234541
+        ]
+      ]
     },
     {
       "code": "173291009",
@@ -9751,7 +10791,13 @@
       "module": "java_calibrated",
       "indication_code": "427898007",
       "frequency": 0.004589963280293758,
-      "java_per_patient": 0.10964912280701754
+      "java_per_patient": 0.10964912280701754,
+      "indication_distribution": [
+        [
+          "427898007",
+          1.0
+        ]
+      ]
     },
     {
       "code": "183519002",
@@ -9760,7 +10806,29 @@
       "module": "java_calibrated",
       "indication_code": "414545008",
       "frequency": 0.004589963280293758,
-      "java_per_patient": 0.10964912280701754
+      "java_per_patient": 0.10964912280701754,
+      "indication_distribution": [
+        [
+          "414545008",
+          0.6259437199725464
+        ],
+        [
+          "274531002",
+          0.35621139327385043
+        ],
+        [
+          "401314000",
+          0.010981468771448183
+        ],
+        [
+          "401303003",
+          0.004118050789293069
+        ],
+        [
+          "4557003",
+          0.0027453671928620456
+        ]
+      ]
     },
     {
       "code": "301807007",
@@ -9805,7 +10873,29 @@
       "module": "java_calibrated",
       "indication_code": "370247008",
       "frequency": 0.004039167686658507,
-      "java_per_patient": 0.09649122807017543
+      "java_per_patient": 0.09649122807017543,
+      "indication_distribution": [
+        [
+          "370247008",
+          0.20840840840840844
+        ],
+        [
+          "283371005",
+          0.19939939939939944
+        ],
+        [
+          "283385000",
+          0.19819819819819823
+        ],
+        [
+          "284551006",
+          0.19819819819819823
+        ],
+        [
+          "284549007",
+          0.1957957957957958
+        ]
+      ]
     },
     {
       "code": "700070005",
@@ -9823,7 +10913,17 @@
       "module": "java_calibrated",
       "indication_code": "86406008",
       "frequency": 0.0036719706242350062,
-      "java_per_patient": 0.08771929824561403
+      "java_per_patient": 0.08771929824561403,
+      "indication_distribution": [
+        [
+          "86406008",
+          0.9040404040404041
+        ],
+        [
+          "62479008",
+          0.09595959595959595
+        ]
+      ]
     },
     {
       "code": "386053000",
@@ -9841,7 +10941,25 @@
       "module": "java_calibrated",
       "indication_code": "414545008",
       "frequency": 0.0036719706242350062,
-      "java_per_patient": 0.08771929824561403
+      "java_per_patient": 0.08771929824561403,
+      "indication_distribution": [
+        [
+          "414545008",
+          0.9721925133689839
+        ],
+        [
+          "401314000",
+          0.017112299465240642
+        ],
+        [
+          "401303003",
+          0.006417112299465241
+        ],
+        [
+          "4557003",
+          0.0042780748663101605
+        ]
+      ]
     },
     {
       "code": "410006001",
@@ -9868,7 +10986,13 @@
       "module": "java_calibrated",
       "indication_code": "190905008",
       "frequency": 0.0034883720930232558,
-      "java_per_patient": 0.08333333333333333
+      "java_per_patient": 0.08333333333333333,
+      "indication_distribution": [
+        [
+          "190905008",
+          1.0
+        ]
+      ]
     },
     {
       "code": "82078001",
@@ -9877,7 +11001,13 @@
       "module": "java_calibrated",
       "indication_code": "190905008",
       "frequency": 0.0034883720930232558,
-      "java_per_patient": 0.08333333333333333
+      "java_per_patient": 0.08333333333333333,
+      "indication_distribution": [
+        [
+          "190905008",
+          1.0
+        ]
+      ]
     },
     {
       "code": "63332003",
@@ -9886,7 +11016,25 @@
       "module": "java_calibrated",
       "indication_code": "60573004",
       "frequency": 0.0033047735618115057,
-      "java_per_patient": 0.07894736842105263
+      "java_per_patient": 0.07894736842105263,
+      "indication_distribution": [
+        [
+          "60573004",
+          0.5256410256410257
+        ],
+        [
+          "60234000",
+          0.24358974358974358
+        ],
+        [
+          "86406008",
+          0.14102564102564102
+        ],
+        [
+          "62479008",
+          0.08974358974358974
+        ]
+      ]
     },
     {
       "code": "698314001",
@@ -9895,7 +11043,25 @@
       "module": "java_calibrated",
       "indication_code": "414545008",
       "frequency": 0.0033047735618115057,
-      "java_per_patient": 0.07894736842105263
+      "java_per_patient": 0.07894736842105263,
+      "indication_distribution": [
+        [
+          "414545008",
+          0.9721925133689839
+        ],
+        [
+          "401314000",
+          0.017112299465240642
+        ],
+        [
+          "401303003",
+          0.006417112299465241
+        ],
+        [
+          "4557003",
+          0.0042780748663101605
+        ]
+      ]
     },
     {
       "code": "274031008",
@@ -9904,7 +11070,17 @@
       "module": "java_calibrated",
       "indication_code": "68496003",
       "frequency": 0.0033047735618115057,
-      "java_per_patient": 0.07894736842105263
+      "java_per_patient": 0.07894736842105263,
+      "indication_distribution": [
+        [
+          "68496003",
+          0.8066914498141264
+        ],
+        [
+          "713197008",
+          0.19330855018587362
+        ]
+      ]
     },
     {
       "code": "225386006",
@@ -9922,7 +11098,17 @@
       "module": "java_calibrated",
       "indication_code": "254837009",
       "frequency": 0.0031211750305997553,
-      "java_per_patient": 0.07456140350877193
+      "java_per_patient": 0.07456140350877193,
+      "indication_distribution": [
+        [
+          "254837009",
+          0.9878048780487805
+        ],
+        [
+          "91861009",
+          0.012195121951219513
+        ]
+      ]
     },
     {
       "code": "85548006",
@@ -9931,7 +11117,13 @@
       "module": "java_calibrated",
       "indication_code": "72892002",
       "frequency": 0.002937576499388005,
-      "java_per_patient": 0.07017543859649122
+      "java_per_patient": 0.07017543859649122,
+      "indication_distribution": [
+        [
+          "72892002",
+          1.0
+        ]
+      ]
     },
     {
       "code": "274474001",
@@ -9940,7 +11132,29 @@
       "module": "java_calibrated",
       "indication_code": "65966004",
       "frequency": 0.002937576499388005,
-      "java_per_patient": 0.07017543859649122
+      "java_per_patient": 0.07017543859649122,
+      "indication_distribution": [
+        [
+          "65966004",
+          0.34133790737564323
+        ],
+        [
+          "16114001",
+          0.2504288164665523
+        ],
+        [
+          "263102004",
+          0.2367066895368782
+        ],
+        [
+          "33737001",
+          0.12950257289879932
+        ],
+        [
+          "263172003",
+          0.04202401372212693
+        ]
+      ]
     },
     {
       "code": "395142003",
@@ -9958,7 +11172,13 @@
       "module": "java_calibrated",
       "indication_code": "274531002",
       "frequency": 0.002937576499388005,
-      "java_per_patient": 0.07017543859649122
+      "java_per_patient": 0.07017543859649122,
+      "indication_distribution": [
+        [
+          "274531002",
+          1.0
+        ]
+      ]
     },
     {
       "code": "473231009",
@@ -9967,7 +11187,13 @@
       "module": "java_calibrated",
       "indication_code": "161665007",
       "frequency": 0.0027539779681762548,
-      "java_per_patient": 0.06578947368421052
+      "java_per_patient": 0.06578947368421052,
+      "indication_distribution": [
+        [
+          "161665007",
+          1.0
+        ]
+      ]
     },
     {
       "code": "35025007",
@@ -9976,7 +11202,13 @@
       "module": "java_calibrated",
       "indication_code": "254837009",
       "frequency": 0.0027539779681762548,
-      "java_per_patient": 0.06578947368421052
+      "java_per_patient": 0.06578947368421052,
+      "indication_distribution": [
+        [
+          "254837009",
+          1.0
+        ]
+      ]
     },
     {
       "code": "127783003",
@@ -9985,7 +11217,17 @@
       "module": "java_calibrated",
       "indication_code": "87433001",
       "frequency": 0.0027539779681762548,
-      "java_per_patient": 0.06578947368421052
+      "java_per_patient": 0.06578947368421052,
+      "indication_distribution": [
+        [
+          "87433001",
+          0.5304116321933238
+        ],
+        [
+          "185086009",
+          0.46958836780667623
+        ]
+      ]
     },
     {
       "code": "133899007",
@@ -9994,7 +11236,61 @@
       "module": "java_calibrated",
       "indication_code": "108631000119101",
       "frequency": 0.0025703794369645043,
-      "java_per_patient": 0.06140350877192982
+      "java_per_patient": 0.06140350877192982,
+      "indication_distribution": [
+        [
+          "108631000119101",
+          0.3215460526315789
+        ],
+        [
+          "267020005",
+          0.21463815789473684
+        ],
+        [
+          "153351000119102",
+          0.08223684210526316
+        ],
+        [
+          "444448004",
+          0.07483552631578948
+        ],
+        [
+          "30832001",
+          0.05592105263157895
+        ],
+        [
+          "152621000119105",
+          0.05345394736842105
+        ],
+        [
+          "109838007",
+          0.04851973684210526
+        ],
+        [
+          "363406005",
+          0.04851973684210526
+        ],
+        [
+          "444470001",
+          0.03700657894736842
+        ],
+        [
+          "185086009",
+          0.023026315789473683
+        ],
+        [
+          "87433001",
+          0.02055921052631579
+        ],
+        [
+          "307731004",
+          0.013157894736842105
+        ],
+        [
+          "93761005",
+          0.006578947368421052
+        ]
+      ]
     },
     {
       "code": "71493000",
@@ -10012,7 +11308,13 @@
       "module": "java_calibrated",
       "indication_code": "68496003",
       "frequency": 0.0022031823745410034,
-      "java_per_patient": 0.05263157894736842
+      "java_per_patient": 0.05263157894736842,
+      "indication_distribution": [
+        [
+          "68496003",
+          1.0
+        ]
+      ]
     },
     {
       "code": "415070008",
@@ -10021,7 +11323,25 @@
       "module": "java_calibrated",
       "indication_code": "274531002",
       "frequency": 0.0020195838433292534,
-      "java_per_patient": 0.04824561403508772
+      "java_per_patient": 0.04824561403508772,
+      "indication_distribution": [
+        [
+          "274531002",
+          0.7082748948106592
+        ],
+        [
+          "401314000",
+          0.1514726507713885
+        ],
+        [
+          "401303003",
+          0.1276297335203366
+        ],
+        [
+          "4557003",
+          0.012622720897615708
+        ]
+      ]
     },
     {
       "code": "440546007",
@@ -10039,7 +11359,13 @@
       "module": "java_calibrated",
       "indication_code": "72892002",
       "frequency": 0.0018359853121175031,
-      "java_per_patient": 0.043859649122807015
+      "java_per_patient": 0.043859649122807015,
+      "indication_distribution": [
+        [
+          "72892002",
+          1.0
+        ]
+      ]
     },
     {
       "code": "714812005",
@@ -10048,7 +11374,13 @@
       "module": "java_calibrated",
       "indication_code": "72892002",
       "frequency": 0.0018359853121175031,
-      "java_per_patient": 0.043859649122807015
+      "java_per_patient": 0.043859649122807015,
+      "indication_distribution": [
+        [
+          "72892002",
+          1.0
+        ]
+      ]
     },
     {
       "code": "386394001",
@@ -10057,7 +11389,13 @@
       "module": "java_calibrated",
       "indication_code": "72892002",
       "frequency": 0.0018359853121175031,
-      "java_per_patient": 0.043859649122807015
+      "java_per_patient": 0.043859649122807015,
+      "indication_distribution": [
+        [
+          "72892002",
+          1.0
+        ]
+      ]
     },
     {
       "code": "311791003",
@@ -10102,7 +11440,13 @@
       "module": "java_calibrated",
       "indication_code": "88805009",
       "frequency": 0.0016523867809057529,
-      "java_per_patient": 0.039473684210526314
+      "java_per_patient": 0.039473684210526314,
+      "indication_distribution": [
+        [
+          "88805009",
+          1.0
+        ]
+      ]
     },
     {
       "code": "433236007",
@@ -10129,7 +11473,13 @@
       "module": "java_calibrated",
       "indication_code": "192127007",
       "frequency": 0.0014687882496940024,
-      "java_per_patient": 0.03508771929824561
+      "java_per_patient": 0.03508771929824561,
+      "indication_distribution": [
+        [
+          "192127007",
+          1.0
+        ]
+      ]
     },
     {
       "code": "1263416007",
@@ -10156,7 +11506,21 @@
       "module": "java_calibrated",
       "indication_code": "274531002",
       "frequency": 0.0014687882496940024,
-      "java_per_patient": 0.03508771929824561
+      "java_per_patient": 0.03508771929824561,
+      "indication_distribution": [
+        [
+          "274531002",
+          0.8752598752598753
+        ],
+        [
+          "60573004",
+          0.08523908523908524
+        ],
+        [
+          "60234000",
+          0.0395010395010395
+        ]
+      ]
     },
     {
       "code": "110467000",
@@ -10174,7 +11538,17 @@
       "module": "java_calibrated",
       "indication_code": "60573004",
       "frequency": 0.0014687882496940024,
-      "java_per_patient": 0.03508771929824561
+      "java_per_patient": 0.03508771929824561,
+      "indication_distribution": [
+        [
+          "60573004",
+          0.6833333333333333
+        ],
+        [
+          "60234000",
+          0.31666666666666665
+        ]
+      ]
     },
     {
       "code": "410538000",
@@ -10183,7 +11557,21 @@
       "module": "java_calibrated",
       "indication_code": "274531002",
       "frequency": 0.0014687882496940024,
-      "java_per_patient": 0.03508771929824561
+      "java_per_patient": 0.03508771929824561,
+      "indication_distribution": [
+        [
+          "274531002",
+          0.888412017167382
+        ],
+        [
+          "60573004",
+          0.07510729613733907
+        ],
+        [
+          "60234000",
+          0.03648068669527898
+        ]
+      ]
     },
     {
       "code": "410770002",
@@ -10210,7 +11598,13 @@
       "module": "java_calibrated",
       "indication_code": "1231000119100",
       "frequency": 0.0014687882496940024,
-      "java_per_patient": 0.03508771929824561
+      "java_per_patient": 0.03508771929824561,
+      "indication_distribution": [
+        [
+          "1231000119100",
+          1.0
+        ]
+      ]
     },
     {
       "code": "261352009",
@@ -10219,7 +11613,13 @@
       "module": "java_calibrated",
       "indication_code": "840544004",
       "frequency": 0.0012851897184822522,
-      "java_per_patient": 0.03070175438596491
+      "java_per_patient": 0.03070175438596491,
+      "indication_distribution": [
+        [
+          "840544004",
+          1.0
+        ]
+      ]
     },
     {
       "code": "31208007",
@@ -10228,7 +11628,13 @@
       "module": "java_calibrated",
       "indication_code": "72892002",
       "frequency": 0.0012851897184822522,
-      "java_per_patient": 0.03070175438596491
+      "java_per_patient": 0.03070175438596491,
+      "indication_distribution": [
+        [
+          "72892002",
+          1.0
+        ]
+      ]
     },
     {
       "code": "392247006",
@@ -10291,7 +11697,17 @@
       "module": "java_calibrated",
       "indication_code": "399261000",
       "frequency": 0.0012851897184822522,
-      "java_per_patient": 0.03070175438596491
+      "java_per_patient": 0.03070175438596491,
+      "indication_distribution": [
+        [
+          "399261000",
+          0.9928909952606635
+        ],
+        [
+          "88805009",
+          0.0071090047393364926
+        ]
+      ]
     },
     {
       "code": "302761001",
@@ -10300,7 +11716,13 @@
       "module": "java_calibrated",
       "indication_code": "399261000",
       "frequency": 0.0012851897184822522,
-      "java_per_patient": 0.03070175438596491
+      "java_per_patient": 0.03070175438596491,
+      "indication_distribution": [
+        [
+          "399261000",
+          1.0
+        ]
+      ]
     },
     {
       "code": "252482003",
@@ -10309,7 +11731,13 @@
       "module": "java_calibrated",
       "indication_code": "399261000",
       "frequency": 0.0012851897184822522,
-      "java_per_patient": 0.03070175438596491
+      "java_per_patient": 0.03070175438596491,
+      "indication_distribution": [
+        [
+          "399261000",
+          1.0
+        ]
+      ]
     },
     {
       "code": "305428000",
@@ -10318,7 +11746,17 @@
       "module": "java_calibrated",
       "indication_code": "58150001",
       "frequency": 0.0011015911872705017,
-      "java_per_patient": 0.02631578947368421
+      "java_per_patient": 0.02631578947368421,
+      "indication_distribution": [
+        [
+          "58150001",
+          0.7785087719298246
+        ],
+        [
+          "359817006",
+          0.22149122807017543
+        ]
+      ]
     },
     {
       "code": "46706006",
@@ -10336,7 +11774,13 @@
       "module": "java_calibrated",
       "indication_code": "72892002",
       "frequency": 0.0011015911872705017,
-      "java_per_patient": 0.02631578947368421
+      "java_per_patient": 0.02631578947368421,
+      "indication_distribution": [
+        [
+          "72892002",
+          1.0
+        ]
+      ]
     },
     {
       "code": "168594001",
@@ -10354,7 +11798,13 @@
       "module": "java_calibrated",
       "indication_code": "88805009",
       "frequency": 0.0009179926560587516,
-      "java_per_patient": 0.021929824561403508
+      "java_per_patient": 0.021929824561403508,
+      "indication_distribution": [
+        [
+          "88805009",
+          1.0
+        ]
+      ]
     },
     {
       "code": "42825003",
@@ -10399,7 +11849,25 @@
       "module": "java_calibrated",
       "indication_code": "414545008",
       "frequency": 0.0009179926560587516,
-      "java_per_patient": 0.021929824561403508
+      "java_per_patient": 0.021929824561403508,
+      "indication_distribution": [
+        [
+          "414545008",
+          0.9678714859437751
+        ],
+        [
+          "401314000",
+          0.020080321285140562
+        ],
+        [
+          "401303003",
+          0.008032128514056224
+        ],
+        [
+          "4557003",
+          0.004016064257028112
+        ]
+      ]
     },
     {
       "code": "301884003",
@@ -10453,7 +11921,17 @@
       "module": "java_calibrated",
       "indication_code": "60234000",
       "frequency": 0.0009179926560587516,
-      "java_per_patient": 0.021929824561403508
+      "java_per_patient": 0.021929824561403508,
+      "indication_distribution": [
+        [
+          "60234000",
+          0.5814696485623003
+        ],
+        [
+          "60573004",
+          0.4185303514376997
+        ]
+      ]
     },
     {
       "code": "15081005",
@@ -10462,7 +11940,17 @@
       "module": "java_calibrated",
       "indication_code": "185086009",
       "frequency": 0.0009179926560587516,
-      "java_per_patient": 0.021929824561403508
+      "java_per_patient": 0.021929824561403508,
+      "indication_distribution": [
+        [
+          "185086009",
+          0.5014398848092153
+        ],
+        [
+          "87433001",
+          0.49856011519078475
+        ]
+      ]
     },
     {
       "code": "306316000",
@@ -10471,7 +11959,17 @@
       "module": "java_calibrated",
       "indication_code": "698306007",
       "frequency": 0.0007343941248470012,
-      "java_per_patient": 0.017543859649122806
+      "java_per_patient": 0.017543859649122806,
+      "indication_distribution": [
+        [
+          "698306007",
+          0.9085545722713865
+        ],
+        [
+          "698303004",
+          0.09144542772861357
+        ]
+      ]
     },
     {
       "code": "18946005",
@@ -10480,7 +11978,13 @@
       "module": "java_calibrated",
       "indication_code": "72892002",
       "frequency": 0.0007343941248470012,
-      "java_per_patient": 0.017543859649122806
+      "java_per_patient": 0.017543859649122806,
+      "indication_distribution": [
+        [
+          "72892002",
+          1.0
+        ]
+      ]
     },
     {
       "code": "1290459008",
@@ -10525,7 +12029,13 @@
       "module": "java_calibrated",
       "indication_code": "72892002",
       "frequency": 0.0007343941248470012,
-      "java_per_patient": 0.017543859649122806
+      "java_per_patient": 0.017543859649122806,
+      "indication_distribution": [
+        [
+          "72892002",
+          1.0
+        ]
+      ]
     },
     {
       "code": "54550000",
@@ -10543,7 +12053,17 @@
       "module": "java_calibrated",
       "indication_code": "91302008",
       "frequency": 0.0007343941248470012,
-      "java_per_patient": 0.017543859649122806
+      "java_per_patient": 0.017543859649122806,
+      "indication_distribution": [
+        [
+          "91302008",
+          0.5313807531380753
+        ],
+        [
+          "76571007",
+          0.4686192468619247
+        ]
+      ]
     },
     {
       "code": "43075005",
@@ -10552,7 +12072,21 @@
       "module": "java_calibrated",
       "indication_code": "109838007",
       "frequency": 0.0007343941248470012,
-      "java_per_patient": 0.017543859649122806
+      "java_per_patient": 0.017543859649122806,
+      "indication_distribution": [
+        [
+          "109838007",
+          0.46825396825396826
+        ],
+        [
+          "363406005",
+          0.46825396825396826
+        ],
+        [
+          "93761005",
+          0.06349206349206349
+        ]
+      ]
     },
     {
       "code": "1290407002",
@@ -10570,7 +12104,21 @@
       "module": "java_calibrated",
       "indication_code": "444448004",
       "frequency": 0.0007343941248470012,
-      "java_per_patient": 0.017543859649122806
+      "java_per_patient": 0.017543859649122806,
+      "indication_distribution": [
+        [
+          "444448004",
+          0.44660194174757284
+        ],
+        [
+          "30832001",
+          0.3300970873786408
+        ],
+        [
+          "444470001",
+          0.22330097087378642
+        ]
+      ]
     },
     {
       "code": "392091000",
@@ -10588,7 +12136,13 @@
       "module": "java_calibrated",
       "indication_code": "698306007",
       "frequency": 0.0005507955936352508,
-      "java_per_patient": 0.013157894736842105
+      "java_per_patient": 0.013157894736842105,
+      "indication_distribution": [
+        [
+          "698306007",
+          1.0
+        ]
+      ]
     },
     {
       "code": "70536003",
@@ -10597,7 +12151,13 @@
       "module": "java_calibrated",
       "indication_code": "698306007",
       "frequency": 0.0005507955936352508,
-      "java_per_patient": 0.013157894736842105
+      "java_per_patient": 0.013157894736842105,
+      "indication_distribution": [
+        [
+          "698306007",
+          1.0
+        ]
+      ]
     },
     {
       "code": "236974004",
@@ -10606,7 +12166,13 @@
       "module": "java_calibrated",
       "indication_code": "72892002",
       "frequency": 0.0005507955936352508,
-      "java_per_patient": 0.013157894736842105
+      "java_per_patient": 0.013157894736842105,
+      "indication_distribution": [
+        [
+          "72892002",
+          1.0
+        ]
+      ]
     },
     {
       "code": "448337001",
@@ -10624,7 +12190,13 @@
       "module": "java_calibrated",
       "indication_code": "274531002",
       "frequency": 0.0005507955936352508,
-      "java_per_patient": 0.013157894736842105
+      "java_per_patient": 0.013157894736842105,
+      "indication_distribution": [
+        [
+          "274531002",
+          1.0
+        ]
+      ]
     },
     {
       "code": "710839006",
@@ -10642,7 +12214,17 @@
       "module": "java_calibrated",
       "indication_code": "86406008",
       "frequency": 0.0005507955936352508,
-      "java_per_patient": 0.013157894736842105
+      "java_per_patient": 0.013157894736842105,
+      "indication_distribution": [
+        [
+          "86406008",
+          0.6111111111111112
+        ],
+        [
+          "62479008",
+          0.3888888888888889
+        ]
+      ]
     },
     {
       "code": "165197003",
@@ -10669,7 +12251,13 @@
       "module": "java_calibrated",
       "indication_code": "254837009",
       "frequency": 0.0005507955936352508,
-      "java_per_patient": 0.013157894736842105
+      "java_per_patient": 0.013157894736842105,
+      "indication_distribution": [
+        [
+          "254837009",
+          1.0
+        ]
+      ]
     },
     {
       "code": "433114000",
@@ -10678,7 +12266,13 @@
       "module": "java_calibrated",
       "indication_code": "254837009",
       "frequency": 0.0005507955936352508,
-      "java_per_patient": 0.013157894736842105
+      "java_per_patient": 0.013157894736842105,
+      "indication_distribution": [
+        [
+          "254837009",
+          1.0
+        ]
+      ]
     },
     {
       "code": "223487003",
@@ -10687,7 +12281,13 @@
       "module": "java_calibrated",
       "indication_code": "254837009",
       "frequency": 0.0005507955936352508,
-      "java_per_patient": 0.013157894736842105
+      "java_per_patient": 0.013157894736842105,
+      "indication_distribution": [
+        [
+          "254837009",
+          1.0
+        ]
+      ]
     },
     {
       "code": "392023007",
@@ -10696,7 +12296,13 @@
       "module": "java_calibrated",
       "indication_code": "254837009",
       "frequency": 0.0005507955936352508,
-      "java_per_patient": 0.013157894736842105
+      "java_per_patient": 0.013157894736842105,
+      "indication_distribution": [
+        [
+          "254837009",
+          1.0
+        ]
+      ]
     },
     {
       "code": "90470006",
@@ -10705,7 +12311,13 @@
       "module": "java_calibrated",
       "indication_code": "126906006",
       "frequency": 0.0005507955936352508,
-      "java_per_patient": 0.013157894736842105
+      "java_per_patient": 0.013157894736842105,
+      "indication_distribution": [
+        [
+          "126906006",
+          1.0
+        ]
+      ]
     },
     {
       "code": "418891003",
@@ -10714,7 +12326,13 @@
       "module": "java_calibrated",
       "indication_code": "162573006",
       "frequency": 0.0005507955936352508,
-      "java_per_patient": 0.013157894736842105
+      "java_per_patient": 0.013157894736842105,
+      "indication_distribution": [
+        [
+          "162573006",
+          1.0
+        ]
+      ]
     },
     {
       "code": "698354004",
@@ -10723,7 +12341,17 @@
       "module": "java_calibrated",
       "indication_code": "424132000",
       "frequency": 0.0005507955936352508,
-      "java_per_patient": 0.013157894736842105
+      "java_per_patient": 0.013157894736842105,
+      "indication_distribution": [
+        [
+          "424132000",
+          0.8252427184466019
+        ],
+        [
+          "67811000119102",
+          0.17475728155339806
+        ]
+      ]
     },
     {
       "code": "449214001",
@@ -10732,7 +12360,17 @@
       "module": "java_calibrated",
       "indication_code": "91302008",
       "frequency": 0.0005507955936352508,
-      "java_per_patient": 0.013157894736842105
+      "java_per_patient": 0.013157894736842105,
+      "indication_distribution": [
+        [
+          "91302008",
+          0.9808917197452229
+        ],
+        [
+          "91861009",
+          0.01910828025477707
+        ]
+      ]
     },
     {
       "code": "305351004",
@@ -10741,7 +12379,17 @@
       "module": "java_calibrated",
       "indication_code": "76571007",
       "frequency": 0.0005507955936352508,
-      "java_per_patient": 0.013157894736842105
+      "java_per_patient": 0.013157894736842105,
+      "indication_distribution": [
+        [
+          "76571007",
+          0.8057553956834532
+        ],
+        [
+          "1231000119100",
+          0.19424460431654678
+        ]
+      ]
     },
     {
       "code": "711069006",
@@ -10750,7 +12398,25 @@
       "module": "java_calibrated",
       "indication_code": "60573004",
       "frequency": 0.0005507955936352508,
-      "java_per_patient": 0.013157894736842105
+      "java_per_patient": 0.013157894736842105,
+      "indication_distribution": [
+        [
+          "60573004",
+          0.5256410256410257
+        ],
+        [
+          "60234000",
+          0.24358974358974358
+        ],
+        [
+          "86406008",
+          0.14102564102564102
+        ],
+        [
+          "62479008",
+          0.08974358974358974
+        ]
+      ]
     },
     {
       "code": "385781007",
@@ -10768,7 +12434,13 @@
       "module": "java_calibrated",
       "indication_code": "183996000",
       "frequency": 0.0003671970624235006,
-      "java_per_patient": 0.008771929824561403
+      "java_per_patient": 0.008771929824561403,
+      "indication_distribution": [
+        [
+          "183996000",
+          1.0
+        ]
+      ]
     },
     {
       "code": "698560000",
@@ -10777,7 +12449,13 @@
       "module": "java_calibrated",
       "indication_code": "39898005",
       "frequency": 0.0003671970624235006,
-      "java_per_patient": 0.008771929824561403
+      "java_per_patient": 0.008771929824561403,
+      "indication_distribution": [
+        [
+          "39898005",
+          1.0
+        ]
+      ]
     },
     {
       "code": "169673001",
@@ -10786,7 +12464,13 @@
       "module": "java_calibrated",
       "indication_code": "72892002",
       "frequency": 0.0003671970624235006,
-      "java_per_patient": 0.008771929824561403
+      "java_per_patient": 0.008771929824561403,
+      "indication_distribution": [
+        [
+          "72892002",
+          1.0
+        ]
+      ]
     },
     {
       "code": "399217008",
@@ -10822,7 +12506,13 @@
       "module": "java_calibrated",
       "indication_code": "79586000",
       "frequency": 0.0003671970624235006,
-      "java_per_patient": 0.008771929824561403
+      "java_per_patient": 0.008771929824561403,
+      "indication_distribution": [
+        [
+          "79586000",
+          1.0
+        ]
+      ]
     },
     {
       "code": "445912000",
@@ -10831,7 +12521,13 @@
       "module": "java_calibrated",
       "indication_code": "79586000",
       "frequency": 0.0003671970624235006,
-      "java_per_patient": 0.008771929824561403
+      "java_per_patient": 0.008771929824561403,
+      "indication_distribution": [
+        [
+          "79586000",
+          1.0
+        ]
+      ]
     },
     {
       "code": "384700001",
@@ -10840,7 +12536,29 @@
       "module": "java_calibrated",
       "indication_code": "284549007",
       "frequency": 0.0003671970624235006,
-      "java_per_patient": 0.008771929824561403
+      "java_per_patient": 0.008771929824561403,
+      "indication_distribution": [
+        [
+          "284549007",
+          0.21613832853025935
+        ],
+        [
+          "370247008",
+          0.207492795389049
+        ],
+        [
+          "283385000",
+          0.20461095100864554
+        ],
+        [
+          "283371005",
+          0.19020172910662825
+        ],
+        [
+          "284551006",
+          0.18155619596541786
+        ]
+      ]
     },
     {
       "code": "76164006",
@@ -10849,7 +12567,13 @@
       "module": "java_calibrated",
       "indication_code": "68496003",
       "frequency": 0.0003671970624235006,
-      "java_per_patient": 0.008771929824561403
+      "java_per_patient": 0.008771929824561403,
+      "indication_distribution": [
+        [
+          "68496003",
+          1.0
+        ]
+      ]
     },
     {
       "code": "284053004",
@@ -10858,7 +12582,13 @@
       "module": "java_calibrated",
       "indication_code": "61804006",
       "frequency": 0.0003671970624235006,
-      "java_per_patient": 0.008771929824561403
+      "java_per_patient": 0.008771929824561403,
+      "indication_distribution": [
+        [
+          "61804006",
+          1.0
+        ]
+      ]
     },
     {
       "code": "11466000",
@@ -10867,7 +12597,13 @@
       "module": "java_calibrated",
       "indication_code": "72892002",
       "frequency": 0.0003671970624235006,
-      "java_per_patient": 0.008771929824561403
+      "java_per_patient": 0.008771929824561403,
+      "indication_distribution": [
+        [
+          "72892002",
+          1.0
+        ]
+      ]
     },
     {
       "code": "24623002",
@@ -10885,7 +12621,17 @@
       "module": "java_calibrated",
       "indication_code": "401314000",
       "frequency": 0.0003671970624235006,
-      "java_per_patient": 0.008771929824561403
+      "java_per_patient": 0.008771929824561403,
+      "indication_distribution": [
+        [
+          "401314000",
+          0.8982035928143712
+        ],
+        [
+          "4557003",
+          0.10179640718562874
+        ]
+      ]
     },
     {
       "code": "180178009",
@@ -10903,7 +12649,13 @@
       "module": "java_calibrated",
       "indication_code": "1255252008",
       "frequency": 0.0003671970624235006,
-      "java_per_patient": 0.008771929824561403
+      "java_per_patient": 0.008771929824561403,
+      "indication_distribution": [
+        [
+          "1255252008",
+          1.0
+        ]
+      ]
     },
     {
       "code": "180207008",
@@ -10921,7 +12673,21 @@
       "module": "java_calibrated",
       "indication_code": "414545008",
       "frequency": 0.0003671970624235006,
-      "java_per_patient": 0.008771929824561403
+      "java_per_patient": 0.008771929824561403,
+      "indication_distribution": [
+        [
+          "414545008",
+          0.9858156028368794
+        ],
+        [
+          "401303003",
+          0.0070921985815602835
+        ],
+        [
+          "401314000",
+          0.0070921985815602835
+        ]
+      ]
     },
     {
       "code": "417511005",
@@ -10966,7 +12732,13 @@
       "module": "java_calibrated",
       "indication_code": "39898005",
       "frequency": 0.0001835985312117503,
-      "java_per_patient": 0.0043859649122807015
+      "java_per_patient": 0.0043859649122807015,
+      "indication_distribution": [
+        [
+          "39898005",
+          1.0
+        ]
+      ]
     },
     {
       "code": "76746007",
@@ -10975,7 +12747,21 @@
       "module": "java_calibrated",
       "indication_code": "88805009",
       "frequency": 0.0001835985312117503,
-      "java_per_patient": 0.0043859649122807015
+      "java_per_patient": 0.0043859649122807015,
+      "indication_distribution": [
+        [
+          "88805009",
+          0.689922480620155
+        ],
+        [
+          "401314000",
+          0.27906976744186046
+        ],
+        [
+          "4557003",
+          0.031007751937984496
+        ]
+      ]
     },
     {
       "code": "241055006",
@@ -10993,7 +12779,13 @@
       "module": "java_calibrated",
       "indication_code": "254837009",
       "frequency": 0.0001835985312117503,
-      "java_per_patient": 0.0043859649122807015
+      "java_per_patient": 0.0043859649122807015,
+      "indication_distribution": [
+        [
+          "254837009",
+          1.0
+        ]
+      ]
     },
     {
       "code": "48387007",
@@ -11020,7 +12812,13 @@
       "module": "java_calibrated",
       "indication_code": "162573006",
       "frequency": 0.0001835985312117503,
-      "java_per_patient": 0.0043859649122807015
+      "java_per_patient": 0.0043859649122807015,
+      "indication_distribution": [
+        [
+          "162573006",
+          1.0
+        ]
+      ]
     },
     {
       "code": "167995008",
@@ -11029,7 +12827,13 @@
       "module": "java_calibrated",
       "indication_code": "162573006",
       "frequency": 0.0001835985312117503,
-      "java_per_patient": 0.0043859649122807015
+      "java_per_patient": 0.0043859649122807015,
+      "indication_distribution": [
+        [
+          "162573006",
+          1.0
+        ]
+      ]
     },
     {
       "code": "473220001",
@@ -11038,7 +12842,25 @@
       "module": "java_calibrated",
       "indication_code": "108631000119101",
       "frequency": 0.0001835985312117503,
-      "java_per_patient": 0.0043859649122807015
+      "java_per_patient": 0.0043859649122807015,
+      "indication_distribution": [
+        [
+          "108631000119101",
+          0.666098807495741
+        ],
+        [
+          "153351000119102",
+          0.17035775127768313
+        ],
+        [
+          "152621000119105",
+          0.11073253833049404
+        ],
+        [
+          "698303004",
+          0.05281090289608177
+        ]
+      ]
     },
     {
       "code": "304532001",
@@ -11047,7 +12869,13 @@
       "module": "java_calibrated",
       "indication_code": "698303004",
       "frequency": 0.0001835985312117503,
-      "java_per_patient": 0.0043859649122807015
+      "java_per_patient": 0.0043859649122807015,
+      "indication_distribution": [
+        [
+          "698303004",
+          1.0
+        ]
+      ]
     },
     {
       "code": "304531008",
@@ -11056,7 +12884,13 @@
       "module": "java_calibrated",
       "indication_code": "698303004",
       "frequency": 0.0001835985312117503,
-      "java_per_patient": 0.0043859649122807015
+      "java_per_patient": 0.0043859649122807015,
+      "indication_distribution": [
+        [
+          "698303004",
+          1.0
+        ]
+      ]
     },
     {
       "code": "394894008",
@@ -11065,7 +12899,13 @@
       "module": "java_calibrated",
       "indication_code": "698303004",
       "frequency": 0.0001835985312117503,
-      "java_per_patient": 0.0043859649122807015
+      "java_per_patient": 0.0043859649122807015,
+      "indication_distribution": [
+        [
+          "698303004",
+          1.0
+        ]
+      ]
     },
     {
       "code": "1571000087109",
@@ -11083,7 +12923,17 @@
       "module": "java_calibrated",
       "indication_code": "60573004",
       "frequency": 0.0001835985312117503,
-      "java_per_patient": 0.0043859649122807015
+      "java_per_patient": 0.0043859649122807015,
+      "indication_distribution": [
+        [
+          "60573004",
+          0.6833333333333333
+        ],
+        [
+          "60234000",
+          0.31666666666666665
+        ]
+      ]
     },
     {
       "code": "183976008",
@@ -11092,7 +12942,17 @@
       "module": "java_calibrated",
       "indication_code": "60573004",
       "frequency": 0.0001835985312117503,
-      "java_per_patient": 0.0043859649122807015
+      "java_per_patient": 0.0043859649122807015,
+      "indication_distribution": [
+        [
+          "60573004",
+          0.6833333333333333
+        ],
+        [
+          "60234000",
+          0.31666666666666665
+        ]
+      ]
     },
     {
       "code": "709010006",
@@ -11101,7 +12961,17 @@
       "module": "java_calibrated",
       "indication_code": "60573004",
       "frequency": 0.0001835985312117503,
-      "java_per_patient": 0.0043859649122807015
+      "java_per_patient": 0.0043859649122807015,
+      "indication_distribution": [
+        [
+          "60573004",
+          0.6833333333333333
+        ],
+        [
+          "60234000",
+          0.31666666666666665
+        ]
+      ]
     },
     {
       "code": "312853008",
@@ -11110,7 +12980,17 @@
       "module": "java_calibrated",
       "indication_code": "60573004",
       "frequency": 0.0001835985312117503,
-      "java_per_patient": 0.0043859649122807015
+      "java_per_patient": 0.0043859649122807015,
+      "indication_distribution": [
+        [
+          "60573004",
+          0.6833333333333333
+        ],
+        [
+          "60234000",
+          0.31666666666666665
+        ]
+      ]
     },
     {
       "code": "418023006",
@@ -11164,7 +13044,17 @@
       "module": "java_calibrated",
       "indication_code": "60573004",
       "frequency": 0.0001835985312117503,
-      "java_per_patient": 0.0043859649122807015
+      "java_per_patient": 0.0043859649122807015,
+      "indication_distribution": [
+        [
+          "60573004",
+          0.6833333333333333
+        ],
+        [
+          "60234000",
+          0.31666666666666665
+        ]
+      ]
     },
     {
       "code": "133900002",
@@ -11200,7 +13090,21 @@
       "module": "java_calibrated",
       "indication_code": "414545008",
       "frequency": 0.0001835985312117503,
-      "java_per_patient": 0.0043859649122807015
+      "java_per_patient": 0.0043859649122807015,
+      "indication_distribution": [
+        [
+          "414545008",
+          0.7777777777777778
+        ],
+        [
+          "401314000",
+          0.16666666666666666
+        ],
+        [
+          "401303003",
+          0.05555555555555555
+        ]
+      ]
     },
     {
       "code": "58828004",
@@ -11227,7 +13131,13 @@
       "module": "java_calibrated",
       "indication_code": "1231000119100",
       "frequency": 0.0001835985312117503,
-      "java_per_patient": 0.0043859649122807015
+      "java_per_patient": 0.0043859649122807015,
+      "indication_distribution": [
+        [
+          "1231000119100",
+          1.0
+        ]
+      ]
     },
     {
       "code": "305342007",
@@ -11236,7 +13146,13 @@
       "module": "java_calibrated",
       "indication_code": "1231000119100",
       "frequency": 0.0001835985312117503,
-      "java_per_patient": 0.0043859649122807015
+      "java_per_patient": 0.0043859649122807015,
+      "indication_distribution": [
+        [
+          "1231000119100",
+          1.0
+        ]
+      ]
     },
     {
       "code": "432231006",
@@ -11245,7 +13161,13 @@
       "module": "java_calibrated",
       "indication_code": "162573006",
       "frequency": 0.0001835985312117503,
-      "java_per_patient": 0.0043859649122807015
+      "java_per_patient": 0.0043859649122807015,
+      "indication_distribution": [
+        [
+          "162573006",
+          1.0
+        ]
+      ]
     },
     {
       "code": "40617009",
@@ -11254,7 +13176,13 @@
       "module": "java_calibrated",
       "indication_code": "67782005",
       "frequency": 0.0001835985312117503,
-      "java_per_patient": 0.0043859649122807015
+      "java_per_patient": 0.0043859649122807015,
+      "indication_distribution": [
+        [
+          "67782005",
+          1.0
+        ]
+      ]
     },
     {
       "code": "243174005",
@@ -11263,7 +13191,13 @@
       "module": "java_calibrated",
       "indication_code": "67782005",
       "frequency": 0.0001835985312117503,
-      "java_per_patient": 0.0043859649122807015
+      "java_per_patient": 0.0043859649122807015,
+      "indication_distribution": [
+        [
+          "67782005",
+          1.0
+        ]
+      ]
     },
     {
       "code": "426701000119108",
@@ -11299,7 +13233,13 @@
       "module": "java_calibrated",
       "indication_code": "74400008",
       "frequency": 0.0001835985312117503,
-      "java_per_patient": 0.0043859649122807015
+      "java_per_patient": 0.0043859649122807015,
+      "indication_distribution": [
+        [
+          "74400008",
+          1.0
+        ]
+      ]
     },
     {
       "code": "23933004",
@@ -11308,7 +13248,13 @@
       "module": "java_calibrated",
       "indication_code": "67787004",
       "frequency": 0.0001835985312117503,
-      "java_per_patient": 0.0043859649122807015
+      "java_per_patient": 0.0043859649122807015,
+      "indication_distribution": [
+        [
+          "67787004",
+          1.0
+        ]
+      ]
     },
     {
       "code": "237001001",
@@ -11317,7 +13263,13 @@
       "module": "java_calibrated",
       "indication_code": "72892002",
       "frequency": 0.0001835985312117503,
-      "java_per_patient": 0.0043859649122807015
+      "java_per_patient": 0.0043859649122807015,
+      "indication_distribution": [
+        [
+          "72892002",
+          1.0
+        ]
+      ]
     },
     {
       "code": "385892002",
@@ -11335,7 +13287,13 @@
       "module": "java_calibrated",
       "indication_code": "47505003",
       "frequency": 0.0001835985312117503,
-      "java_per_patient": 0.0043859649122807015
+      "java_per_patient": 0.0043859649122807015,
+      "indication_distribution": [
+        [
+          "47505003",
+          1.0
+        ]
+      ]
     },
     {
       "code": "112790001",

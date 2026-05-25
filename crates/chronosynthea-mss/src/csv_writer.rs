@@ -114,82 +114,111 @@ impl SyntheaCsvWriter {
             gender,
         )?;
 
-        // conditions.csv — one row per emitted condition. Chronosynthea's
-        // `condition_onset_days` is parallel to `conditions`; convert to
-        // an absolute START date.
+        // conditions.csv — one row per emitted condition, stamped with each
+        // condition's actual onset date (`birth_date + condition_onset_days[i]`).
+        // Chronosynthea's `condition_onset_days` is parallel to `conditions`,
+        // already sorted ascending so the rows walk the patient's trajectory
+        // in temporal order.
         for (i, &cond_idx) in patient.conditions.iter().enumerate() {
-            let onset_days = patient
-                .conditions
+            let onset_offset = patient
+                .condition_onset_days
                 .get(i)
-                .map(|_| 0u16)
-                .unwrap_or(0); // see below
-            // NOTE: FullPatient doesn't currently carry per-condition
-            // onset_days the way CompactPatient does. Use the patient's
-            // birth_date_days + 0 as a placeholder when the temporal axis
-            // is unpopulated. A future refactor should propagate
-            // condition_onset_days through FullPatient too.
-            let _ = onset_days;
-            let onset_date = epoch_to_date(patient.birth_date_days + 0);
+                .copied()
+                .unwrap_or(0) as i32;
+            let onset_date = epoch_to_date(patient.birth_date_days + onset_offset);
             let (code, display) = lookup_condition(archetypes, code_table, cond_idx);
             writeln!(
                 self.conditions,
                 "{},,{},,SNOMED-CT,{},\"{}\"",
-                onset_date, patient_uuid, code, display.replace('"', "\\\""),
-            )?;
-        }
-
-        // medications.csv — REASONCODE pulled from `patient.medication_causes`.
-        for (i, &med_idx) in patient.medications.iter().enumerate() {
-            let (code, display) = lookup_medication(archetypes, code_table, med_idx);
-            let cause = patient
-                .medication_causes
-                .get(i)
-                .copied()
-                .unwrap_or(u16::MAX);
-            let (reason_code, reason_desc) = if cause == u16::MAX {
-                (String::new(), String::new())
-            } else {
-                let (c, d) = lookup_condition(archetypes, code_table, cause);
-                (c, d.to_string())
-            };
-            let onset_date = epoch_to_date(patient.birth_date_days + 0);
-            writeln!(
-                self.medications,
-                "{},,{},,,{},\"{}\",,,,,{},\"{}\"",
                 onset_date,
                 patient_uuid,
                 code,
                 display.replace('"', "\\\""),
-                reason_code,
-                reason_desc.replace('"', "\\\""),
             )?;
         }
 
-        // procedures.csv — same REASONCODE wiring via procedure_causes.
-        for (i, &proc_idx) in patient.procedures.iter().enumerate() {
-            let (code, display) = lookup_procedure(archetypes, code_table, proc_idx);
-            let cause = patient
-                .procedure_causes
-                .get(i)
-                .copied()
-                .unwrap_or(u16::MAX);
-            let (reason_code, reason_desc) = if cause == u16::MAX {
-                (String::new(), String::new())
-            } else {
-                let (c, d) = lookup_condition(archetypes, code_table, cause);
-                (c, d.to_string())
-            };
-            let onset_date = epoch_to_date(patient.birth_date_days + 0);
-            writeln!(
-                self.procedures,
-                "{},,{},,SNOMED-CT,{},\"{}\",,{},\"{}\"",
-                onset_date,
-                patient_uuid,
-                code,
-                display.replace('"', "\\\""),
-                reason_code,
-                reason_desc.replace('"', "\\\""),
-            )?;
+        // Build per-medication and per-procedure REASONCODE lookups from the
+        // parallel `*_causes` arrays. Each unique med/proc gets a fixed cause
+        // for the patient; every encounter that emits that event uses the
+        // same REASONCODE.
+        let mut med_cause: [u16; 256] = [u16::MAX; 256];
+        for (i, &m) in patient.medications.iter().enumerate() {
+            let c = patient.medication_causes.get(i).copied().unwrap_or(u16::MAX);
+            if (m as usize) < med_cause.len() {
+                med_cause[m as usize] = c;
+            }
+        }
+        let mut proc_cause: ahash::AHashMap<u16, u16> = ahash::AHashMap::new();
+        for (i, &p) in patient.procedures.iter().enumerate() {
+            let c = patient.procedure_causes.get(i).copied().unwrap_or(u16::MAX);
+            proc_cause.insert(p, c);
+        }
+
+        // medications.csv + procedures.csv — emit one row per encounter event,
+        // not one row per unique code. This matches Java Synthea's temporal
+        // layout where the same medication can fire across many encounters,
+        // each as its own row with a distinct START timestamp.
+        for encounter in patient.encounters.iter() {
+            let enc_date = epoch_to_date(
+                patient.birth_date_days + encounter.days_since_birth as i32,
+            );
+            for event in encounter.events.iter() {
+                match event.event_type {
+                    1 => {
+                        // medication
+                        let med_idx = event.code_idx;
+                        let (code, display) =
+                            lookup_medication(archetypes, code_table, med_idx);
+                        let cause = med_cause
+                            .get(med_idx as usize)
+                            .copied()
+                            .unwrap_or(u16::MAX);
+                        let (reason_code, reason_desc) = if cause == u16::MAX {
+                            (String::new(), String::new())
+                        } else {
+                            let (c, d) =
+                                lookup_condition(archetypes, code_table, cause);
+                            (c, d.to_string())
+                        };
+                        writeln!(
+                            self.medications,
+                            "{},,{},,,{},\"{}\",,,,,{},\"{}\"",
+                            enc_date,
+                            patient_uuid,
+                            code,
+                            display.replace('"', "\\\""),
+                            reason_code,
+                            reason_desc.replace('"', "\\\""),
+                        )?;
+                    }
+                    2 => {
+                        // procedure
+                        let proc_idx = event.code_idx;
+                        let (code, display) =
+                            lookup_procedure(archetypes, code_table, proc_idx);
+                        let cause =
+                            proc_cause.get(&proc_idx).copied().unwrap_or(u16::MAX);
+                        let (reason_code, reason_desc) = if cause == u16::MAX {
+                            (String::new(), String::new())
+                        } else {
+                            let (c, d) =
+                                lookup_condition(archetypes, code_table, cause);
+                            (c, d.to_string())
+                        };
+                        writeln!(
+                            self.procedures,
+                            "{},,{},,SNOMED-CT,{},\"{}\",,{},\"{}\"",
+                            enc_date,
+                            patient_uuid,
+                            code,
+                            display.replace('"', "\\\""),
+                            reason_code,
+                            reason_desc.replace('"', "\\\""),
+                        )?;
+                    }
+                    _ => {}
+                }
+            }
         }
 
         Ok(())

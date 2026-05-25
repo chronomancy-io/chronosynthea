@@ -909,6 +909,7 @@ impl BatchGenerator {
 
         // Sample age within archetype range
         let age = archetype.sample_age(rng);
+        let max_age_days = (age as u32).saturating_mul(365) + (age as u32) / 4;
         let birth_year = 2024 - age as i32;
         let birth_date = NaiveDate::from_ymd_opt(birth_year, 1, 1).unwrap();
         let birth_date_days =
@@ -924,9 +925,35 @@ impl BatchGenerator {
         let race = race_to_idx(&archetype.demographics.race);
         let ethnicity = ethnicity_to_idx(&archetype.demographics.ethnicity);
 
+        // d5 = `temporal-ordered`: sample per-condition onset days and sort
+        // (condition, onset) ascending so the patient's trajectory walks in
+        // temporal order. Mirrors the CompactPatient path; the encounter-level
+        // CSV writer uses these to stamp the conditions.csv `START` column
+        // with each condition's actual onset date instead of the patient's
+        // birth date.
+        let mut raw_onsets: SmallVec<[u16; 8]> = SmallVec::new();
+        for &c in condition_buffer.iter() {
+            raw_onsets.push(archetypes.sample_onset_days(c, max_age_days, rng));
+        }
+        let mut order: SmallVec<[u8; 8]> =
+            (0..condition_buffer.len() as u8).collect();
+        order.sort_by_key(|&i| raw_onsets[i as usize]);
+        let sorted_conds: SmallVec<[u16; 8]> = order
+            .iter()
+            .map(|&i| condition_buffer[i as usize])
+            .collect();
+        let sorted_onsets: SmallVec<[u16; 8]> =
+            order.iter().map(|&i| raw_onsets[i as usize]).collect();
+        // Keep `condition_buffer` aligned with the sorted patient view so
+        // downstream samplers (medications, procedures, REASONCODE) see the
+        // same per-patient condition set.
+        condition_buffer.clear();
+        condition_buffer.extend_from_slice(&sorted_conds);
+
         // Create patient
         let mut patient = FullPatient::new(id, birth_date_days, sex, race, ethnicity, archetype.id);
-        patient.conditions = condition_buffer.clone();
+        patient.conditions = sorted_conds;
+        patient.condition_onset_days = sorted_onsets;
 
         // Sample medications based on conditions
         let meds =
@@ -959,9 +986,6 @@ impl BatchGenerator {
         event_sampler.reset_patient();
 
         for enc_idx in 0..encounter_count {
-            // Sample procedures for this encounter with O(1) bitset deduplication
-            event_sampler.sample_procedures_accumulate(proc_freqs, rng);
-
             // Spread encounters across patient lifetime
             let days_since_birth = if age > 0 {
                 rng.gen_range(0..(age * 365)) as u16
@@ -975,9 +999,9 @@ impl BatchGenerator {
 
             let mut encounter = FullEncounter::new(enc_type, days_since_birth);
 
-            // Add condition diagnosis events (for chronic conditions, add to some encounters)
+            // Add condition diagnosis events (chronic conditions appear at
+            // ~30% of encounters; acute conditions at the first encounter).
             for &cond_idx in condition_buffer.iter() {
-                // Add condition to ~30% of encounters (for chronic) or just first encounter (acute)
                 if enc_idx == 0 || rng.gen::<f32>() < 0.3 {
                     encounter.add_event(CompactEvent {
                         event_type: 0, // diagnosis
@@ -989,9 +1013,10 @@ impl BatchGenerator {
                 }
             }
 
-            // Add medication events
+            // Medication events: each patient-level medication fires at
+            // ~50% of encounters (chronic admin); REASONCODE is preserved
+            // via the per-patient `medication_causes` lookup in csv_writer.
             for &med_idx in patient.medications.iter() {
-                // Medications appear in ~50% of encounters (chronic meds)
                 if rng.gen::<f32>() < 0.5 {
                     encounter.add_event(CompactEvent {
                         event_type: 1, // medication
@@ -1003,7 +1028,7 @@ impl BatchGenerator {
                 }
             }
 
-            // Add observation events (sample for this encounter)
+            // Observation events.
             let obs_freqs = archetypes.observation_frequencies();
             let obs = event_sampler.sample_observations_for_encounter(obs_freqs, rng);
             for &obs_idx in obs {
@@ -1016,25 +1041,62 @@ impl BatchGenerator {
                 });
             }
 
-            // Add procedure events from sampler's accumulated procedures
-            for &proc_idx in event_sampler.accumulated_procedures() {
-                // Procedures appear in ~20% of encounters
-                if rng.gen::<f32>() < 0.2 {
-                    encounter.add_event(CompactEvent {
-                        event_type: 2, // procedure
-                        system_idx: 0, // SNOMED-CT
-                        code_idx: proc_idx,
-                        display_idx: proc_idx,
-                        timestamp_offset: 0,
-                    });
+            // Procedure events: per-encounter sampling at the natural
+            // empirical rate (each procedure's `frequency` field is already
+            // a per-encounter probability extracted from Java's output).
+            // Also adds condition-triggered procedures so chronic conditions
+            // (dialysis for CKD, mammograms for breast screening) fire at
+            // each encounter at their per-condition rate. Both paths
+            // accumulate into the patient-level `procedure_seen` bitset for
+            // the REASONCODE lookup and dedup against the patient.procedures
+            // membership set.
+            let enc_procs = event_sampler.sample_procedures_for_encounter(proc_freqs, rng);
+            for &proc_idx in enc_procs {
+                encounter.add_event(CompactEvent {
+                    event_type: 2, // procedure
+                    system_idx: 0, // SNOMED-CT
+                    code_idx: proc_idx,
+                    display_idx: proc_idx,
+                    timestamp_offset: 0,
+                });
+            }
+            // Condition-triggered per-encounter procedure firing.
+            for &cond_idx in condition_buffer.iter() {
+                let procs = archetypes.procedures_for_condition(cond_idx);
+                for &(p, freq) in procs {
+                    if freq > 0.0 && rng.gen::<f32>() < freq {
+                        encounter.add_event(CompactEvent {
+                            event_type: 2, // procedure
+                            system_idx: 0,
+                            code_idx: p,
+                            display_idx: p,
+                            timestamp_offset: 0,
+                        });
+                    }
                 }
             }
 
             patient.encounters.push(encounter);
         }
 
-        // Copy accumulated procedures to patient
-        patient.procedures = SmallVec::from_slice(event_sampler.accumulated_procedures());
+        // Build the patient-level unique procedure set from encounter events
+        // (rather than carrying a parallel patient buffer that has to be
+        // synced with what the encounter loop actually emitted). Bitset dedup
+        // keeps this O(n_events) with no quadratic contains() check.
+        let mut proc_seen = [0u64; (u16::MAX as usize / 64) + 1];
+        for enc in &patient.encounters {
+            for ev in &enc.events {
+                if ev.event_type == 2 {
+                    let idx = ev.code_idx as usize;
+                    let word = idx / 64;
+                    let bit = 1u64 << (idx % 64);
+                    if proc_seen[word] & bit == 0 {
+                        proc_seen[word] |= bit;
+                        patient.procedures.push(ev.code_idx);
+                    }
+                }
+            }
+        }
 
         // REASONCODE linkage for procedures (matches Java Synthea's
         // procedures.csv:REASONCODE column).
