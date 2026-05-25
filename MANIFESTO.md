@@ -146,7 +146,7 @@ The d5 axis on chronosynthea is **Joint Structure**, with four values declared a
 | `marginal-only` | Independent per-condition Bernoulli draws against the calibrated prevalences | — *(default)* | **Shipped** |
 | `temporal-ordered` | Per-condition onset-age drawn from `N(mean, std)` extracted empirically from Java Synthea conditions.csv; sorted on emission | `onset_stats.json` | **Shipped** |
 | `pairwise-empirical` | Additive boost from empirical conditional probabilities P(B\|A) with two-knob recalibration | `cooccurrence.json` + `recalibration.json` | **Shipped** |
-| `causal-DAG` | Gibbs sampler over the full condition vector — handles negative correlations + 3-way+ interactions | *(future work)* | Scoped |
+| `causal-DAG` | Single-site Gibbs sampler over the full condition vector with Ising J_ij = log-lift parameters; handles negative correlations + 3-way+ via iteration | env: `CHRONOSYNTHEA_JOINT_MODE=causal-dag` + cooccurrence file | **Scaffolded** (research tuning) |
 
 These compose: with all three companion files present, generated patients carry:
 - Calibrated marginal prevalences (F4 enforced)
@@ -414,9 +414,9 @@ ChronoSynthea is built to be **functionally equivalent to Java Synthea, just way
 
 What it produces **differently** than Java Synthea:
 
-- **Three-way+ comorbidity structure** is captured only insofar as the pairwise model induces it; full higher-order joint structure requires the d5 = `causal-DAG` Gibbs sampler (future work — see "Open" below).
-- **Negative causal correlations** (lift < 0.5 in Java) are not boosted in the additive `pairwise-empirical` sampler. Strata-r stays around 0.81 here; the Gibbs sampler is the fix.
-- **Per-encounter event chains** (this medication was prescribed *at* this encounter *because of* this condition) — chronosynthea emits the events but the encounter-level linkage is statistical aggregate, not per-encounter causal chain. Future work.
+- **Three-way+ comorbidity structure** is captured only insofar as the pairwise model induces it; full higher-order joint structure requires the d5 = `causal-DAG` Gibbs sampler with properly-fit Boltzmann parameters (scaffolded — see "Open future work").
+- **Negative causal correlations** (lift < 0.5 in Java) are not boosted in the additive `pairwise-empirical` sampler. Strata-r stays around 0.81 here; the Gibbs sampler will close this gap once its parameters are fit via pseudo-likelihood.
+- **REASONCODE linkage** is **now shipped** ✓ — `FullPatient.medication_causes` and `procedure_causes` record which condition triggered each prescription / procedure (equivalent to Java's `medications.csv:REASONCODE` and `procedures.csv:REASONCODE` columns), sampled proportionally to `P(med | cond)` over the patient's active conditions.
 - **Causal inference / treatment effect estimation** — even with full joint structure, marginal-fidelity samplers can distort ATE estimands per arXiv:2604.23904[^causal]. For causal inference, use real EHR data, not synthesis (Java or otherwise).
 
 In other words: chronosynthea **is** Synthea-equivalent on every dimension Java Synthea's state machines produce *deterministically given the demographic*. It diverges only on dimensions that Java Synthea generates from causal per-week trajectories that chronosynthea collapses into sufficient statistics — and even there, with three of four d5 values implemented, the gap is measured in fractions of a Pearson correlation point, not in qualitative kind.
@@ -452,16 +452,21 @@ caught. The audit was uncomfortable; the system is better for it.
 
 ## Open future work
 
-- **d5 = `causal-DAG`**: full Gibbs / Ising sampler over the condition
-  vector to handle negative correlations (currently the additive boost
-  is structurally one-sided — see "Why the boost is one-sided" below).
-  Likely closes the strong-negative-correlation Pearson r gap.
-- **Per-encounter event linkage** (REASONCODE-equivalent): produce
-  per-medication / per-procedure linkage to the condition that triggered
-  it, matching Java Synthea's `medications.csv` `REASONCODE` column. The
-  empirical pairwise (condition, medication) statistics are already
-  extractable from Java's CSV; just needs wiring through the event
-  sampler and CompactPatient extension.
+- **d5 = `causal-DAG` parameter fitting**: the Gibbs sampler is wired
+  and dispatching but the J_ij parameters derived directly from observed
+  log-lifts do not yet specify an Ising-Boltzmann distribution whose
+  equilibrium marginals reproduce the source empirical distribution.
+  Fitting J via pseudo-likelihood maximisation or Boltzmann learning is
+  research-grade work. The pairwise-empirical mode (additive boost + 
+  two-knob recalibration) is the validated joint-modelling path for
+  production until causal-DAG is properly fit.
+- **GPU offload via WGSL**: most per-patient work is embarrassingly
+  parallel and SIMD-friendly. A WGSL compute kernel could push throughput
+  by another 5–10× on consumer GPUs.
+- **CSV output adapter**: Java-Synthea-compatible `patients.csv`,
+  `conditions.csv`, `medications.csv`, `procedures.csv`, `encounters.csv`
+  emission for direct drop-in replacement. The REASONCODE columns are
+  already populated; just needs the writer.
 - **No-clamp recalibration**: the auto-load path round-trips imperfectly
   (~22% drift on ~13 of 214 conditions) because successive clamping
   during the recalibration loop accumulates non-linearly while the
