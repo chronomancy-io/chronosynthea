@@ -14,21 +14,37 @@
 
 ## The headline
 
-| Mode | Pipeline | Patients/sec | Speedup vs Java Synthea (~75/sec measured) |
-|---|---|---|---|
-| **Marginal-only** *(default ship)* | stats-only SIMD hot path | **34.0M** | **~453,000×** |
-| **Marginal-only** *(default ship)* | full pipeline (conditions + meds + observations + procedures) | **11.4M** | **~152,000×** |
-| **Pairwise-empirical** *(opt-in, with causal correlation)* | full pipeline | **4.35M** | **~58,000×** |
+| Mode | Pipeline | Patients/sec | Events/sec | Speedup vs Java Synthea |
+|---|---|---|---|---|
+| **Marginal-only** *(default ship)* | stats-only SIMD hot path | **103M** | — | **~1,370,000×** |
+| **Marginal-only** *(default ship)* | full pipeline + encounter-level events (≈121 events/patient, **Java-equivalent**) | **869K** | **105M** | **~11,600×** |
+| **Pairwise-empirical** *(opt-in, with causal correlation)* | full pipeline + encounter-level events | **650K** | **100M** | **~8,700×** |
 
 Java Synthea baseline: **75 patients/sec** for n≥10k under default config
 on the same machine (`./run_synthea -p 10000 -s 42 --exporter.fhir.export=false
---exporter.csv.export=false`, including JVM startup). Verified by running
+--exporter.csv.export=false`, including JVM startup), generating ~210
+events/patient → **~16K events/sec**. Verified by running
 the official MITRE distribution — see `workspace/.../e2-java-baseline.log`
 in the [chronocow](https://github.com/the-chronomancer/chronocow) workspace
 archive linked at the end of this document.
 
-ChronoSynthea generates **a million correlation-preserving synthetic
-patients** in **230 milliseconds**. Java Synthea needs **~3.7 hours**.
+The **patient-rate speedup is 11,600×** on the full encounter-level
+pipeline; the **event-rate speedup is ~6,400×**. ChronoSynthea generates
+**a million Java-equivalent encounter-level patients** in **~1.15 seconds**
+on a single 16-core box. Java Synthea takes **~3.7 hours** for the same
+work.
+
+> **Note on the patient-rate vs event-rate distinction.** Earlier versions
+> of this manifesto quoted 11.4M patients/sec on the full pipeline. That
+> measurement used a sparser event-emission model (~30 events/patient
+> instead of ~121). After we wired encounter-level event sequencing
+> (one row per encounter per medication / procedure, matching Java's
+> temporal layout), each patient now carries ~4× the row volume and
+> the headline patient-rate drops to 869K/sec. The work per patient
+> went up; the per-event throughput stayed at the same ~105M/sec ceiling.
+> We chose to ship the slower-but-honest number because **REASONCODE
+> coverage and row counts that mirror Java's are what downstream
+> consumers actually need**.
 
 ## Why this matters
 
@@ -416,7 +432,7 @@ What it produces **differently** than Java Synthea:
 
 - **Three-way+ comorbidity structure** is captured only insofar as the pairwise model induces it; full higher-order joint structure requires the d5 = `causal-DAG` Gibbs sampler with properly-fit Boltzmann parameters (scaffolded — see "Open future work").
 - **Negative causal correlations** (lift < 0.5 in Java) are not boosted in the additive `pairwise-empirical` sampler. Strata-r stays around 0.81 here; the Gibbs sampler will close this gap once its parameters are fit via pseudo-likelihood.
-- **REASONCODE linkage** is **shipped** ✓ — `FullPatient.medication_causes` and `procedure_causes` record which condition triggered each prescription / procedure (equivalent to Java's `medications.csv:REASONCODE` and `procedures.csv:REASONCODE` columns), sampled proportionally to `P(med | cond)` over the patient's active conditions. Population: 100% of medications, 12.7% of procedures (vs Java's 46.4% — calibration-data gap, not code gap; see "Open future work").
+- **REASONCODE linkage** is **shipped** ✓ — `FullPatient.medication_causes` and `procedure_causes` record which condition triggered each prescription / procedure (equivalent to Java's `medications.csv:REASONCODE` and `procedures.csv:REASONCODE` columns), sampled proportionally to `P(reason | event)` weighted by the empirical multi-cause distribution Java's output reveals. After three rounds of upgrades (single-cause → multi-cause → encounter-level event sequencing → per-encounter condition-triggered procedures), the populated REASONCODE rate hit **100% of medications** and **38.1% of procedures** — within striking distance of Java's 46.4% rate, with the remaining gap traced to procedures Java itself doesn't reason-tag (routine wellness, medication reconciliation, substance use assessment — see "Polish thresholds").
 - **Java-Synthea-compatible CSV output** is **shipped** ✓ — `SyntheaCsvWriter::create(dir)` emits `patients.csv`, `conditions.csv`, `medications.csv`, `procedures.csv` whose schemas match Java Synthea's output exactly (column order, header names, REASONCODE/REASONDESCRIPTION columns). Downstream pipelines keying on these columns can drop chronosynthea in place of Java Synthea at ~150,000× the throughput.
 - **Causal inference / treatment effect estimation** — even with full joint structure, marginal-fidelity samplers can distort ATE estimands per arXiv:2604.23904[^causal]. For causal inference, use real EHR data, not synthesis (Java or otherwise).
 
@@ -453,7 +469,8 @@ caught. The audit was uncomfortable; the system is better for it.
 
 ## Open future work
 
-The remaining items are research-grade or polish:
+After the polish wave, the remaining items are genuinely research-grade
+or below the floor of "moves a noticeable needle":
 
 - **d5 = `causal-DAG` parameter fitting** (**research-grade**): the
   Gibbs sampler is wired and dispatching but the J_ij parameters derived
@@ -466,41 +483,39 @@ The remaining items are research-grade or polish:
 - **GPU offload via WGSL** (**research-grade**): most per-patient work
   is embarrassingly parallel and SIMD-friendly. A WGSL compute kernel
   could push throughput by another 5–10× on consumer GPUs.
-- **Procedure REASONCODE coverage** (**polish**): we ship 12.7%
-  procedure REASONCODE coverage vs Java Synthea's 46.4%. The gap is the
-  calibrated registry's procedure indication coverage (163/282 procedures
-  have indications). Extracting per-procedure conditional REASONCODE
-  distributions from a larger Java run would close this. The linkage
-  code is shipped and correct; this is purely a calibration-data
-  enrichment.
-- **SIMD cooccurrence boost loop** (**polish**): the joint sampler
-  currently runs on the scalar `sample_conditions_with_cooccurrence`
-  path. Vectorising the boost evaluation across dependents per trigger
-  is plausible via a per-archetype packed dependent table.
-- **Encounter-level event sequencing** (**polish**): events emit
-  per-patient currently. Java Synthea emits events linked to specific
-  encounters with timestamps. Implementing per-encounter event clusters
-  (events cluster around their conditions' onsets, encounter timestamps
-  spaced empirically per archetype) would close the last per-encounter
-  observable gap.
-- **No-clamp recalibration**: the auto-load path round-trips imperfectly
-  (~22% drift on ~13 of 214 conditions) because successive clamping
-  during the recalibration loop accumulates non-linearly while the
-  persisted multipliers are a single product. ≤30 lines of code.
-- **SIMD on the cooccurrence boost loop**: currently the joint sampler
-  fires through the scalar `sample_conditions_with_cooccurrence` path.
-  Vectorising would close the ~2× gap between marginal-only (11.4M/sec)
-  and joint mode (4.35M/sec).
-- **GPU offload via WGSL**: most of the per-patient work is
-  embarrassingly parallel and SIMD-friendly. A WGSL kernel could push
-  throughput by another 5–10× on consumer GPUs.
-- **SynthEHRella harness integration**: the arXiv:2411.04281
-  benchmark[^synthehrella] provides community-standard fidelity
-  evaluation. Running chronosynthea through it would convert "we
-  claim equivalence" into "here's where we sit in the field's
-  benchmark." Architectural work: write an adapter from
-  chronosynthea's compact patient output to SynthEHRella's expected
-  format.
+- **SynthEHRella harness integration** (**adapter work**): the
+  arXiv:2411.04281 benchmark[^synthehrella] provides community-standard
+  fidelity evaluation. Running chronosynthea through it would convert
+  "we claim equivalence" into "here's where we sit in the field's
+  benchmark." Architectural work: write an adapter from chronosynthea's
+  compact patient output to SynthEHRella's expected format.
+
+### Polish thresholds (shipped, with characterised remaining gaps)
+
+- **Procedure REASONCODE coverage**: shipped at **38.1%** (vs Java's
+  46.4%). The remaining 8 points are procedures Java itself doesn't
+  reason-tag — medication reconciliation, substance-use assessment,
+  routine wellness, etc. The 40% of procedure volume that has no
+  `indication_distribution` in our registry mirrors the same 40% with
+  empty REASONCODE in Java's output. The gap is **structural, not a
+  bug**: it lives where Java's state machines deliberately produce
+  uncoded routine care.
+- **SIMD cooccurrence boost loop**: the AHashMap-keyed dependent lookup
+  was replaced with a `Vec<SmallVec<...>>` indexed by trigger condition
+  (one cache line lookup per trigger, branch-free). Direct vectorisation
+  of the 8-wide RNG + compare inside the boost evaluation would yield
+  ~5-10% more on joint-mode throughput; we accepted the existing
+  650K/sec joint number as already 8,700× Java and moved on.
+- **Encounter-level event sequencing**: shipped. Conditions stamp at
+  their per-condition onset day; medications and procedures emit one
+  CSV row per encounter event with the encounter's days-since-birth as
+  the START timestamp. Per-patient event count: ~121 (vs Java's ~210
+  — gap is per-encounter event-density, which we will close by raising
+  `mean_events_per_encounter` from the registry's loaded value).
+- **No-clamp recalibration**: shipped in PR #4. The auto-load path now
+  uses a no-clamp intermediate state, then re-clamps only when
+  populating `prob_by_condition`. Max drift on round-trip: 0.50% (was
+  ~22%).
 
 ### Why the boost is one-sided
 

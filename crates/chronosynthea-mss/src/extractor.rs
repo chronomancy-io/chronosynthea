@@ -658,15 +658,35 @@ impl MssExtractor {
             })
             .collect();
 
-        // Build medication statistics
+        // Build medication statistics. `by_condition` already carries the
+        // empirical `P(reason | medication)` counts, so we emit a parallel
+        // `indication_weights` vector — same length as `indications`, in the
+        // same order — for the multi-cause REASONCODE sampler.
         let medications: Vec<MedicationStats> = self
             .medications
             .values()
-            .map(|acc| MedicationStats {
-                code: acc.code.clone(),
-                display: acc.display.clone(),
-                frequency: acc.total_count as f64 / self.total_encounters.max(1) as f64,
-                indications: acc.by_condition.keys().cloned().collect(),
+            .map(|acc| {
+                let total: u64 = acc.by_condition.values().sum();
+                let mut pairs: Vec<(String, u64)> = acc
+                    .by_condition
+                    .iter()
+                    .map(|(k, v)| (k.clone(), *v))
+                    .collect();
+                // Stable order so indications/indication_weights stay aligned.
+                pairs.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
+                let indications: Vec<String> = pairs.iter().map(|(c, _)| c.clone()).collect();
+                let indication_weights: Vec<f64> = if total > 0 {
+                    pairs.iter().map(|(_, n)| *n as f64 / total as f64).collect()
+                } else {
+                    vec![]
+                };
+                MedicationStats {
+                    code: acc.code.clone(),
+                    display: acc.display.clone(),
+                    frequency: acc.total_count as f64 / self.total_encounters.max(1) as f64,
+                    indications,
+                    indication_weights,
+                }
             })
             .collect();
 
@@ -682,16 +702,33 @@ impl MssExtractor {
             })
             .collect();
 
-        // Build procedure statistics
+        // Build procedure statistics (see medications above for the
+        // by_condition → indications/indication_weights mapping).
         let procedures: Vec<ProcedureStats> = self
             .procedures
             .values()
-            .map(|acc| ProcedureStats {
-                code: acc.code.clone(),
-                system: acc.system.clone(),
-                display: acc.display.clone(),
-                frequency: acc.total_count as f64 / self.total_encounters.max(1) as f64,
-                indications: acc.by_condition.keys().cloned().collect(),
+            .map(|acc| {
+                let total: u64 = acc.by_condition.values().sum();
+                let mut pairs: Vec<(String, u64)> = acc
+                    .by_condition
+                    .iter()
+                    .map(|(k, v)| (k.clone(), *v))
+                    .collect();
+                pairs.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
+                let indications: Vec<String> = pairs.iter().map(|(c, _)| c.clone()).collect();
+                let indication_weights: Vec<f64> = if total > 0 {
+                    pairs.iter().map(|(_, n)| *n as f64 / total as f64).collect()
+                } else {
+                    vec![]
+                };
+                ProcedureStats {
+                    code: acc.code.clone(),
+                    system: acc.system.clone(),
+                    display: acc.display.clone(),
+                    frequency: acc.total_count as f64 / self.total_encounters.max(1) as f64,
+                    indications,
+                    indication_weights,
+                }
             })
             .collect();
 

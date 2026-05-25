@@ -50,8 +50,10 @@ fn csv_smoke_synthea_compatible() {
     let code_table = generator.code_table();
 
     let mut total_conditions = 0usize;
-    let mut total_meds = 0usize;
-    let mut total_procs = 0usize;
+    let mut total_unique_meds = 0usize;
+    let mut total_unique_procs = 0usize;
+    let mut total_med_events = 0usize;
+    let mut total_proc_events = 0usize;
     let mut meds_with_reason = 0usize;
     let mut procs_with_reason = 0usize;
     for p in &patients {
@@ -60,27 +62,61 @@ fn csv_smoke_synthea_compatible() {
             .write_patient(p, &uuid, archetypes, code_table)
             .expect("write patient");
         total_conditions += p.conditions.len();
-        total_meds += p.medications.len();
-        total_procs += p.procedures.len();
-        meds_with_reason += p
-            .medication_causes
+        total_unique_meds += p.medications.len();
+        total_unique_procs += p.procedures.len();
+        // Build per-patient cause lookups so we can count REASONCODE
+        // populations at the EVENT level (one row per encounter event in the
+        // CSV, not one row per unique code).
+        let med_cause: std::collections::HashMap<u16, u16> = p
+            .medications
             .iter()
-            .filter(|&&c| c != u16::MAX)
-            .count();
-        procs_with_reason += p
-            .procedure_causes
+            .zip(p.medication_causes.iter())
+            .map(|(&m, &c)| (m, c))
+            .collect();
+        let proc_cause: std::collections::HashMap<u16, u16> = p
+            .procedures
             .iter()
-            .filter(|&&c| c != u16::MAX)
-            .count();
+            .zip(p.procedure_causes.iter())
+            .map(|(&pr, &c)| (pr, c))
+            .collect();
+        for enc in &p.encounters {
+            for ev in &enc.events {
+                match ev.event_type {
+                    1 => {
+                        total_med_events += 1;
+                        if let Some(&c) = med_cause.get(&ev.code_idx) {
+                            if c != u16::MAX {
+                                meds_with_reason += 1;
+                            }
+                        }
+                    }
+                    2 => {
+                        total_proc_events += 1;
+                        if let Some(&c) = proc_cause.get(&ev.code_idx) {
+                            if c != u16::MAX {
+                                procs_with_reason += 1;
+                            }
+                        }
+                    }
+                    _ => {}
+                }
+            }
+        }
     }
     writer.flush().expect("flush csv writer");
 
     println!(
-        "csv totals: conditions={total_conditions} medications={total_meds} procedures={total_procs}"
+        "csv totals: conditions={total_conditions} med_events={total_med_events} \
+         proc_events={total_proc_events} (unique meds={total_unique_meds}, procs={total_unique_procs})"
     );
     println!(
-        "REASONCODE populated: meds {}/{} procs {}/{}",
-        meds_with_reason, total_meds, procs_with_reason, total_procs
+        "REASONCODE populated: meds {}/{} ({:.1}%) procs {}/{} ({:.1}%)",
+        meds_with_reason,
+        total_med_events,
+        100.0 * meds_with_reason as f64 / total_med_events.max(1) as f64,
+        procs_with_reason,
+        total_proc_events,
+        100.0 * procs_with_reason as f64 / total_proc_events.max(1) as f64
     );
 
     // Validate that each output file exists with a Java-compatible header.
@@ -119,20 +155,25 @@ fn csv_smoke_synthea_compatible() {
             .lines()
             .count()
     };
+    // patients.csv: one row per patient (header + N).
     assert_eq!(count_lines(&p_path), 1 + patients.len());
+    // conditions.csv: one row per unique condition per patient.
     assert_eq!(count_lines(&c_path), 1 + total_conditions);
-    assert_eq!(count_lines(&m_path), 1 + total_meds);
-    assert_eq!(count_lines(&pr_path), 1 + total_procs);
+    // medications + procedures: one row per encounter event of that type
+    // (matches Java Synthea's temporal layout — same drug across many
+    // encounters yields many rows).
+    assert_eq!(count_lines(&m_path), 1 + total_med_events);
+    assert_eq!(count_lines(&pr_path), 1 + total_proc_events);
 
     // At least *some* medications and procedures should have a REASONCODE
     // — otherwise the REASONCODE linkage isn't firing.
-    if total_meds > 100 {
+    if total_med_events > 100 {
         assert!(
             meds_with_reason > 0,
             "no medication REASONCODE populated — linkage not firing"
         );
     }
-    if total_procs > 100 {
+    if total_proc_events > 100 {
         assert!(
             procs_with_reason > 0,
             "no procedure REASONCODE populated — linkage not firing"
