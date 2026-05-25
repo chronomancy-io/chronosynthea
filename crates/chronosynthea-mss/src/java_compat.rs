@@ -97,6 +97,13 @@ pub struct CalibratedMedication {
     pub display: String,
     #[serde(default)]
     pub indication_code: String,
+    /// Optional empirical conditional distribution `P(reason_code | this_medication)`,
+    /// extracted from Java's `medications.csv:REASONCODE` column. When non-empty,
+    /// takes precedence over the single `indication_code` and lets the
+    /// REASONCODE sampler weight multiple causes by their actual frequency.
+    /// Each entry: `(reason_snomed_code, weight)` with weights summing to 1.
+    #[serde(default)]
+    pub indication_distribution: Vec<(String, f64)>,
     #[serde(default)]
     pub frequency: f64,
     #[serde(default)]
@@ -123,6 +130,12 @@ pub struct CalibratedProcedure {
     pub display: String,
     #[serde(default)]
     pub indication_code: String,
+    /// Optional empirical conditional distribution `P(reason_code | this_procedure)`,
+    /// extracted from Java's `procedures.csv:REASONCODE` column. When non-empty,
+    /// takes precedence over the single `indication_code`. See
+    /// `CalibratedMedication::indication_distribution`.
+    #[serde(default)]
+    pub indication_distribution: Vec<(String, f64)>,
     #[serde(default)]
     pub frequency: f64,
     #[serde(default)]
@@ -309,19 +322,33 @@ impl CalibratedRegistry {
             })
             .collect();
 
-        // Convert medications
+        // Convert medications. Prefer the empirical multi-cause
+        // `indication_distribution` when provided (from
+        // `extract_indication_distributions.py`); otherwise fall back to
+        // the single `indication_code` for backward compatibility with
+        // older calibrated registries.
         let medications: Vec<MedicationStats> = self
             .medications
             .iter()
-            .map(|m| MedicationStats {
-                code: m.code.clone(),
-                display: m.display.clone(),
-                frequency: m.frequency,
-                indications: if m.indication_code.is_empty() {
-                    vec![]
+            .map(|m| {
+                let (indications, indication_weights) = if !m.indication_distribution.is_empty() {
+                    let codes: Vec<String> =
+                        m.indication_distribution.iter().map(|(c, _)| c.clone()).collect();
+                    let weights: Vec<f64> =
+                        m.indication_distribution.iter().map(|(_, w)| *w).collect();
+                    (codes, weights)
+                } else if m.indication_code.is_empty() {
+                    (vec![], vec![])
                 } else {
-                    vec![m.indication_code.clone()]
-                },
+                    (vec![m.indication_code.clone()], vec![])
+                };
+                MedicationStats {
+                    code: m.code.clone(),
+                    display: m.display.clone(),
+                    frequency: m.frequency,
+                    indications,
+                    indication_weights,
+                }
             })
             .collect();
 
@@ -341,24 +368,35 @@ impl CalibratedRegistry {
             })
             .collect();
 
-        // Convert procedures
+        // Convert procedures (see medications above for the
+        // indication_distribution → indications/indication_weights mapping).
         let procedures: Vec<ProcedureStats> = self
             .procedures
             .iter()
-            .map(|p| ProcedureStats {
-                code: p.code.clone(),
-                system: if p.system.is_empty() {
-                    "SNOMED-CT".to_string()
+            .map(|p| {
+                let (indications, indication_weights) = if !p.indication_distribution.is_empty() {
+                    let codes: Vec<String> =
+                        p.indication_distribution.iter().map(|(c, _)| c.clone()).collect();
+                    let weights: Vec<f64> =
+                        p.indication_distribution.iter().map(|(_, w)| *w).collect();
+                    (codes, weights)
+                } else if p.indication_code.is_empty() {
+                    (vec![], vec![])
                 } else {
-                    p.system.clone()
-                },
-                display: p.display.clone(),
-                frequency: p.frequency,
-                indications: if p.indication_code.is_empty() {
-                    vec![]
-                } else {
-                    vec![p.indication_code.clone()]
-                },
+                    (vec![p.indication_code.clone()], vec![])
+                };
+                ProcedureStats {
+                    code: p.code.clone(),
+                    system: if p.system.is_empty() {
+                        "SNOMED-CT".to_string()
+                    } else {
+                        p.system.clone()
+                    },
+                    display: p.display.clone(),
+                    frequency: p.frequency,
+                    indications,
+                    indication_weights,
+                }
             })
             .collect();
 

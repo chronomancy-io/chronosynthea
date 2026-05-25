@@ -249,6 +249,15 @@ pub struct MedicationStats {
 
     /// Indication condition codes.
     pub indications: Vec<String>,
+
+    /// Optional per-indication weight, parallel to `indications`. When
+    /// non-empty (and same length as `indications`), the REASONCODE sampler
+    /// uses these as the conditional `P(reason | medication)` weights for
+    /// multi-cause sampling. When empty, the sampler falls back to the
+    /// medication's `frequency` for every indication (uniform among active
+    /// causes).
+    #[serde(default)]
+    pub indication_weights: Vec<f64>,
 }
 
 /// Statistics for an observation.
@@ -284,6 +293,11 @@ pub struct ProcedureStats {
 
     /// Indication condition codes.
     pub indications: Vec<String>,
+
+    /// Optional per-indication weight, parallel to `indications`. See
+    /// `MedicationStats::indication_weights`.
+    #[serde(default)]
+    pub indication_weights: Vec<f64>,
 }
 
 /// Encounter distribution statistics.

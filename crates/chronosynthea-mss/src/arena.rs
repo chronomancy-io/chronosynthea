@@ -114,6 +114,10 @@ pub struct FullPatient {
     pub archetype_id: crate::types::ArchetypeId,
     /// Condition indices.
     pub conditions: SmallVec<[u16; 8]>,
+    /// Per-condition onset, days since the patient's birth. Parallel to
+    /// `conditions`, sorted ascending so the patient's trajectory walks in
+    /// temporal order. Mirrors `CompactPatient::condition_onset_days`.
+    pub condition_onset_days: SmallVec<[u16; 8]>,
     /// Medication indices.
     pub medications: SmallVec<[u16; 8]>,
     /// REASONCODE per medication — the condition index that caused each
@@ -159,6 +163,7 @@ impl FullPatient {
             ethnicity,
             archetype_id,
             conditions: SmallVec::new(),
+            condition_onset_days: SmallVec::new(),
             medications: SmallVec::new(),
             medication_causes: SmallVec::new(),
             procedures: SmallVec::new(),

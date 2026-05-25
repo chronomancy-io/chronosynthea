@@ -570,6 +570,33 @@ impl EventSampler {
         &self.procedure_buffer
     }
 
+    /// Augments the patient-level procedure buffer with condition-triggered
+    /// procedures: for each active condition, draws each procedure linked to
+    /// it via `condition_to_procedures` with probability `P(proc | cond)`.
+    /// Uses the same `procedure_seen` dedup bitset as the unconditional pass,
+    /// so a procedure triggered both unconditionally and by a condition is
+    /// only added once. This is the path that makes Java-style
+    /// procedure-by-indication trigger fire (and gives REASONCODE coverage
+    /// proportional to Java's empirical rate).
+    #[inline]
+    pub fn accumulate_procedures_for_conditions<R: Rng>(
+        &mut self,
+        conditions: &[u16],
+        registry: &crate::archetype::ArchetypeRegistry,
+        rng: &mut R,
+    ) {
+        for &cond_idx in conditions {
+            let procs = registry.procedures_for_condition(cond_idx);
+            for &(proc_idx, frequency) in procs {
+                if frequency > 0.0 && rng.gen::<f32>() < frequency {
+                    if !self.procedure_seen.test_and_set(proc_idx) {
+                        self.procedure_buffer.push(proc_idx);
+                    }
+                }
+            }
+        }
+    }
+
     /// Samples medications directly from archetype thresholds using SIMD.
     /// Same three optimisations as `SimdSampler::sample_active`:
     ///   1. Skip all-zero chunks before paying RNG cost.

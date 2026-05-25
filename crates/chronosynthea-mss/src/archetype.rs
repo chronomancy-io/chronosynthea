@@ -107,30 +107,31 @@ impl PatientArchetype {
         for &c in &triggers {
             present.test_and_set(c);
         }
+        // Hoist slice views once so the inner loop has no method dispatch.
+        let scales = cooccurrence.dependent_scale();
+        let prob_by_cond: &[f32] = &self.prob_by_condition;
         for &trigger_cond in &triggers {
-            if let Some(dependents) = cooccurrence.get_dependents(trigger_cond) {
-                for &(dependent_idx, conditional_prob) in dependents {
-                    let base_prob = self
-                        .prob_by_condition
-                        .get(dependent_idx as usize)
-                        .copied()
-                        .unwrap_or(0.0);
-                    if conditional_prob <= base_prob {
-                        continue;
-                    }
-                    if present.test(dependent_idx) {
-                        continue;
-                    }
-                    let scale = cooccurrence
-                        .dependent_scale()
-                        .get(dependent_idx as usize)
-                        .copied()
-                        .unwrap_or(1.0);
-                    let boost = (conditional_prob - base_prob) * DAMPING * scale;
-                    if boost > 0.0 && rng.gen::<f32>() < boost {
-                        buffer.push(dependent_idx);
-                        present.test_and_set(dependent_idx);
-                    }
+            let dependents = cooccurrence.get_dependents(trigger_cond);
+            for &(dependent_idx, conditional_prob) in dependents {
+                // Bit test first — early exit before any arithmetic.
+                if present.test(dependent_idx) {
+                    continue;
+                }
+                let d = dependent_idx as usize;
+                // `prob_by_condition` is sized to `num_conditions` and
+                // `dependent_idx` is sourced from the same condition space,
+                // so the bounds check is unreachable in practice. Both
+                // `prob_by_condition` and `dependent_scale` are dense arrays
+                // — direct indexing is the SIMD-friendly access pattern.
+                let base_prob = *prob_by_cond.get(d).unwrap_or(&0.0);
+                if conditional_prob <= base_prob {
+                    continue;
+                }
+                let scale = *scales.get(d).unwrap_or(&1.0);
+                let boost = (conditional_prob - base_prob) * DAMPING * scale;
+                if boost > 0.0 && rng.gen::<f32>() < boost {
+                    buffer.push(dependent_idx);
+                    present.test_and_set(dependent_idx);
                 }
             }
         }
@@ -476,24 +477,41 @@ impl ArchetypeRegistry {
         }
 
         // Inverse lookups for REASONCODE linkage: medication_idx → conditions
-        // that can cause it (with P(med | cond)).
+        // that can cause it. The weight is `P(reason | medication)` when the
+        // fingerprint provides per-indication weights (extracted from Java's
+        // empirical `REASONCODE` distribution), otherwise we fall back to
+        // `med.frequency` — which gives uniform sampling among active causes,
+        // matching the pre-v2 single-cause behaviour but generalised to the
+        // multi-cause case.
         let mut medication_to_conditions: Vec<SmallVec<[(u16, f32); 4]>> =
             vec![SmallVec::new(); num_medications];
         for (med_idx, med) in fp.medications.iter().enumerate() {
-            for indication in &med.indications {
+            let has_weights = med.indication_weights.len() == med.indications.len()
+                && !med.indication_weights.is_empty();
+            for (i, indication) in med.indications.iter().enumerate() {
                 if let Some(&cond_idx) = condition_code_to_idx.get(indication.as_str()) {
-                    medication_to_conditions[med_idx]
-                        .push((cond_idx, med.frequency as f32));
+                    let w = if has_weights {
+                        med.indication_weights[i] as f32
+                    } else {
+                        med.frequency as f32
+                    };
+                    medication_to_conditions[med_idx].push((cond_idx, w));
                 }
             }
         }
         let mut procedure_to_conditions: Vec<SmallVec<[(u16, f32); 4]>> =
             vec![SmallVec::new(); num_procedures];
         for (proc_idx, proc) in fp.procedures.iter().enumerate() {
-            for indication in &proc.indications {
+            let has_weights = proc.indication_weights.len() == proc.indications.len()
+                && !proc.indication_weights.is_empty();
+            for (i, indication) in proc.indications.iter().enumerate() {
                 if let Some(&cond_idx) = condition_code_to_idx.get(indication.as_str()) {
-                    procedure_to_conditions[proc_idx]
-                        .push((cond_idx, proc.frequency as f32));
+                    let w = if has_weights {
+                        proc.indication_weights[i] as f32
+                    } else {
+                        proc.frequency as f32
+                    };
+                    procedure_to_conditions[proc_idx].push((cond_idx, w));
                 }
             }
         }
@@ -904,9 +922,11 @@ impl ArchetypeRegistry {
 /// Co-occurrence model for conditional sampling of related conditions.
 #[derive(Debug, Clone, Default)]
 pub struct CooccurrenceModel {
-    /// Maps condition index -> list of (dependent_condition_idx, conditional_probability).
-    /// P(dependent | trigger) = conditional_probability
-    dependents: AHashMap<u16, SmallVec<[(u16, f32); 4]>>,
+    /// Trigger-indexed direct lookup of dependents. Index is the trigger's
+    /// condition index (`u16`). Empty `SmallVec` means "no dependents".
+    /// Avoids the per-trigger hash lookup that an `AHashMap<u16, _>` would
+    /// incur on the hot path. Sized to `num_conditions` after build.
+    dependents_by_trigger: Vec<SmallVec<[(u16, f32); 4]>>,
 
     /// Per-dependent boost-scale knob set by the recalibration loop.
     /// `boost_contribution_to(c) = (conditional - base) * 0.5 * dependent_scale[c]`.
@@ -928,7 +948,9 @@ impl CooccurrenceModel {
     /// Builds a co-occurrence model from a fingerprint.
     pub fn from_fingerprint(fp: &MssFingerprint) -> Self {
         let mut model = Self::new();
-        model.dependent_scale = vec![1.0; fp.conditions.len()];
+        let n = fp.conditions.len();
+        model.dependent_scale = vec![1.0; n];
+        model.dependents_by_trigger = vec![SmallVec::new(); n];
 
         // Build code -> index lookup
         let code_to_idx: AHashMap<&str, u16> = fp
@@ -986,31 +1008,41 @@ impl CooccurrenceModel {
 
     /// Adds a dependency relationship.
     pub fn add_dependency(&mut self, trigger: u16, dependent: u16, conditional_prob: f32) {
-        self.dependents
-            .entry(trigger)
-            .or_default()
-            .push((dependent, conditional_prob));
+        let t = trigger as usize;
+        if t >= self.dependents_by_trigger.len() {
+            self.dependents_by_trigger.resize(t + 1, SmallVec::new());
+        }
+        self.dependents_by_trigger[t].push((dependent, conditional_prob));
     }
 
-    /// Gets the dependents for a trigger condition.
-    #[inline]
-    pub fn get_dependents(&self, trigger: u16) -> Option<&SmallVec<[(u16, f32); 4]>> {
-        self.dependents.get(&trigger)
+    /// Gets the dependents for a trigger condition. Empty slice when the
+    /// trigger has no recorded dependents.
+    #[inline(always)]
+    pub fn get_dependents(&self, trigger: u16) -> &[(u16, f32)] {
+        let t = trigger as usize;
+        if t < self.dependents_by_trigger.len() {
+            &self.dependents_by_trigger[t]
+        } else {
+            &[]
+        }
     }
 
-    /// Returns the number of trigger conditions with dependencies.
+    /// Returns the number of trigger conditions with at least one dependent.
     pub fn len(&self) -> usize {
-        self.dependents.len()
+        self.dependents_by_trigger
+            .iter()
+            .filter(|v| !v.is_empty())
+            .count()
     }
 
     /// Returns whether the model is empty.
     pub fn is_empty(&self) -> bool {
-        self.dependents.is_empty()
+        self.dependents_by_trigger.iter().all(|v| v.is_empty())
     }
 
     /// Returns total number of dependency relationships.
     pub fn total_dependencies(&self) -> usize {
-        self.dependents.values().map(|v| v.len()).sum()
+        self.dependents_by_trigger.iter().map(|v| v.len()).sum()
     }
 }
 
