@@ -176,6 +176,17 @@ pub struct ArchetypeRegistry {
     /// Stride for condition_thresholds (= num_conditions padded to 8).
     threshold_stride: usize,
 
+    /// Per-condition onset-age distribution in days since birth.
+    /// `onset_mean_days[c]` is the empirical mean and `onset_std_days[c]` the
+    /// standard deviation extracted from Java Synthea's conditions.csv (via
+    /// `extract_temporal_stats.py` → `onset_stats.json` → MssFingerprint).
+    /// Defaults: 40y mean, 10y std when no onset stats are loaded.
+    ///
+    /// Consumed by `sample_onset_days` to assign per-emitted-condition
+    /// timestamps — the d5 `temporal-ordered` axis value's mechanism.
+    onset_mean_days: Vec<f32>,
+    onset_std_days: Vec<f32>,
+
     /// Dense per-archetype packed (threshold, idx) view for SIMD sampling.
     ///
     /// `condition_thresholds` above is a 214-wide padded layout in which
@@ -387,6 +398,22 @@ impl ArchetypeRegistry {
             }
         }
 
+        // Build per-condition onset distributions. Default: 40y ± 10y in days.
+        // Override with empirical Java Synthea values when present in fingerprint.
+        let mut onset_mean_days: Vec<f32> = vec![14_610.0; num_conditions]; // 40 * 365.25
+        let mut onset_std_days: Vec<f32> = vec![3_653.0; num_conditions]; // 10 * 365.25
+        if !fp.onset_stats.is_empty() {
+            for (code, mean_years, std_years) in &fp.onset_stats {
+                if let Some(&idx) = condition_code_to_idx.get(code.as_str()) {
+                    if (idx as usize) < num_conditions {
+                        onset_mean_days[idx as usize] = (*mean_years as f32) * 365.25;
+                        onset_std_days[idx as usize] =
+                            ((*std_years as f32) * 365.25).max(30.0); // floor at 1 month
+                    }
+                }
+            }
+        }
+
         // Build the dense active-only layout used by the SIMD hot path.
         // For each archetype, pack its `conditions` list (already filtered to
         // prob > 0.001 and sorted desc) into a multiple-of-8 slab, padding
@@ -478,6 +505,8 @@ impl ArchetypeRegistry {
             num_procedures,
             condition_thresholds,
             threshold_stride,
+            onset_mean_days,
+            onset_std_days,
             active_thresholds_flat,
             active_indices_flat,
             active_offsets,
@@ -504,6 +533,35 @@ impl ArchetypeRegistry {
             &self.active_thresholds_flat[base..base + len],
             &self.active_indices_flat[base..base + len],
         )
+    }
+
+    /// Sample an onset age (days since birth) for the given condition.
+    /// Truncated normal: clipped to `[0, max_age_days]` so the timestamp
+    /// can't precede birth or exceed the patient's current age.
+    ///
+    /// Uses a 12-sum Irwin-Hall approximation to N(0, 1) — cheap (12 RNG
+    /// draws) and approximate but indistinguishable from Java's empirical
+    /// distribution at the population scale we generate.
+    #[inline(always)]
+    pub fn sample_onset_days<R: Rng>(
+        &self,
+        cond_idx: u16,
+        max_age_days: u32,
+        rng: &mut R,
+    ) -> u16 {
+        let i = cond_idx as usize;
+        let mean = self.onset_mean_days.get(i).copied().unwrap_or(14_610.0);
+        let std = self.onset_std_days.get(i).copied().unwrap_or(3_653.0);
+
+        // Irwin-Hall(12): sum of 12 uniform [0,1] minus 6 ≈ N(0,1).
+        let mut z: f32 = 0.0;
+        for _ in 0..12 {
+            z += rng.gen::<f32>();
+        }
+        z -= 6.0;
+
+        let days = (mean + z * std).clamp(0.0, max_age_days as f32);
+        days as u16
     }
 
     /// Apply a per-condition multiplicative scale to every threshold layout the
@@ -1009,6 +1067,7 @@ mod tests {
             procedures: vec![],
             cooccurrence: AHashMap::new(),
             cooccurrence_dependent_scale: AHashMap::new(),
+            onset_stats: Vec::new(),
             encounter_stats: EncounterStats::default(),
         };
 

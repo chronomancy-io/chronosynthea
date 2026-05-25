@@ -446,12 +446,35 @@ impl BatchGenerator {
 
         // Sample age within archetype range
         let age = archetype.sample_age(rng);
+        let max_age_days = (age as u32).saturating_mul(365) + (age as u32) / 4; // approx age × 365.25
 
         // Calculate birth date
         let birth_year = 2024 - age as i32;
         let birth_date = NaiveDate::from_ymd_opt(birth_year, 1, 1).unwrap();
         let birth_date_days =
             (birth_date - NaiveDate::from_ymd_opt(1970, 1, 1).unwrap()).num_days() as i32;
+
+        // d5 = `temporal-ordered`: sample per-condition onset days from the
+        // empirical Java Synthea distribution loaded into the registry. Sort
+        // the (condition, onset) pairs ascending by onset so the patient's
+        // trajectory is in temporal order — equivalent to Java Synthea's
+        // state-machine-generated condition timeline.
+        let mut condition_onset_days: SmallVec<[u16; 8]> = SmallVec::new();
+        for &c in condition_buffer.iter() {
+            let days = self.archetypes.sample_onset_days(c, max_age_days, rng);
+            condition_onset_days.push(days);
+        }
+        // Sort by onset; we have two parallel SmallVecs, so build a temp index.
+        let mut order: SmallVec<[u8; 8]> = (0..condition_buffer.len() as u8).collect();
+        order.sort_by_key(|&i| condition_onset_days[i as usize]);
+        let sorted_conds: SmallVec<[u16; 8]> = order
+            .iter()
+            .map(|&i| condition_buffer[i as usize])
+            .collect();
+        let sorted_onsets: SmallVec<[u16; 8]> = order
+            .iter()
+            .map(|&i| condition_onset_days[i as usize])
+            .collect();
 
         // Extract demographics from archetype
         let sex =
@@ -473,9 +496,10 @@ impl BatchGenerator {
             race,
             ethnicity,
             encounter_count,
-            condition_count: condition_buffer.len().min(255) as u8,
+            condition_count: sorted_conds.len().min(255) as u8,
             archetype_id: archetype.id,
-            conditions: condition_buffer.clone(),
+            conditions: sorted_conds,
+            condition_onset_days: sorted_onsets,
         }
     }
 
@@ -1001,6 +1025,7 @@ mod tests {
             procedures: vec![],
             cooccurrence: AHashMap::new(),
             cooccurrence_dependent_scale: AHashMap::new(),
+            onset_stats: Vec::new(),
             encounter_stats: EncounterStats {
                 mean_by_age: AHashMap::new(),
                 type_distribution: AHashMap::new(),
