@@ -8813,7 +8813,7 @@
       "system": "SNOMED-CT",
       "display": "Depression screening (procedure)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "72892002",
       "frequency": 0.44265605875153,
       "java_per_patient": 10.574561403508772
     },
@@ -8831,7 +8831,7 @@
       "system": "SNOMED-CT",
       "display": "Renal dialysis (procedure)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "431857002",
       "frequency": 0.2208690330477356,
       "java_per_patient": 5.276315789473684
     },
@@ -8858,7 +8858,7 @@
       "system": "SNOMED-CT",
       "display": "Patient referral for dental care (procedure)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "66383009",
       "frequency": 0.16542227662178705,
       "java_per_patient": 3.9517543859649122
     },
@@ -8867,7 +8867,7 @@
       "system": "SNOMED-CT",
       "display": "Dental consultation and report (procedure)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "103697008",
       "frequency": 0.16450428396572828,
       "java_per_patient": 3.9298245614035086
     },
@@ -8876,7 +8876,7 @@
       "system": "SNOMED-CT",
       "display": "Oral health education (procedure)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "103697008",
       "frequency": 0.15899632802937577,
       "java_per_patient": 3.7982456140350878
     },
@@ -8885,7 +8885,7 @@
       "system": "SNOMED-CT",
       "display": "Dental care (regime/therapy)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "103697008",
       "frequency": 0.15862913096695228,
       "java_per_patient": 3.789473684210526
     },
@@ -8894,7 +8894,7 @@
       "system": "SNOMED-CT",
       "display": "Removal of supragingival plaque and calculus from all teeth using dental instrument (procedure)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "103697008",
       "frequency": 0.15862913096695228,
       "java_per_patient": 3.789473684210526
     },
@@ -8903,7 +8903,7 @@
       "system": "SNOMED-CT",
       "display": "Removal of subgingival plaque and calculus from all teeth using dental instrument (procedure)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "103697008",
       "frequency": 0.15862913096695228,
       "java_per_patient": 3.789473684210526
     },
@@ -8912,7 +8912,7 @@
       "system": "SNOMED-CT",
       "display": "Examination of gingivae (procedure)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "103697008",
       "frequency": 0.15862913096695228,
       "java_per_patient": 3.789473684210526
     },
@@ -8948,7 +8948,7 @@
       "system": "SNOMED-CT",
       "display": "Combined chemotherapy and radiation therapy (procedure)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "424132000",
       "frequency": 0.08500611995104039,
       "java_per_patient": 2.030701754385965
     },
@@ -8975,7 +8975,7 @@
       "system": "SNOMED-CT",
       "display": "Dental fluoride treatment (procedure)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "103697008",
       "frequency": 0.08078335373317014,
       "java_per_patient": 1.9298245614035088
     },
@@ -9020,7 +9020,7 @@
       "system": "SNOMED-CT",
       "display": "Evaluation of uterine fundal height (procedure)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "72892002",
       "frequency": 0.061138310893512855,
       "java_per_patient": 1.4605263157894737
     },
@@ -9029,7 +9029,7 @@
       "system": "SNOMED-CT",
       "display": "Auscultation of the fetal heart (procedure)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "72892002",
       "frequency": 0.061138310893512855,
       "java_per_patient": 1.4605263157894737
     },
@@ -9038,7 +9038,7 @@
       "system": "SNOMED-CT",
       "display": "Rehabilitation therapy (regime/therapy)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "6525002",
       "frequency": 0.035250917992656054,
       "java_per_patient": 0.8421052631578947
     },
@@ -9047,7 +9047,7 @@
       "system": "SNOMED-CT",
       "display": "Depression screening using Patient Health Questionnaire Nine Item score (procedure)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "47505003",
       "frequency": 0.03359853121175031,
       "java_per_patient": 0.8026315789473685
     },
@@ -9065,7 +9065,7 @@
       "system": "SNOMED-CT",
       "display": "Dental surgical procedure (procedure)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "18718003",
       "frequency": 0.031395348837209305,
       "java_per_patient": 0.75
     },
@@ -9083,7 +9083,7 @@
       "system": "SNOMED-CT",
       "display": "Dental application of desensitizing medicament (procedure)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "18718003",
       "frequency": 0.031028151774785805,
       "java_per_patient": 0.7412280701754386
     },
@@ -9092,7 +9092,7 @@
       "system": "SNOMED-CT",
       "display": "Gingivectomy or gingivoplasty, per tooth (procedure)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "18718003",
       "frequency": 0.02588739290085679,
       "java_per_patient": 0.618421052631579
     },
@@ -9119,7 +9119,7 @@
       "system": "SNOMED-CT",
       "display": "Ocular slit lamp examination (procedure)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "44054006",
       "frequency": 0.02368421052631579,
       "java_per_patient": 0.5657894736842105
     },
@@ -9128,7 +9128,7 @@
       "system": "SNOMED-CT",
       "display": "Indirect gonioscopy (procedure)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "44054006",
       "frequency": 0.02368421052631579,
       "java_per_patient": 0.5657894736842105
     },
@@ -9146,7 +9146,7 @@
       "system": "SNOMED-CT",
       "display": "Diabetic retinal eye exam (procedure)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "44054006",
       "frequency": 0.02368421052631579,
       "java_per_patient": 0.5657894736842105
     },
@@ -9155,7 +9155,7 @@
       "system": "SNOMED-CT",
       "display": "Sleep apnea assessment (procedure)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "39898005",
       "frequency": 0.020195838433292534,
       "java_per_patient": 0.4824561403508772
     },
@@ -9164,7 +9164,7 @@
       "system": "SNOMED-CT",
       "display": "Physical examination procedure (procedure)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "72892002",
       "frequency": 0.019094247246022034,
       "java_per_patient": 0.45614035087719296
     },
@@ -9182,7 +9182,7 @@
       "system": "SNOMED-CT",
       "display": "Application of composite dental filling material to dentin of tooth following fracture of tooth (procedure)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "109570002",
       "frequency": 0.01744186046511628,
       "java_per_patient": 0.4166666666666667
     },
@@ -9209,7 +9209,7 @@
       "system": "SNOMED-CT",
       "display": "Hemogram, automated, with red blood cells, white blood cells, hemoglobin, hematocrit, indices, platelet count, and manual white blood cell differential (procedure)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "72892002",
       "frequency": 0.014137086903304773,
       "java_per_patient": 0.33771929824561403
     },
@@ -9218,7 +9218,7 @@
       "system": "SNOMED-CT",
       "display": "Restoration of tooth with coverage of all cusps using dental filling material (procedure)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "109570002",
       "frequency": 0.013219094247246023,
       "java_per_patient": 0.3157894736842105
     },
@@ -9227,7 +9227,7 @@
       "system": "SNOMED-CT",
       "display": "Standard pregnancy test (procedure)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "72892002",
       "frequency": 0.013219094247246023,
       "java_per_patient": 0.3157894736842105
     },
@@ -9245,7 +9245,7 @@
       "system": "SNOMED-CT",
       "display": "Oxygen administration by mask (procedure)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "389087006",
       "frequency": 0.012484700122399021,
       "java_per_patient": 0.2982456140350877
     },
@@ -9254,7 +9254,7 @@
       "system": "SNOMED-CT",
       "display": "Physical examination, complete (procedure)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "254837009",
       "frequency": 0.012484700122399021,
       "java_per_patient": 0.2982456140350877
     },
@@ -9263,7 +9263,7 @@
       "system": "SNOMED-CT",
       "display": "External beam radiation therapy procedure (procedure)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "254837009",
       "frequency": 0.012484700122399021,
       "java_per_patient": 0.2982456140350877
     },
@@ -9272,7 +9272,7 @@
       "system": "SNOMED-CT",
       "display": "Placing subject in prone position (procedure)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "389087006",
       "frequency": 0.011933904528763771,
       "java_per_patient": 0.2850877192982456
     },
@@ -9290,7 +9290,7 @@
       "system": "SNOMED-CT",
       "display": "Ultrasound scan for fetal viability (procedure)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "72892002",
       "frequency": 0.01156670746634027,
       "java_per_patient": 0.27631578947368424
     },
@@ -9299,7 +9299,7 @@
       "system": "SNOMED-CT",
       "display": "Measurement of respiratory function (procedure)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "10509002",
       "frequency": 0.010648714810281517,
       "java_per_patient": 0.2543859649122807
     },
@@ -9308,7 +9308,7 @@
       "system": "SNOMED-CT",
       "display": "Throat culture (procedure)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "195662009",
       "frequency": 0.010281517747858017,
       "java_per_patient": 0.24561403508771928
     },
@@ -9317,7 +9317,7 @@
       "system": "SNOMED-CT",
       "display": "Cytopathology procedure, preparation of smear, genital source (procedure)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "72892002",
       "frequency": 0.010097919216646267,
       "java_per_patient": 0.2412280701754386
     },
@@ -9326,7 +9326,7 @@
       "system": "SNOMED-CT",
       "display": "Plain X-ray of chest (procedure)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "10509002",
       "frequency": 0.010097919216646267,
       "java_per_patient": 0.2412280701754386
     },
@@ -9353,7 +9353,7 @@
       "system": "SNOMED-CT",
       "display": "Blood group typing (procedure)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "72892002",
       "frequency": 0.008812729498164014,
       "java_per_patient": 0.21052631578947367
     },
@@ -9362,7 +9362,7 @@
       "system": "SNOMED-CT",
       "display": "Electrocardiographic procedure (procedure)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "88805009",
       "frequency": 0.008078335373317013,
       "java_per_patient": 0.19298245614035087
     },
@@ -9380,7 +9380,7 @@
       "system": "SNOMED-CT",
       "display": "Detection of chromosomal aneuploidy in prenatal amniotic fluid specimen using fluorescence in situ hybridization screening technique (procedure)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "72892002",
       "frequency": 0.007527539779681763,
       "java_per_patient": 0.17982456140350878
     },
@@ -9389,7 +9389,7 @@
       "system": "SNOMED-CT",
       "display": "Hepatitis B surface antigen measurement (procedure)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "72892002",
       "frequency": 0.0073439412484700125,
       "java_per_patient": 0.17543859649122806
     },
@@ -9398,7 +9398,7 @@
       "system": "SNOMED-CT",
       "display": "Human immunodeficiency virus antigen test (procedure)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "72892002",
       "frequency": 0.0073439412484700125,
       "java_per_patient": 0.17543859649122806
     },
@@ -9407,7 +9407,7 @@
       "system": "SNOMED-CT",
       "display": "Chlamydia antigen test (procedure)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "72892002",
       "frequency": 0.0073439412484700125,
       "java_per_patient": 0.17543859649122806
     },
@@ -9416,7 +9416,7 @@
       "system": "SNOMED-CT",
       "display": "Gonorrhea infection titer test (procedure)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "72892002",
       "frequency": 0.0073439412484700125,
       "java_per_patient": 0.17543859649122806
     },
@@ -9425,7 +9425,7 @@
       "system": "SNOMED-CT",
       "display": "Syphilis infectious titer test (procedure)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "72892002",
       "frequency": 0.0073439412484700125,
       "java_per_patient": 0.17543859649122806
     },
@@ -9434,7 +9434,7 @@
       "system": "SNOMED-CT",
       "display": "Urine culture (procedure)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "72892002",
       "frequency": 0.0073439412484700125,
       "java_per_patient": 0.17543859649122806
     },
@@ -9443,7 +9443,7 @@
       "system": "SNOMED-CT",
       "display": "Urine screening test for diabetes (procedure)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "72892002",
       "frequency": 0.0073439412484700125,
       "java_per_patient": 0.17543859649122806
     },
@@ -9452,7 +9452,7 @@
       "system": "SNOMED-CT",
       "display": "Hepatitis C antibody, confirmatory test (procedure)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "72892002",
       "frequency": 0.0073439412484700125,
       "java_per_patient": 0.17543859649122806
     },
@@ -9461,7 +9461,7 @@
       "system": "SNOMED-CT",
       "display": "Rubella screening test (procedure)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "72892002",
       "frequency": 0.0073439412484700125,
       "java_per_patient": 0.17543859649122806
     },
@@ -9470,7 +9470,7 @@
       "system": "SNOMED-CT",
       "display": "Measurement of Varicella-zoster virus antibody (procedure)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "72892002",
       "frequency": 0.0073439412484700125,
       "java_per_patient": 0.17543859649122806
     },
@@ -9479,7 +9479,7 @@
       "system": "SNOMED-CT",
       "display": "Skin test for tuberculosis, Tine test (procedure)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "72892002",
       "frequency": 0.0073439412484700125,
       "java_per_patient": 0.17543859649122806
     },
@@ -9488,7 +9488,7 @@
       "system": "SNOMED-CT",
       "display": "Urinalysis, protein, qualitative (procedure)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "72892002",
       "frequency": 0.0073439412484700125,
       "java_per_patient": 0.17543859649122806
     },
@@ -9506,7 +9506,7 @@
       "system": "SNOMED-CT",
       "display": "Mammography (procedure)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "254837009",
       "frequency": 0.0069767441860465115,
       "java_per_patient": 0.16666666666666666
     },
@@ -9524,7 +9524,7 @@
       "system": "SNOMED-CT",
       "display": "Administration of vaccine product containing only Bordetella pertussis and Clostridium tetani and Corynebacterium diphtheriae antigens (procedure)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "72892002",
       "frequency": 0.0067931456548347615,
       "java_per_patient": 0.16228070175438597
     },
@@ -9533,7 +9533,7 @@
       "system": "SNOMED-CT",
       "display": "Urine screening for glucose (procedure)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "72892002",
       "frequency": 0.0067931456548347615,
       "java_per_patient": 0.16228070175438597
     },
@@ -9542,7 +9542,7 @@
       "system": "SNOMED-CT",
       "display": "Fetal anatomy study (procedure)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "72892002",
       "frequency": 0.0066095471236230115,
       "java_per_patient": 0.15789473684210525
     },
@@ -9551,7 +9551,7 @@
       "system": "SNOMED-CT",
       "display": "Alpha-fetoprotein test - antenatal (procedure)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "72892002",
       "frequency": 0.0066095471236230115,
       "java_per_patient": 0.15789473684210525
     },
@@ -9578,7 +9578,7 @@
       "system": "SNOMED-CT",
       "display": "Streptococcus pneumoniae group B antigen assay (procedure)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "72892002",
       "frequency": 0.0060587515299877605,
       "java_per_patient": 0.14473684210526316
     },
@@ -9596,7 +9596,7 @@
       "system": "SNOMED-CT",
       "display": "History taking (procedure)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "44054006",
       "frequency": 0.00587515299877601,
       "java_per_patient": 0.14035087719298245
     },
@@ -9614,7 +9614,7 @@
       "system": "SNOMED-CT",
       "display": "Human parturition, function (observable entity)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "72892002",
       "frequency": 0.00569155446756426,
       "java_per_patient": 0.13596491228070176
     },
@@ -9623,7 +9623,7 @@
       "system": "SNOMED-CT",
       "display": "Transplantation of kidney regime (regime/therapy)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "161665007",
       "frequency": 0.0055079559363525096,
       "java_per_patient": 0.13157894736842105
     },
@@ -9677,7 +9677,7 @@
       "system": "SNOMED-CT",
       "display": "Health risks education (procedure)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "160968000",
       "frequency": 0.005140758873929009,
       "java_per_patient": 0.12280701754385964
     },
@@ -9686,7 +9686,7 @@
       "system": "SNOMED-CT",
       "display": "Bone density scan (procedure)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "254837009",
       "frequency": 0.004957160342717259,
       "java_per_patient": 0.11842105263157894
     },
@@ -9695,7 +9695,7 @@
       "system": "SNOMED-CT",
       "display": "Take oral or dental impression (procedure)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "37320007",
       "frequency": 0.004957160342717259,
       "java_per_patient": 0.11842105263157894
     },
@@ -9704,7 +9704,7 @@
       "system": "SNOMED-CT",
       "display": "Fitting of denture (procedure)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "37320007",
       "frequency": 0.004957160342717259,
       "java_per_patient": 0.11842105263157894
     },
@@ -9731,7 +9731,7 @@
       "system": "SNOMED-CT",
       "display": "Sputum examination (procedure)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "10509002",
       "frequency": 0.004589963280293758,
       "java_per_patient": 0.10964912280701754
     },
@@ -9740,7 +9740,7 @@
       "system": "SNOMED-CT",
       "display": "Discharge from hospital (procedure)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "399261000",
       "frequency": 0.004589963280293758,
       "java_per_patient": 0.10964912280701754
     },
@@ -9749,7 +9749,7 @@
       "system": "SNOMED-CT",
       "display": "Simple extraction of tooth (procedure)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "427898007",
       "frequency": 0.004589963280293758,
       "java_per_patient": 0.10964912280701754
     },
@@ -9758,7 +9758,7 @@
       "system": "SNOMED-CT",
       "display": "Referral to cardiology service (procedure)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "414545008",
       "frequency": 0.004589963280293758,
       "java_per_patient": 0.10964912280701754
     },
@@ -9803,7 +9803,7 @@
       "system": "SNOMED-CT",
       "display": "Suture open wound (procedure)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "370247008",
       "frequency": 0.004039167686658507,
       "java_per_patient": 0.09649122807017543
     },
@@ -9821,7 +9821,7 @@
       "system": "SNOMED-CT",
       "display": "History and physical examination, limited (procedure)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "86406008",
       "frequency": 0.0036719706242350062,
       "java_per_patient": 0.08771929824561403
     },
@@ -9839,7 +9839,7 @@
       "system": "SNOMED-CT",
       "display": "Angiography of coronary artery (procedure)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "414545008",
       "frequency": 0.0036719706242350062,
       "java_per_patient": 0.08771929824561403
     },
@@ -9866,7 +9866,7 @@
       "system": "SNOMED-CT",
       "display": "Microbial culture of sputum (procedure)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "190905008",
       "frequency": 0.0034883720930232558,
       "java_per_patient": 0.08333333333333333
     },
@@ -9875,7 +9875,7 @@
       "system": "SNOMED-CT",
       "display": "Collection of blood specimen for laboratory (procedure)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "190905008",
       "frequency": 0.0034883720930232558,
       "java_per_patient": 0.08333333333333333
     },
@@ -9884,7 +9884,7 @@
       "system": "SNOMED-CT",
       "display": "History AND physical examination (procedure)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "60573004",
       "frequency": 0.0033047735618115057,
       "java_per_patient": 0.07894736842105263
     },
@@ -9893,7 +9893,7 @@
       "system": "SNOMED-CT",
       "display": "Consultation for treatment (procedure)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "414545008",
       "frequency": 0.0033047735618115057,
       "java_per_patient": 0.07894736842105263
     },
@@ -9902,7 +9902,7 @@
       "system": "SNOMED-CT",
       "display": "Rectal polypectomy (procedure)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "68496003",
       "frequency": 0.0033047735618115057,
       "java_per_patient": 0.07894736842105263
     },
@@ -9920,7 +9920,7 @@
       "system": "SNOMED-CT",
       "display": "Chemotherapy (procedure)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "254837009",
       "frequency": 0.0031211750305997553,
       "java_per_patient": 0.07456140350877193
     },
@@ -9929,7 +9929,7 @@
       "system": "SNOMED-CT",
       "display": "Episiotomy (procedure)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "72892002",
       "frequency": 0.002937576499388005,
       "java_per_patient": 0.07017543859649122
     },
@@ -9938,7 +9938,7 @@
       "system": "SNOMED-CT",
       "display": "Bone immobilization (procedure)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "65966004",
       "frequency": 0.002937576499388005,
       "java_per_patient": 0.07017543859649122
     },
@@ -9956,7 +9956,7 @@
       "system": "SNOMED-CT",
       "display": "Post anesthesia care management (procedure)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "274531002",
       "frequency": 0.002937576499388005,
       "java_per_patient": 0.07017543859649122
     },
@@ -9965,7 +9965,7 @@
       "system": "SNOMED-CT",
       "display": "Renal disorder medication review (procedure)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "161665007",
       "frequency": 0.0027539779681762548,
       "java_per_patient": 0.06578947368421052
     },
@@ -9974,7 +9974,7 @@
       "system": "SNOMED-CT",
       "display": "Manual pelvic examination (procedure)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "254837009",
       "frequency": 0.0027539779681762548,
       "java_per_patient": 0.06578947368421052
     },
@@ -9983,7 +9983,7 @@
       "system": "SNOMED-CT",
       "display": "Spirometry (procedure)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "87433001",
       "frequency": 0.0027539779681762548,
       "java_per_patient": 0.06578947368421052
     },
@@ -9992,7 +9992,7 @@
       "system": "SNOMED-CT",
       "display": "Postoperative care (regime/therapy)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "108631000119101",
       "frequency": 0.0025703794369645043,
       "java_per_patient": 0.06140350877192982
     },
@@ -10010,7 +10010,7 @@
       "system": "SNOMED-CT",
       "display": "Screening for occult blood in feces (procedure)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "68496003",
       "frequency": 0.0022031823745410034,
       "java_per_patient": 0.05263157894736842
     },
@@ -10019,7 +10019,7 @@
       "system": "SNOMED-CT",
       "display": "Percutaneous coronary intervention",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "274531002",
       "frequency": 0.0020195838433292534,
       "java_per_patient": 0.04824561403508772
     },
@@ -10037,7 +10037,7 @@
       "system": "SNOMED-CT",
       "display": "Counseling for termination of pregnancy (procedure)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "72892002",
       "frequency": 0.0018359853121175031,
       "java_per_patient": 0.043859649122807015
     },
@@ -10046,7 +10046,7 @@
       "system": "SNOMED-CT",
       "display": "Induced termination of pregnancy (procedure)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "72892002",
       "frequency": 0.0018359853121175031,
       "java_per_patient": 0.043859649122807015
     },
@@ -10055,7 +10055,7 @@
       "system": "SNOMED-CT",
       "display": "Pregnancy termination care (regime/therapy)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "72892002",
       "frequency": 0.0018359853121175031,
       "java_per_patient": 0.043859649122807015
     },
@@ -10100,7 +10100,7 @@
       "system": "SNOMED-CT",
       "display": "Heart failure education (procedure)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "88805009",
       "frequency": 0.0016523867809057529,
       "java_per_patient": 0.039473684210526314
     },
@@ -10127,7 +10127,7 @@
       "system": "SNOMED-CT",
       "display": "Cognitive and behavioral therapy (regime/therapy)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "192127007",
       "frequency": 0.0014687882496940024,
       "java_per_patient": 0.03508771929824561
     },
@@ -10154,7 +10154,7 @@
       "system": "SNOMED-CT",
       "display": "Referral to cardiac surgery service (procedure)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "274531002",
       "frequency": 0.0014687882496940024,
       "java_per_patient": 0.03508771929824561
     },
@@ -10172,7 +10172,7 @@
       "system": "SNOMED-CT",
       "display": "Notification of treatment plan (procedure)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "60573004",
       "frequency": 0.0014687882496940024,
       "java_per_patient": 0.03508771929824561
     },
@@ -10181,7 +10181,7 @@
       "system": "SNOMED-CT",
       "display": "Scheduling (procedure)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "274531002",
       "frequency": 0.0014687882496940024,
       "java_per_patient": 0.03508771929824561
     },
@@ -10208,7 +10208,7 @@
       "system": "SNOMED-CT",
       "display": "Discharge to ward (procedure)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "1231000119100",
       "frequency": 0.0014687882496940024,
       "java_per_patient": 0.03508771929824561
     },
@@ -10217,7 +10217,7 @@
       "system": "SNOMED-CT",
       "display": "Face mask (physical object)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "840544004",
       "frequency": 0.0012851897184822522,
       "java_per_patient": 0.03070175438596491
     },
@@ -10226,7 +10226,7 @@
       "system": "SNOMED-CT",
       "display": "Medical induction of labor (procedure)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "72892002",
       "frequency": 0.0012851897184822522,
       "java_per_patient": 0.03070175438596491
     },
@@ -10289,7 +10289,7 @@
       "system": "SNOMED-CT",
       "display": "Postoperative procedure education (procedure)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "399261000",
       "frequency": 0.0012851897184822522,
       "java_per_patient": 0.03070175438596491
     },
@@ -10298,7 +10298,7 @@
       "system": "SNOMED-CT",
       "display": "Walking exercise test (procedure)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "399261000",
       "frequency": 0.0012851897184822522,
       "java_per_patient": 0.03070175438596491
     },
@@ -10307,7 +10307,7 @@
       "system": "SNOMED-CT",
       "display": "Stair-climbing test (procedure)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "399261000",
       "frequency": 0.0012851897184822522,
       "java_per_patient": 0.03070175438596491
     },
@@ -10316,7 +10316,7 @@
       "system": "SNOMED-CT",
       "display": "Admission to orthopedic department (procedure)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "58150001",
       "frequency": 0.0011015911872705017,
       "java_per_patient": 0.02631578947368421
     },
@@ -10334,7 +10334,7 @@
       "system": "SNOMED-CT",
       "display": "Passive immunization (procedure)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "72892002",
       "frequency": 0.0011015911872705017,
       "java_per_patient": 0.02631578947368421
     },
@@ -10352,7 +10352,7 @@
       "system": "SNOMED-CT",
       "display": "Assessment using New York Heart Association Classification (procedure)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "88805009",
       "frequency": 0.0009179926560587516,
       "java_per_patient": 0.021929824561403508
     },
@@ -10397,7 +10397,7 @@
       "system": "SNOMED-CT",
       "display": "Coronary artery bypass grafting (procedure)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "414545008",
       "frequency": 0.0009179926560587516,
       "java_per_patient": 0.021929824561403508
     },
@@ -10451,7 +10451,7 @@
       "system": "SNOMED-CT",
       "display": "Referral for echocardiography (procedure)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "60234000",
       "frequency": 0.0009179926560587516,
       "java_per_patient": 0.021929824561403508
     },
@@ -10460,7 +10460,7 @@
       "system": "SNOMED-CT",
       "display": "Pulmonary rehabilitation (regime/therapy)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "185086009",
       "frequency": 0.0009179926560587516,
       "java_per_patient": 0.021929824561403508
     },
@@ -10469,7 +10469,7 @@
       "system": "SNOMED-CT",
       "display": "Referral to transplant surgeon (procedure)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "698306007",
       "frequency": 0.0007343941248470012,
       "java_per_patient": 0.017543859649122806
     },
@@ -10478,7 +10478,7 @@
       "system": "SNOMED-CT",
       "display": "Epidural anesthesia (procedure)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "72892002",
       "frequency": 0.0007343941248470012,
       "java_per_patient": 0.017543859649122806
     },
@@ -10523,7 +10523,7 @@
       "system": "SNOMED-CT",
       "display": "Premature birth of newborn (finding)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "72892002",
       "frequency": 0.0007343941248470012,
       "java_per_patient": 0.017543859649122806
     },
@@ -10541,7 +10541,7 @@
       "system": "SNOMED-CT",
       "display": "Resuscitation using intravenous fluid (procedure)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "91302008",
       "frequency": 0.0007343941248470012,
       "java_per_patient": 0.017543859649122806
     },
@@ -10550,7 +10550,7 @@
       "system": "SNOMED-CT",
       "display": "Partial resection of colon (procedure)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "109838007",
       "frequency": 0.0007343941248470012,
       "java_per_patient": 0.017543859649122806
     },
@@ -10568,7 +10568,7 @@
       "system": "SNOMED-CT",
       "display": "Surgical manipulation of joint of knee (procedure)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "444448004",
       "frequency": 0.0007343941248470012,
       "java_per_patient": 0.017543859649122806
     },
@@ -10586,7 +10586,7 @@
       "system": "SNOMED-CT",
       "display": "Pretransplant evaluation of kidney recipient (procedure)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "698306007",
       "frequency": 0.0005507955936352508,
       "java_per_patient": 0.013157894736842105
     },
@@ -10595,7 +10595,7 @@
       "system": "SNOMED-CT",
       "display": "Transplant of kidney (procedure)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "698306007",
       "frequency": 0.0005507955936352508,
       "java_per_patient": 0.013157894736842105
     },
@@ -10604,7 +10604,7 @@
       "system": "SNOMED-CT",
       "display": "Instrumental delivery (procedure)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "72892002",
       "frequency": 0.0005507955936352508,
       "java_per_patient": 0.013157894736842105
     },
@@ -10622,7 +10622,7 @@
       "system": "SNOMED-CT",
       "display": "Referral to service (procedure)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "274531002",
       "frequency": 0.0005507955936352508,
       "java_per_patient": 0.013157894736842105
     },
@@ -10640,7 +10640,7 @@
       "system": "SNOMED-CT",
       "display": "Laboratory test (procedure)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "86406008",
       "frequency": 0.0005507955936352508,
       "java_per_patient": 0.013157894736842105
     },
@@ -10667,7 +10667,7 @@
       "system": "SNOMED-CT",
       "display": "Human epidermal growth factor receptor 2 gene detection by fluorescence in situ hybridization (procedure)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "254837009",
       "frequency": 0.0005507955936352508,
       "java_per_patient": 0.013157894736842105
     },
@@ -10676,7 +10676,7 @@
       "system": "SNOMED-CT",
       "display": "Human epidermal growth factor receptor 2 gene detection by immunohistochemistry (procedure)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "254837009",
       "frequency": 0.0005507955936352508,
       "java_per_patient": 0.013157894736842105
     },
@@ -10685,7 +10685,7 @@
       "system": "SNOMED-CT",
       "display": "Discussion about options (procedure)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "254837009",
       "frequency": 0.0005507955936352508,
       "java_per_patient": 0.013157894736842105
     },
@@ -10694,7 +10694,7 @@
       "system": "SNOMED-CT",
       "display": "Excision of lesion of breast (procedure)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "254837009",
       "frequency": 0.0005507955936352508,
       "java_per_patient": 0.013157894736842105
     },
@@ -10703,7 +10703,7 @@
       "system": "SNOMED-CT",
       "display": "Prostatectomy (procedure)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "126906006",
       "frequency": 0.0005507955936352508,
       "java_per_patient": 0.013157894736842105
     },
@@ -10712,7 +10712,7 @@
       "system": "SNOMED-CT",
       "display": "Computed tomography of chest and abdomen (procedure)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "162573006",
       "frequency": 0.0005507955936352508,
       "java_per_patient": 0.013157894736842105
     },
@@ -10721,7 +10721,7 @@
       "system": "SNOMED-CT",
       "display": "Magnetic resonance imaging for measurement of brain volume (procedure)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "424132000",
       "frequency": 0.0005507955936352508,
       "java_per_patient": 0.013157894736842105
     },
@@ -10730,7 +10730,7 @@
       "system": "SNOMED-CT",
       "display": "Transfer to stepdown unit (procedure)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "91302008",
       "frequency": 0.0005507955936352508,
       "java_per_patient": 0.013157894736842105
     },
@@ -10739,7 +10739,7 @@
       "system": "SNOMED-CT",
       "display": "Admission to intensive care unit (procedure)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "76571007",
       "frequency": 0.0005507955936352508,
       "java_per_patient": 0.013157894736842105
     },
@@ -10748,7 +10748,7 @@
       "system": "SNOMED-CT",
       "display": "Coordination of care plan (procedure)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "60573004",
       "frequency": 0.0005507955936352508,
       "java_per_patient": 0.013157894736842105
     },
@@ -10766,7 +10766,7 @@
       "system": "SNOMED-CT",
       "display": "Ligation of bilateral fallopian tubes (procedure)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "183996000",
       "frequency": 0.0003671970624235006,
       "java_per_patient": 0.008771929824561403
     },
@@ -10775,7 +10775,7 @@
       "system": "SNOMED-CT",
       "display": "Referral to sleep apnea clinic (procedure)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "39898005",
       "frequency": 0.0003671970624235006,
       "java_per_patient": 0.008771929824561403
     },
@@ -10784,7 +10784,7 @@
       "system": "SNOMED-CT",
       "display": "Antenatal RhD antibody screening (procedure)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "72892002",
       "frequency": 0.0003671970624235006,
       "java_per_patient": 0.008771929824561403
     },
@@ -10820,7 +10820,7 @@
       "system": "SNOMED-CT",
       "display": "Methotrexate injection into tubal pregnancy (procedure)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "79586000",
       "frequency": 0.0003671970624235006,
       "java_per_patient": 0.008771929824561403
     },
@@ -10829,7 +10829,7 @@
       "system": "SNOMED-CT",
       "display": "Excision of fallopian tube and surgical removal of ectopic pregnancy (procedure)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "79586000",
       "frequency": 0.0003671970624235006,
       "java_per_patient": 0.008771929824561403
     },
@@ -10838,7 +10838,7 @@
       "system": "SNOMED-CT",
       "display": "Injection of tetanus antitoxin (procedure)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "284549007",
       "frequency": 0.0003671970624235006,
       "java_per_patient": 0.008771929824561403
     },
@@ -10847,7 +10847,7 @@
       "system": "SNOMED-CT",
       "display": "Biopsy of colon (procedure)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "68496003",
       "frequency": 0.0003671970624235006,
       "java_per_patient": 0.008771929824561403
     },
@@ -10856,7 +10856,7 @@
       "system": "SNOMED-CT",
       "display": "Tooth socket procedure (procedure)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "61804006",
       "frequency": 0.0003671970624235006,
       "java_per_patient": 0.008771929824561403
     },
@@ -10865,7 +10865,7 @@
       "system": "SNOMED-CT",
       "display": "Cesarean section (procedure)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "72892002",
       "frequency": 0.0003671970624235006,
       "java_per_patient": 0.008771929824561403
     },
@@ -10883,7 +10883,7 @@
       "system": "SNOMED-CT",
       "display": "Risk assessment (procedure)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "401314000",
       "frequency": 0.0003671970624235006,
       "java_per_patient": 0.008771929824561403
     },
@@ -10901,7 +10901,7 @@
       "system": "SNOMED-CT",
       "display": "Grafting of periodontal bone defect (procedure)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "1255252008",
       "frequency": 0.0003671970624235006,
       "java_per_patient": 0.008771929824561403
     },
@@ -10919,7 +10919,7 @@
       "system": "SNOMED-CT",
       "display": "Off-pump coronary artery bypass (procedure)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "414545008",
       "frequency": 0.0003671970624235006,
       "java_per_patient": 0.008771929824561403
     },
@@ -10964,7 +10964,7 @@
       "system": "SNOMED-CT",
       "display": "Sleep apnea monitoring with alarm (regime/therapy)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "39898005",
       "frequency": 0.0001835985312117503,
       "java_per_patient": 0.0043859649122807015
     },
@@ -10973,7 +10973,7 @@
       "system": "SNOMED-CT",
       "display": "Cardiovascular stress testing (procedure)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "88805009",
       "frequency": 0.0001835985312117503,
       "java_per_patient": 0.0043859649122807015
     },
@@ -10991,7 +10991,7 @@
       "system": "SNOMED-CT",
       "display": "Excision of axillary lymph node (procedure)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "254837009",
       "frequency": 0.0001835985312117503,
       "java_per_patient": 0.0043859649122807015
     },
@@ -11018,7 +11018,7 @@
       "system": "SNOMED-CT",
       "display": "Thoracentesis (procedure)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "162573006",
       "frequency": 0.0001835985312117503,
       "java_per_patient": 0.0043859649122807015
     },
@@ -11027,7 +11027,7 @@
       "system": "SNOMED-CT",
       "display": "Sputum microscopy (procedure)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "162573006",
       "frequency": 0.0001835985312117503,
       "java_per_patient": 0.0043859649122807015
     },
@@ -11036,7 +11036,7 @@
       "system": "SNOMED-CT",
       "display": "Hematologic disorder medication review (procedure)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "108631000119101",
       "frequency": 0.0001835985312117503,
       "java_per_patient": 0.0043859649122807015
     },
@@ -11045,7 +11045,7 @@
       "system": "SNOMED-CT",
       "display": "Treatment failure risk education (procedure)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "698303004",
       "frequency": 0.0001835985312117503,
       "java_per_patient": 0.0043859649122807015
     },
@@ -11054,7 +11054,7 @@
       "system": "SNOMED-CT",
       "display": "Treatment side effects education (procedure)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "698303004",
       "frequency": 0.0001835985312117503,
       "java_per_patient": 0.0043859649122807015
     },
@@ -11063,7 +11063,7 @@
       "system": "SNOMED-CT",
       "display": "Pre-operative chemotherapy (procedure)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "698303004",
       "frequency": 0.0001835985312117503,
       "java_per_patient": 0.0043859649122807015
     },
@@ -11081,7 +11081,7 @@
       "system": "SNOMED-CT",
       "display": "Imaging finding (finding)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "60573004",
       "frequency": 0.0001835985312117503,
       "java_per_patient": 0.0043859649122807015
     },
@@ -11090,7 +11090,7 @@
       "system": "SNOMED-CT",
       "display": "Operative procedure planned (situation)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "60573004",
       "frequency": 0.0001835985312117503,
       "java_per_patient": 0.0043859649122807015
     },
@@ -11099,7 +11099,7 @@
       "system": "SNOMED-CT",
       "display": "Liaising with referral source (procedure)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "60573004",
       "frequency": 0.0001835985312117503,
       "java_per_patient": 0.0043859649122807015
     },
@@ -11108,7 +11108,7 @@
       "system": "SNOMED-CT",
       "display": "Medical records review (procedure)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "60573004",
       "frequency": 0.0001835985312117503,
       "java_per_patient": 0.0043859649122807015
     },
@@ -11162,7 +11162,7 @@
       "system": "SNOMED-CT",
       "display": "Multidisciplinary assessment (procedure)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "60573004",
       "frequency": 0.0001835985312117503,
       "java_per_patient": 0.0043859649122807015
     },
@@ -11198,7 +11198,7 @@
       "system": "SNOMED-CT",
       "display": "Transcatheter aortic valve implantation (procedure)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "414545008",
       "frequency": 0.0001835985312117503,
       "java_per_patient": 0.0043859649122807015
     },
@@ -11225,7 +11225,7 @@
       "system": "SNOMED-CT",
       "display": "12 lead electrocardiogram (procedure)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "1231000119100",
       "frequency": 0.0001835985312117503,
       "java_per_patient": 0.0043859649122807015
     },
@@ -11234,7 +11234,7 @@
       "system": "SNOMED-CT",
       "display": "Admission to ward (procedure)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "1231000119100",
       "frequency": 0.0001835985312117503,
       "java_per_patient": 0.0043859649122807015
     },
@@ -11243,7 +11243,7 @@
       "system": "SNOMED-CT",
       "display": "Fine needle aspiration biopsy of lung (procedure)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "162573006",
       "frequency": 0.0001835985312117503,
       "java_per_patient": 0.0043859649122807015
     },
@@ -11252,7 +11252,7 @@
       "system": "SNOMED-CT",
       "display": "Artificial ventilation (regime/therapy)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "67782005",
       "frequency": 0.0001835985312117503,
       "java_per_patient": 0.0043859649122807015
     },
@@ -11261,7 +11261,7 @@
       "system": "SNOMED-CT",
       "display": "Weaning from mechanically assisted ventilation (regime/therapy)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "67782005",
       "frequency": 0.0001835985312117503,
       "java_per_patient": 0.0043859649122807015
     },
@@ -11297,7 +11297,7 @@
       "system": "SNOMED-CT",
       "display": "Excision of appendix (procedure)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "74400008",
       "frequency": 0.0001835985312117503,
       "java_per_patient": 0.0043859649122807015
     },
@@ -11306,7 +11306,7 @@
       "system": "SNOMED-CT",
       "display": "Excision of lingual frenum (procedure)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "67787004",
       "frequency": 0.0001835985312117503,
       "java_per_patient": 0.0043859649122807015
     },
@@ -11315,7 +11315,7 @@
       "system": "SNOMED-CT",
       "display": "Augmentation of labor (procedure)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "72892002",
       "frequency": 0.0001835985312117503,
       "java_per_patient": 0.0043859649122807015
     },
@@ -11333,7 +11333,7 @@
       "system": "SNOMED-CT",
       "display": "Suicide risk assessment (procedure)",
       "module": "java_calibrated",
-      "indication_code": "",
+      "indication_code": "47505003",
       "frequency": 0.0001835985312117503,
       "java_per_patient": 0.0043859649122807015
     },
