@@ -416,7 +416,8 @@ What it produces **differently** than Java Synthea:
 
 - **Three-way+ comorbidity structure** is captured only insofar as the pairwise model induces it; full higher-order joint structure requires the d5 = `causal-DAG` Gibbs sampler with properly-fit Boltzmann parameters (scaffolded — see "Open future work").
 - **Negative causal correlations** (lift < 0.5 in Java) are not boosted in the additive `pairwise-empirical` sampler. Strata-r stays around 0.81 here; the Gibbs sampler will close this gap once its parameters are fit via pseudo-likelihood.
-- **REASONCODE linkage** is **now shipped** ✓ — `FullPatient.medication_causes` and `procedure_causes` record which condition triggered each prescription / procedure (equivalent to Java's `medications.csv:REASONCODE` and `procedures.csv:REASONCODE` columns), sampled proportionally to `P(med | cond)` over the patient's active conditions.
+- **REASONCODE linkage** is **shipped** ✓ — `FullPatient.medication_causes` and `procedure_causes` record which condition triggered each prescription / procedure (equivalent to Java's `medications.csv:REASONCODE` and `procedures.csv:REASONCODE` columns), sampled proportionally to `P(med | cond)` over the patient's active conditions. Population: 100% of medications, 12.7% of procedures (vs Java's 46.4% — calibration-data gap, not code gap; see "Open future work").
+- **Java-Synthea-compatible CSV output** is **shipped** ✓ — `SyntheaCsvWriter::create(dir)` emits `patients.csv`, `conditions.csv`, `medications.csv`, `procedures.csv` whose schemas match Java Synthea's output exactly (column order, header names, REASONCODE/REASONDESCRIPTION columns). Downstream pipelines keying on these columns can drop chronosynthea in place of Java Synthea at ~150,000× the throughput.
 - **Causal inference / treatment effect estimation** — even with full joint structure, marginal-fidelity samplers can distort ATE estimands per arXiv:2604.23904[^causal]. For causal inference, use real EHR data, not synthesis (Java or otherwise).
 
 In other words: chronosynthea **is** Synthea-equivalent on every dimension Java Synthea's state machines produce *deterministically given the demographic*. It diverges only on dimensions that Java Synthea generates from causal per-week trajectories that chronosynthea collapses into sufficient statistics — and even there, with three of four d5 values implemented, the gap is measured in fractions of a Pearson correlation point, not in qualitative kind.
@@ -452,21 +453,36 @@ caught. The audit was uncomfortable; the system is better for it.
 
 ## Open future work
 
-- **d5 = `causal-DAG` parameter fitting**: the Gibbs sampler is wired
-  and dispatching but the J_ij parameters derived directly from observed
-  log-lifts do not yet specify an Ising-Boltzmann distribution whose
-  equilibrium marginals reproduce the source empirical distribution.
-  Fitting J via pseudo-likelihood maximisation or Boltzmann learning is
-  research-grade work. The pairwise-empirical mode (additive boost + 
-  two-knob recalibration) is the validated joint-modelling path for
-  production until causal-DAG is properly fit.
-- **GPU offload via WGSL**: most per-patient work is embarrassingly
-  parallel and SIMD-friendly. A WGSL compute kernel could push throughput
-  by another 5–10× on consumer GPUs.
-- **CSV output adapter**: Java-Synthea-compatible `patients.csv`,
-  `conditions.csv`, `medications.csv`, `procedures.csv`, `encounters.csv`
-  emission for direct drop-in replacement. The REASONCODE columns are
-  already populated; just needs the writer.
+The remaining items are research-grade or polish:
+
+- **d5 = `causal-DAG` parameter fitting** (**research-grade**): the
+  Gibbs sampler is wired and dispatching but the J_ij parameters derived
+  directly from observed log-lifts do not yet specify an Ising-Boltzmann
+  distribution whose equilibrium marginals reproduce the source empirical
+  distribution. Fitting J via pseudo-likelihood maximisation or
+  Boltzmann learning is the next-level work. The `pairwise-empirical`
+  mode (additive boost + two-knob recalibration) is the validated
+  joint-modelling path for production today.
+- **GPU offload via WGSL** (**research-grade**): most per-patient work
+  is embarrassingly parallel and SIMD-friendly. A WGSL compute kernel
+  could push throughput by another 5–10× on consumer GPUs.
+- **Procedure REASONCODE coverage** (**polish**): we ship 12.7%
+  procedure REASONCODE coverage vs Java Synthea's 46.4%. The gap is the
+  calibrated registry's procedure indication coverage (163/282 procedures
+  have indications). Extracting per-procedure conditional REASONCODE
+  distributions from a larger Java run would close this. The linkage
+  code is shipped and correct; this is purely a calibration-data
+  enrichment.
+- **SIMD cooccurrence boost loop** (**polish**): the joint sampler
+  currently runs on the scalar `sample_conditions_with_cooccurrence`
+  path. Vectorising the boost evaluation across dependents per trigger
+  is plausible via a per-archetype packed dependent table.
+- **Encounter-level event sequencing** (**polish**): events emit
+  per-patient currently. Java Synthea emits events linked to specific
+  encounters with timestamps. Implementing per-encounter event clusters
+  (events cluster around their conditions' onsets, encounter timestamps
+  spaced empirically per archetype) would close the last per-encounter
+  observable gap.
 - **No-clamp recalibration**: the auto-load path round-trips imperfectly
   (~22% drift on ~13 of 214 conditions) because successive clamping
   during the recalibration loop accumulates non-linearly while the
