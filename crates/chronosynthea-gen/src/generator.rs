@@ -289,6 +289,9 @@ impl Generator {
     }
 
     /// Samples an observation.
+    /// Reserved on the legacy `chronosynthea-gen` path (superseded by the
+    /// MSS pipeline); not called from the production hot path.
+    #[allow(dead_code)]
     fn sample_observation<R: Rng>(
         &self,
         rng: &mut R,
@@ -308,6 +311,9 @@ impl Generator {
     }
 
     /// Samples a procedure.
+    /// Reserved on the legacy `chronosynthea-gen` path (superseded by the
+    /// MSS pipeline); not called from the production hot path.
+    #[allow(dead_code)]
     fn sample_procedure<R: Rng>(
         &self,
         rng: &mut R,

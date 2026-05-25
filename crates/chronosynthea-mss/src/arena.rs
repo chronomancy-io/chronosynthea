@@ -85,7 +85,7 @@ pub struct CompactPatient {
     /// Number of conditions.
     pub condition_count: u8,
     /// Archetype ID.
-    pub archetype_id: u16,
+    pub archetype_id: crate::types::ArchetypeId,
     /// Condition indices (stored inline for cache efficiency).
     pub conditions: SmallVec<[u16; 8]>,
 }
@@ -104,7 +104,7 @@ pub struct FullPatient {
     /// Ethnicity index.
     pub ethnicity: u8,
     /// Archetype ID.
-    pub archetype_id: u16,
+    pub archetype_id: crate::types::ArchetypeId,
     /// Condition indices.
     pub conditions: SmallVec<[u16; 8]>,
     /// Medication indices.
@@ -134,7 +134,7 @@ impl FullPatient {
         sex: u8,
         race: u8,
         ethnicity: u8,
-        archetype_id: u16,
+        archetype_id: crate::types::ArchetypeId,
     ) -> Self {
         Self {
             id,
