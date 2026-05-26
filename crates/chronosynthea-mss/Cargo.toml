@@ -35,9 +35,17 @@ mimalloc = { workspace = true }
 wgpu = { workspace = true, optional = true }
 pollster = { workspace = true, optional = true }
 
+# Optional Arrow / Parquet output paths. Behind `parquet` feature.
+# Adds ~50 transitive deps (mostly arrow + compression codecs).
+arrow = { workspace = true, optional = true }
+arrow-array = { workspace = true, optional = true }
+arrow-schema = { workspace = true, optional = true }
+parquet = { workspace = true, optional = true }
+
 [features]
 default = []
 gpu = ["dep:wgpu", "dep:pollster"]
+parquet = ["dep:arrow", "dep:arrow-array", "dep:arrow-schema", "dep:parquet"]
 
 [dev-dependencies]
 criterion = { workspace = true }
@@ -50,6 +58,16 @@ path = "src/bin/csv_bench.rs"
 name = "gpu_uuid_bench"
 path = "src/bin/gpu_uuid_bench.rs"
 required-features = ["gpu"]
+
+[[bin]]
+name = "parquet_bench"
+path = "src/bin/parquet_bench.rs"
+required-features = ["parquet"]
+
+[[bin]]
+name = "csv_to_parquet"
+path = "src/bin/csv_to_parquet.rs"
+required-features = ["parquet"]
 
 [[bench]]
 name = "mss_generation"
