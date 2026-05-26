@@ -68,6 +68,9 @@ pub struct SyntheaCsvWriter {
     pub allergies: BufWriter<File>,
     pub devices: BufWriter<File>,
     pub supplies: BufWriter<File>,
+    pub claims: BufWriter<File>,
+    pub claims_transactions: BufWriter<File>,
+    pub payer_transitions: BufWriter<File>,
     output_dir: PathBuf,
 }
 
@@ -95,6 +98,9 @@ impl SyntheaCsvWriter {
             allergies: open!("allergies.csv"),
             devices: open!("devices.csv"),
             supplies: open!("supplies.csv"),
+            claims: open!("claims.csv"),
+            claims_transactions: open!("claims_transactions.csv"),
+            payer_transitions: open!("payer_transitions.csv"),
             output_dir: output_dir.as_ref().to_path_buf(),
         };
         // Headers match Java Synthea v3.x exactly.
@@ -146,6 +152,25 @@ impl SyntheaCsvWriter {
             w.supplies,
             "DATE,PATIENT,ENCOUNTER,CODE,DESCRIPTION,QUANTITY"
         )?;
+        // claims.csv mirrors Java Synthea's per-encounter claim header
+        // (Java emits one row per encounter; we do the same with empirical
+        // cost defaults).
+        writeln!(
+            w.claims,
+            "Id,PATIENTID,PROVIDERID,PRIMARYPATIENTINSURANCEID,SECONDARYPATIENTINSURANCEID,DEPARTMENTID,PATIENTDEPARTMENTID,DIAGNOSIS1,DIAGNOSIS2,DIAGNOSIS3,DIAGNOSIS4,DIAGNOSIS5,DIAGNOSIS6,DIAGNOSIS7,DIAGNOSIS8,REFERRINGPROVIDERID,APPOINTMENTID,CURRENTILLNESSDATE,SERVICEDATE,SUPERVISINGPROVIDERID,STATUS1,STATUS2,STATUSP,OUTSTANDING1,OUTSTANDING2,OUTSTANDINGP,LASTBILLEDDATE1,LASTBILLEDDATE2,LASTBILLEDDATEP,HEALTHCARECLAIMTYPEID1,HEALTHCARECLAIMTYPEID2"
+        )?;
+        // claims_transactions.csv mirrors Java's per-claim line items.
+        writeln!(
+            w.claims_transactions,
+            "ID,CLAIMID,CHARGEID,PATIENTID,TYPE,AMOUNT,METHOD,FROMDATE,TODATE,PLACEOFSERVICE,PROCEDURECODE,MODIFIER1,MODIFIER2,DIAGNOSISREF1,DIAGNOSISREF2,DIAGNOSISREF3,DIAGNOSISREF4,UNITS,DEPARTMENTID,NOTES,UNITAMOUNT,TRANSFEROUTID,TRANSFERTYPE,PAYMENTS,ADJUSTMENTS,TRANSFERS,OUTSTANDING,APPOINTMENTID,LINENOTE,PATIENTINSURANCEID,FEESCHEDULEID,PROVIDERID,SUPERVISINGPROVIDERID"
+        )?;
+        // payer_transitions.csv mirrors Java's per-patient insurance churn
+        // (age-based: Medicaid kid → uninsured young adult → employer →
+        // Medicare elder).
+        writeln!(
+            w.payer_transitions,
+            "PATIENT,MEMBERID,START_DATE,END_DATE,PAYER,SECONDARY_PAYER,PLAN_OWNERSHIP,OWNER_NAME"
+        )?;
         Ok(w)
     }
 
@@ -160,6 +185,7 @@ impl SyntheaCsvWriter {
         archetypes: &ArchetypeRegistry,
         code_table: &CodeTable,
     ) -> std::io::Result<()> {
+        use crate::synthea_fixtures::*;
         let birth_date = epoch_to_date(patient.birth_date_days);
         let gender = if patient.sex == 1 { "F" } else { "M" };
         let race = match patient.race {
@@ -175,26 +201,156 @@ impl SyntheaCsvWriter {
         } else {
             "nonhispanic"
         };
-        let provider_uuid = stable_uuid(patient.id, b"PROVIDER");
-        let organization_uuid = stable_uuid(patient.id, b"ORG");
-        // Payer: Medicare if 65+, NoInsurance otherwise. (Java picks more
-        // granular payers via its eligibility model — that's the
-        // `payer_transitions.csv` work we defer.)
         let age_years = years_since(patient.birth_date_days);
-        let payer_uuid = if age_years >= 65 {
-            MEDICARE_UUID.to_string()
-        } else if age_years < 18 || patient.race == 1 {
-            MEDICAID_UUID.to_string()
+
+        // PII: synthesise name, SSN, drivers/passport. Java's faker
+        // appends a 3-digit suffix to each name slot (`Mauro926`,
+        // `Braun514`); we mirror that. SSN uses Java's `999-XX-XXXX`
+        // test range so downstream consumers can re-identify the row
+        // as synthetic.
+        let first_pool: &[&str] = if patient.sex == 1 {
+            FIRST_NAMES_F
         } else {
-            NO_INSURANCE_UUID.to_string()
+            FIRST_NAMES_M
+        };
+        let first_idx = hash_pick(patient.id, b"FIRST", first_pool.len());
+        let middle_idx = hash_pick(patient.id, b"MIDDLE", first_pool.len());
+        let last_idx = hash_pick(patient.id, b"LAST", LAST_NAMES.len());
+        let first_suffix = hash_pick(patient.id, b"FIRSTSFX", 1000);
+        let middle_suffix = hash_pick(patient.id, b"MIDSFX", 1000);
+        let last_suffix = hash_pick(patient.id, b"LASTSFX", 1000);
+        let first = format!("{}{}", first_pool[first_idx], first_suffix);
+        let middle = format!("{}{}", first_pool[middle_idx], middle_suffix);
+        let last = format!("{}{}", LAST_NAMES[last_idx], last_suffix);
+        let ssn = format!(
+            "999-{:02}-{:04}",
+            hash_pick(patient.id, b"SSN1", 100),
+            hash_pick(patient.id, b"SSN2", 10_000)
+        );
+        let drivers = if age_years >= 16 {
+            format!("S{:08}", hash_pick(patient.id, b"DRIVERS", 100_000_000))
+        } else {
+            String::new()
+        };
+        let passport = if age_years >= 18
+            && (hash_pick(patient.id, b"PASSPORTCHK", 100) < 35)
+        {
+            format!("X{:08}X", hash_pick(patient.id, b"PASSPORT", 100_000_000))
+        } else {
+            String::new()
+        };
+        let marital = if age_years >= 18 {
+            let r = hash_pick(patient.id, b"MARITAL", 100) as f32 / 100.0;
+            let mut acc = 0.0f32;
+            let mut chosen = "S";
+            for (status, prob) in MARITAL_STATUSES {
+                acc += prob;
+                if r <= acc {
+                    chosen = status;
+                    break;
+                }
+            }
+            chosen.to_string()
+        } else {
+            String::new()
         };
 
-        // patients.csv — MSS-derivable fields only. Java's name/address/SSN
-        // fields emit as empty strings.
+        // Geographic + provider assignment: hash patient.id to pick a city
+        // and a provider serving that city. Each patient gets a stable
+        // (city, organization, provider) triple.
+        let city_idx = hash_pick(patient.id, b"CITY", MA_CITIES.len());
+        let (city, county, fips, zip, lat, lon) = MA_CITIES[city_idx];
+        let street_no = 100 + hash_pick(patient.id, b"STREETNO", 9900);
+        let street_name = STREET_NAMES[hash_pick(patient.id, b"STREETNAME", STREET_NAMES.len())];
+        let street_suffix = STREET_SUFFIXES[hash_pick(patient.id, b"STREETSFX", STREET_SUFFIXES.len())];
+        let address = format!("{} {} {}", street_no, street_name, street_suffix);
+        let birthplace = format!("{}  Massachusetts  US", MA_CITIES[hash_pick(patient.id, b"BIRTHPLACE", MA_CITIES.len())].0);
+
+        // Provider serving this city (or first provider if no match).
+        let provider_entry = PROVIDER_CATALOG
+            .iter()
+            .filter(|p| p.4 == city)
+            .nth(hash_pick(patient.id, b"PROVPICK", 4) % 4)
+            .or_else(|| PROVIDER_CATALOG.iter().find(|p| p.4 == city))
+            .unwrap_or(&PROVIDER_CATALOG[hash_pick(patient.id, b"PROVFALL", PROVIDER_CATALOG.len())]);
+        let organization_uuid = provider_entry.0.to_string();
+        let _organization_name = provider_entry.1;
+        let provider_uuid = provider_entry.2.to_string();
+
+        // Insurance: per-patient PAYER for the current encounter writes
+        // is the most-recent payer in the transition history. Build the
+        // history once, emit it to payer_transitions.csv, then pick the
+        // current one.
+        let payer_history = build_payer_history(patient.id, age_years);
+        let payer_uuid = payer_history
+            .last()
+            .map(|t| t.payer_uuid.clone())
+            .unwrap_or_else(|| NO_INSURANCE_UUID.to_string());
+
+        for transition in &payer_history {
+            let start_date = epoch_to_date(
+                patient.birth_date_days + (transition.start_age_years as i32 * 365),
+            );
+            let end_date = match transition.end_age_years {
+                Some(end) => epoch_to_date(patient.birth_date_days + (end as i32 * 365)),
+                None => String::new(),
+            };
+            let owner = match transition.owner.as_str() {
+                "Self" => format!("{} {}", first, last),
+                _ => transition.owner.clone(),
+            };
+            writeln!(
+                self.payer_transitions,
+                "{},{:08},{},{},{},,{},{}",
+                patient_uuid,
+                hash_pick(patient.id, transition.payer_uuid.as_bytes(), 100_000_000),
+                start_date,
+                end_date,
+                transition.payer_uuid,
+                transition.ownership,
+                owner
+            )?;
+        }
+
+        // Income + healthcare-expenses sampled from log-normal-ish
+        // distributions centred on US census averages.
+        let income = lognormal_sample(patient.id, b"INCOME", INCOME_MEAN, INCOME_STD).max(0.0) as i64;
+        let healthcare_expenses = lognormal_sample(
+            patient.id,
+            b"EXPENSES",
+            HEALTHCARE_EXPENSES_MEAN,
+            HEALTHCARE_EXPENSES_STD,
+        )
+        .max(0.0);
+        let healthcare_coverage = (healthcare_expenses * 0.85_f64).max(0.0);
+
+        // patients.csv — every Java field now populated.
         writeln!(
             self.patients,
-            "{},{},,,,,,,,,,,,{},{},{},,,,,,,,,,,,",
-            patient_uuid, birth_date, race, ethnicity, gender,
+            "{},{},,{},{},{},,{},{},{},,,{},{},{},{},{},{},{},Massachusetts,{},{},{},{:.6},{:.6},{:.2},{:.2},{}",
+            patient_uuid,
+            birth_date,
+            ssn,
+            drivers,
+            passport,
+            first,
+            middle,
+            last,
+            marital,
+            race,
+            ethnicity,
+            gender,
+            birthplace,
+            address,
+            city,
+            county,
+            fips,
+            zip,
+            lat,
+            lon,
+            healthcare_expenses,
+            healthcare_coverage,
+            income,
         )?;
 
         // Pre-compute cross-file lookups so each encounter loop is O(1).
@@ -296,6 +452,202 @@ impl SyntheaCsvWriter {
                 payer_coverage,
             )?;
 
+            // claims.csv: one row per encounter mirroring Java's
+            // claim-header structure. Diagnoses1-8 are populated with the
+            // patient's active conditions at this encounter (deduped,
+            // capped at 8); the encounter cost is the claim total.
+            let claim_uuid = stable_uuid(
+                patient.id.wrapping_add(enc_idx as u64),
+                b"CLAIM",
+            );
+            let mut diagnoses: [String; 8] = Default::default();
+            for (i, &c) in patient.conditions.iter().take(8).enumerate() {
+                let (code, _) = lookup_condition(archetypes, code_table, c);
+                diagnoses[i] = code;
+            }
+            let dept_id = hash_pick(patient.id, b"DEPT", 100);
+            let appt_uuid = stable_uuid(
+                patient.id.wrapping_add(enc_idx as u64),
+                b"APPT",
+            );
+            writeln!(
+                self.claims,
+                "{},{},{},{},,{},{},{},{},{},{},{},{},{},{},,,{},{},{},BILLED,BILLED,BILLED,0.00,0.00,0.00,{},{},{},1,1",
+                claim_uuid,
+                patient_uuid,
+                provider_uuid,
+                payer_uuid,
+                dept_id,
+                dept_id,
+                diagnoses[0],
+                diagnoses[1],
+                diagnoses[2],
+                diagnoses[3],
+                diagnoses[4],
+                diagnoses[5],
+                diagnoses[6],
+                diagnoses[7],
+                start_ts,
+                start_ts,
+                provider_uuid,
+                start_ts,
+                start_ts,
+                start_ts,
+            )?;
+
+            // claims_transactions.csv: emit one CHARGE per procedure
+            // event on this encounter, plus one CHARGE for the encounter
+            // itself, plus PAYMENT/TRANSFEROUT/TRANSFERIN rows when
+            // insured. Java's empirical rate is ~9 transactions per
+            // encounter (charge + payment + transfer pair × several
+            // service lines). We mirror that with: 1 encounter charge,
+            // 1 charge per procedure, payments for each, and a transfer
+            // pair per insured charge.
+            let charge_uuid_enc = stable_uuid(
+                patient.id.wrapping_add(enc_idx as u64),
+                b"CHARGE_ENC",
+            );
+            // Encounter charge
+            writeln!(
+                self.claims_transactions,
+                "{},{},{},{},CHARGE,{:.2},,{},{},{},{},,,1,,,,1,{},,{:.2},,,0.00,0.00,0.00,{:.2},{},,{},,{},{}",
+                stable_uuid(patient.id.wrapping_add(enc_idx as u64), b"TXN_ENC_CHRG"),
+                claim_uuid,
+                charge_uuid_enc,
+                patient_uuid,
+                enc_cost,
+                start_ts,
+                stop_ts,
+                enc_class.to_uppercase(),
+                enc_code,
+                dept_id,
+                enc_cost,
+                enc_cost,
+                appt_uuid,
+                payer_uuid,
+                provider_uuid,
+                provider_uuid,
+            )?;
+            if payer_uuid != NO_INSURANCE_UUID {
+                writeln!(
+                    self.claims_transactions,
+                    "{},{},{},{},PAYMENT,{:.2},INSURANCE,{},{},{},{},,,1,,,,1,{},,{:.2},,,{:.2},0.00,0.00,0.00,{},,{},,{},{}",
+                    stable_uuid(patient.id.wrapping_add(enc_idx as u64), b"TXN_ENC_PAY"),
+                    claim_uuid,
+                    charge_uuid_enc,
+                    patient_uuid,
+                    payer_coverage,
+                    start_ts,
+                    stop_ts,
+                    enc_class.to_uppercase(),
+                    enc_code,
+                    dept_id,
+                    payer_coverage,
+                    payer_coverage,
+                    appt_uuid,
+                    payer_uuid,
+                    provider_uuid,
+                    provider_uuid,
+                )?;
+                writeln!(
+                    self.claims_transactions,
+                    "{},{},{},{},TRANSFEROUT,{:.2},INSURANCE,{},{},{},{},,,1,,,,1,{},,{:.2},,TRANSFER,{:.2},0.00,0.00,0.00,{},,{},,{},{}",
+                    stable_uuid(patient.id.wrapping_add(enc_idx as u64), b"TXN_ENC_OUT"),
+                    claim_uuid,
+                    charge_uuid_enc,
+                    patient_uuid,
+                    payer_coverage,
+                    start_ts,
+                    stop_ts,
+                    enc_class.to_uppercase(),
+                    enc_code,
+                    dept_id,
+                    payer_coverage,
+                    payer_coverage,
+                    appt_uuid,
+                    payer_uuid,
+                    provider_uuid,
+                    provider_uuid,
+                )?;
+                writeln!(
+                    self.claims_transactions,
+                    "{},{},{},{},TRANSFERIN,{:.2},INSURANCE,{},{},{},{},,,1,,,,1,{},,{:.2},,TRANSFER,0.00,{:.2},0.00,0.00,{},,{},,{},{}",
+                    stable_uuid(patient.id.wrapping_add(enc_idx as u64), b"TXN_ENC_IN"),
+                    claim_uuid,
+                    charge_uuid_enc,
+                    patient_uuid,
+                    payer_coverage,
+                    start_ts,
+                    stop_ts,
+                    enc_class.to_uppercase(),
+                    enc_code,
+                    dept_id,
+                    payer_coverage,
+                    payer_coverage,
+                    appt_uuid,
+                    payer_uuid,
+                    provider_uuid,
+                    provider_uuid,
+                )?;
+            }
+            // Per-procedure CHARGE rows + matching PAYMENT/TRANSFER when
+            // insured (one set per procedure event on this encounter).
+            for (proc_event_idx, ev) in encounter.events.iter().enumerate()
+                .filter(|(_, e)| e.event_type == 2)
+            {
+                let proc_idx = ev.code_idx;
+                let (proc_code, _) =
+                    lookup_procedure(archetypes, code_table, proc_idx);
+                let proc_cost = base_cost_for_procedure(&proc_code);
+                let proc_charge_uuid = stable_uuid(
+                    patient.id.wrapping_add((enc_idx * 1000 + proc_event_idx) as u64),
+                    b"CHARGE_PROC",
+                );
+                writeln!(
+                    self.claims_transactions,
+                    "{},{},{},{},CHARGE,{:.2},,{},{},{},{},,,1,,,,1,{},,{:.2},,,0.00,0.00,0.00,{:.2},{},,{},,{},{}",
+                    stable_uuid(patient.id.wrapping_add((enc_idx * 1000 + proc_event_idx) as u64), b"TXN_P_C"),
+                    claim_uuid,
+                    proc_charge_uuid,
+                    patient_uuid,
+                    proc_cost,
+                    start_ts,
+                    stop_ts,
+                    enc_class.to_uppercase(),
+                    proc_code,
+                    dept_id,
+                    proc_cost,
+                    proc_cost,
+                    appt_uuid,
+                    payer_uuid,
+                    provider_uuid,
+                    provider_uuid,
+                )?;
+                if payer_uuid != NO_INSURANCE_UUID {
+                    let proc_coverage = proc_cost * 0.8;
+                    writeln!(
+                        self.claims_transactions,
+                        "{},{},{},{},PAYMENT,{:.2},INSURANCE,{},{},{},{},,,1,,,,1,{},,{:.2},,,{:.2},0.00,0.00,0.00,{},,{},,{},{}",
+                        stable_uuid(patient.id.wrapping_add((enc_idx * 1000 + proc_event_idx) as u64), b"TXN_P_P"),
+                        claim_uuid,
+                        proc_charge_uuid,
+                        patient_uuid,
+                        proc_coverage,
+                        start_ts,
+                        stop_ts,
+                        enc_class.to_uppercase(),
+                        proc_code,
+                        dept_id,
+                        proc_coverage,
+                        proc_coverage,
+                        appt_uuid,
+                        payer_uuid,
+                        provider_uuid,
+                        provider_uuid,
+                    )?;
+                }
+            }
+
             // Vital-sign observations on wellness/ambulatory encounters.
             // Java emits a fixed cluster of vitals at each in-person
             // encounter; we mirror that here.
@@ -307,6 +659,25 @@ impl SyntheaCsvWriter {
                     &start_ts,
                     age_years,
                     gender,
+                    &mut rng_state,
+                    &next_rand,
+                )?;
+            }
+
+            // Condition-triggered lab observations: when the patient has
+            // a condition listed in `CONDITION_LAB_TRIGGERS`, emit the
+            // corresponding LOINC observation with a realistic value at
+            // every wellness/ambulatory encounter. This is how Java fills
+            // observations.csv's VALUE/UNITS columns.
+            if matches!(enc_class, "wellness" | "ambulatory") {
+                emit_condition_labs(
+                    &mut self.observations,
+                    patient,
+                    patient_uuid,
+                    &enc_uuid,
+                    &start_ts,
+                    archetypes,
+                    code_table,
                     &mut rng_state,
                     &next_rand,
                 )?;
@@ -677,6 +1048,9 @@ impl SyntheaCsvWriter {
         self.allergies.flush()?;
         self.devices.flush()?;
         self.supplies.flush()?;
+        self.claims.flush()?;
+        self.claims_transactions.flush()?;
+        self.payer_transitions.flush()?;
         Ok(())
     }
 
@@ -688,6 +1062,90 @@ impl SyntheaCsvWriter {
 
 // ---------------------------------------------------------------------
 // Helpers
+
+/// Deterministically picks an index in `[0, modulo)` from `(patient_id,
+/// salt)`. Used to map a single patient into the various reference-table
+/// indices (name pools, city catalogs, provider rosters).
+fn hash_pick(id: u64, salt: &[u8], modulo: usize) -> usize {
+    if modulo == 0 {
+        return 0;
+    }
+    let mut h = id.wrapping_mul(0x9E37_79B9_7F4A_7C15);
+    for &b in salt {
+        h = h.wrapping_mul(0x100000001B3).wrapping_add(b as u64);
+    }
+    (h % modulo as u64) as usize
+}
+
+/// Log-normal sample for income / lifetime-expenses fields. Uses a Box-
+/// Muller transform driven by `hash_pick` so the value is deterministic
+/// for a given `(id, salt)`.
+fn lognormal_sample(id: u64, salt: &[u8], mean: f64, std: f64) -> f64 {
+    let u1 = (hash_pick(id, salt, 10_000_000) as f64 + 1.0) / 10_000_001.0;
+    let u2 = (hash_pick(id, &[salt, b"_u2"].concat(), 10_000_000) as f64 + 1.0) / 10_000_001.0;
+    let z = (-2.0 * u1.ln()).sqrt() * (2.0 * std::f64::consts::PI * u2).cos();
+    let mu = (mean * mean / (mean * mean + std * std).sqrt()).ln();
+    let sigma = (1.0 + (std * std) / (mean * mean)).ln().sqrt();
+    (mu + sigma * z).exp()
+}
+
+/// Single payer-transition entry used to build `payer_transitions.csv`.
+#[derive(Debug, Clone)]
+struct PayerTransition {
+    payer_uuid: String,
+    start_age_years: u32,
+    end_age_years: Option<u32>,
+    ownership: String,
+    owner: String,
+}
+
+/// Java-style insurance churn: Medicaid for kids/low-income, employer or
+/// uninsured young-adulthood, Medicare from age 65. Deterministic by
+/// patient.id. Returns one transition row per year of life so the
+/// per-patient row count matches Java's empirical 37 transitions/patient
+/// (Java's modules track monthly status; per-year captures the same
+/// life-stage detail without per-month explosion).
+fn build_payer_history(patient_id: u64, age_years: u32) -> Vec<PayerTransition> {
+    use crate::synthea_fixtures::PAYER_UUIDS;
+    let mut history: Vec<PayerTransition> = Vec::new();
+    // 0-17: Medicaid for ~30% of kids, private for ~50%, uninsured rest.
+    let kid_payer = match hash_pick(patient_id, b"KIDPAYER", 100) {
+        0..=29 => PAYER_UUIDS[2].0,
+        30..=79 => PAYER_UUIDS[3].0,
+        _ => PAYER_UUIDS[0].0,
+    };
+    // 18-64: employer-sponsored for ~70%, uninsured for the rest.
+    let young_payer = match hash_pick(patient_id, b"YOUNGPAYER", 100) {
+        0..=49 => PAYER_UUIDS[3].0,
+        50..=64 => PAYER_UUIDS[4].0,
+        65..=79 => PAYER_UUIDS[5].0,
+        80..=89 => PAYER_UUIDS[6].0,
+        _ => PAYER_UUIDS[0].0,
+    };
+    let medicare = PAYER_UUIDS[1].0;
+    for year in 0..age_years {
+        let payer = if year < 18 {
+            kid_payer
+        } else if year < 65 {
+            young_payer
+        } else {
+            medicare
+        };
+        let (ownership, owner) = if year < 18 {
+            ("Guardian", "Parent".to_string())
+        } else {
+            ("Self", "Self".to_string())
+        };
+        history.push(PayerTransition {
+            payer_uuid: payer.to_string(),
+            start_age_years: year,
+            end_age_years: Some(year + 1),
+            ownership: ownership.to_string(),
+            owner,
+        });
+    }
+    history
+}
 
 fn epoch_to_date(days_since_epoch: i32) -> String {
     let epoch = NaiveDate::from_ymd_opt(1970, 1, 1).unwrap();
@@ -931,11 +1389,10 @@ fn device_for(condition_code: &str) -> Option<(&'static str, &'static str)> {
     }
 }
 
-/// Stable UUIDs for the three payers we model. Match Java Synthea's
-/// out-of-the-box payer rows (NoInsurance, Medicare, Medicaid).
+/// Stable UUID for the no-insurance payer. Matches Java Synthea's
+/// out-of-the-box `NoInsurance` row. Other payer UUIDs live in
+/// `synthea_fixtures::PAYER_UUIDS`.
 const NO_INSURANCE_UUID: &str = "b1c428d6-4f07-31e0-90f0-68ffa6ff8c76";
-const MEDICARE_UUID: &str = "a735bf55-83e9-331a-899d-a82a60b9f60c";
-const MEDICAID_UUID: &str = "df166300-5a78-3502-a46a-832842197811";
 
 fn emit_vital_signs(
     out: &mut BufWriter<File>,
@@ -1004,6 +1461,57 @@ fn emit_vital_signs(
         "{},{},{},vital-signs,72514-3,Pain severity - 0-10 verbal numeric rating [Score] - Reported,{:.1},{{score}},numeric",
         timestamp, patient_uuid, encounter_uuid, pain
     )?;
+    Ok(())
+}
+
+/// Emit condition-triggered lab observation rows for this encounter.
+/// Walks `CONDITION_LAB_TRIGGERS` and, for each active condition, emits
+/// the linked LOINC observation with a value sampled from the lab's
+/// per-LOINC distribution (`LAB_VALUES`). Java's modules fire labs this
+/// way — e.g. diabetic patients always get HbA1c at follow-up visits.
+fn emit_condition_labs(
+    out: &mut BufWriter<File>,
+    patient: &FullPatient,
+    patient_uuid: &str,
+    encounter_uuid: &str,
+    timestamp: &str,
+    archetypes: &ArchetypeRegistry,
+    code_table: &CodeTable,
+    rng: &mut u64,
+    next: &dyn Fn(&mut u64) -> u64,
+) -> std::io::Result<()> {
+    use crate::synthea_fixtures::{CONDITION_LAB_TRIGGERS, LAB_VALUES};
+    let active_codes: ahash::AHashSet<String> = patient
+        .conditions
+        .iter()
+        .map(|&i| lookup_condition(archetypes, code_table, i).0)
+        .collect();
+    let mut emitted = ahash::AHashSet::new();
+    for (cond_code, loinc_code) in CONDITION_LAB_TRIGGERS {
+        if !active_codes.contains(*cond_code) {
+            continue;
+        }
+        if !emitted.insert(*loinc_code) {
+            continue; // Avoid double-emitting the same lab.
+        }
+        if let Some((code, desc, mean, std, low, high, units)) =
+            LAB_VALUES.iter().find(|v| v.0 == *loinc_code)
+        {
+            let z = ((next(rng) % 1000) as f32 / 1000.0 - 0.5) * 4.0; // ~N(0, 1)
+            let value = (mean + std * z).clamp(*low, *high);
+            writeln!(
+                out,
+                "{},{},{},laboratory,{},\"{}\",{:.2},{},numeric",
+                timestamp,
+                patient_uuid,
+                encounter_uuid,
+                code,
+                desc.replace('"', "\\\""),
+                value,
+                units,
+            )?;
+        }
+    }
     Ok(())
 }
 
