@@ -125,6 +125,14 @@ fn csv_smoke_synthea_compatible() {
     let c_path = out_dir.join("csv").join("conditions.csv");
     let m_path = out_dir.join("csv").join("medications.csv");
     let pr_path = out_dir.join("csv").join("procedures.csv");
+    let e_path = out_dir.join("csv").join("encounters.csv");
+    let o_path = out_dir.join("csv").join("observations.csv");
+    let im_path = out_dir.join("csv").join("immunizations.csv");
+    let cp_path = out_dir.join("csv").join("careplans.csv");
+    let img_path = out_dir.join("csv").join("imaging_studies.csv");
+    let al_path = out_dir.join("csv").join("allergies.csv");
+    let dv_path = out_dir.join("csv").join("devices.csv");
+    let sp_path = out_dir.join("csv").join("supplies.csv");
 
     let read_first = |p: &std::path::Path| -> String {
         let f = std::fs::File::open(p).expect("open csv");
@@ -164,6 +172,48 @@ fn csv_smoke_synthea_compatible() {
     // encounters yields many rows).
     assert_eq!(count_lines(&m_path), 1 + total_med_events);
     assert_eq!(count_lines(&pr_path), 1 + total_proc_events);
+
+    // The remaining files emitted by the full-CSV writer: assert they
+    // each have the Java-compatible header + at least one event row
+    // (smoke level — exhaustive row-count parity is in the manifesto's
+    // honest-scope notes).
+    for (path, expected_prefix) in [
+        (&e_path, "Id,START,STOP,PATIENT,ORGANIZATION,PROVIDER,PAYER,ENCOUNTERCLASS"),
+        (&o_path, "DATE,PATIENT,ENCOUNTER,CATEGORY,CODE,DESCRIPTION,VALUE,UNITS,TYPE"),
+        (&im_path, "DATE,PATIENT,ENCOUNTER,CODE,DESCRIPTION,BASE_COST"),
+        (&cp_path, "Id,START,STOP,PATIENT,ENCOUNTER,CODE,DESCRIPTION,REASONCODE,REASONDESCRIPTION"),
+        (&img_path, "Id,DATE,PATIENT,ENCOUNTER,SERIES_UID"),
+        (&al_path, "START,STOP,PATIENT,ENCOUNTER,CODE,SYSTEM,DESCRIPTION,TYPE,CATEGORY"),
+        (&dv_path, "START,STOP,PATIENT,ENCOUNTER,CODE,DESCRIPTION,UDI"),
+        (&sp_path, "DATE,PATIENT,ENCOUNTER,CODE,DESCRIPTION,QUANTITY"),
+    ] {
+        let hdr = read_first(path);
+        assert!(
+            hdr.starts_with(expected_prefix),
+            "{}: header `{}` does not start with `{}`",
+            path.display(),
+            hdr,
+            expected_prefix
+        );
+        let n = count_lines(path);
+        assert!(
+            n > 1,
+            "{}: expected at least one event row beyond header, got {}",
+            path.display(),
+            n
+        );
+    }
+    println!(
+        "auxiliary CSVs: encounters={} observations={} immunizations={} careplans={} imaging={} allergies={} devices={} supplies={}",
+        count_lines(&e_path),
+        count_lines(&o_path),
+        count_lines(&im_path),
+        count_lines(&cp_path),
+        count_lines(&img_path),
+        count_lines(&al_path),
+        count_lines(&dv_path),
+        count_lines(&sp_path),
+    );
 
     // At least *some* medications and procedures should have a REASONCODE
     // — otherwise the REASONCODE linkage isn't firing.
