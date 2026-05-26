@@ -52,3 +52,6 @@ Desktop.ini
 
 # Chronoboiler-specific
 .rendered/
+
+# Generated workspace dirs (chronosynthea-mss/workspace/, root workspace/, etc.)
+workspace/
