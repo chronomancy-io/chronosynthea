@@ -59,7 +59,7 @@ impl Default for BatchConfig {
             seed: 42,
             reference_date: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
             time_span_years: 10,
-            max_encounters: 30,
+            max_encounters: 200,
             num_workers: 0,
         }
     }
@@ -969,8 +969,12 @@ impl BatchGenerator {
             .map(|&m| archetypes.sample_medication_cause(m, condition_buffer, rng))
             .collect();
 
-        // Generate encounters and sample procedures per encounter
-        let encounter_count = self.estimate_encounters(archetype, rng).min(30) as u32;
+        // Generate encounters and sample procedures per encounter. Cap at
+        // the BatchConfig's `max_encounters` (default 200, matching Java's
+        // long-tail distribution where heavy-utilisation elderly patients
+        // hit 150+ encounters over their lifespan).
+        let encounter_count =
+            self.estimate_encounters(archetype, rng).min(self.config.max_encounters as u64) as u32;
         let proc_freqs = archetypes.procedure_frequencies();
 
         // Encounter type distribution

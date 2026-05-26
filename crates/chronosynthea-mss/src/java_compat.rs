@@ -607,16 +607,17 @@ impl CalibratedRegistry {
         cooccurrence
     }
 
-    /// Builds encounter statistics by age bucket.
+    /// Builds encounter statistics by age bucket. Values are **per-patient
+    /// lifetime** means (not per-year), calibrated against Java Synthea's
+    /// measured 57 encounters/patient overall. Children's bucket is lower
+    /// because they've lived fewer years; the 65+ bucket dominates Java's
+    /// total volume.
     fn build_encounter_stats_by_age(&self) -> AHashMap<String, f64> {
         let mut stats = AHashMap::new();
-
-        // Average encounters per year by age (based on US healthcare utilization data)
-        stats.insert("0-17".to_string(), 4.5); // Pediatric visits
-        stats.insert("18-44".to_string(), 3.0); // Young adult
-        stats.insert("45-64".to_string(), 5.5); // Middle age, more chronic conditions
-        stats.insert("65+".to_string(), 8.5); // Elderly, most utilization
-
+        stats.insert("0-17".to_string(), 18.0);   // Pediatric, ~15-year span
+        stats.insert("18-44".to_string(), 30.0);  // Working-age, ~25-year span
+        stats.insert("45-64".to_string(), 55.0);  // Middle age, chronic-onset
+        stats.insert("65+".to_string(), 90.0);    // Elderly, heaviest utilization
         stats
     }
 
