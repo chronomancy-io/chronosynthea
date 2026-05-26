@@ -75,6 +75,11 @@ name = "parquet_stream_bench"
 path = "src/bin/parquet_stream_bench.rs"
 required-features = ["parquet"]
 
+[[bin]]
+name = "cohort_demo"
+path = "src/bin/cohort_demo.rs"
+required-features = ["parquet"]
+
 [[bench]]
 name = "mss_generation"
 harness = false
