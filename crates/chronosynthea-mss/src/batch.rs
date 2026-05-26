@@ -876,13 +876,18 @@ impl BatchGenerator {
     /// This is slower than generate_stats_only but produces complete patient
     /// records with medications, observations, and procedures.
     pub fn generate_full(&self, count: usize) -> Vec<FullPatient> {
+        self.generate_full_range(0, count)
+    }
+
+    /// Generate a contiguous range of patients (`start..start+count`),
+    /// in parallel. Patient ids are 0..count to keep determinism in
+    /// `generate_full_chunked` byte-identical to `generate_full`.
+    fn generate_full_range(&self, start: usize, count: usize) -> Vec<FullPatient> {
         let base_seed = self.config.seed;
         let cooccurrence = Arc::clone(&self.cooccurrence);
-        // Dispatch via `self.joint_mode` / `self.causal_dag` inside the
-        // `generate_full_patient` helper — no local capture needed.
         let archetypes = Arc::clone(&self.archetypes);
 
-        (0..count)
+        (start..start + count)
             .into_par_iter()
             .map_init(
                 || {
@@ -896,7 +901,6 @@ impl BatchGenerator {
                     )
                 },
                 |(rng, condition_buffer, event_sampler, sampler), patient_id| {
-                    // Deterministic per-patient seed
                     let patient_seed = base_seed.wrapping_add(patient_id as u64);
                     *rng = Xoshiro256PlusPlus::seed_from_u64(patient_seed);
 
@@ -912,6 +916,38 @@ impl BatchGenerator {
                 },
             )
             .collect()
+    }
+
+    /// Streaming variant of `generate_full`: produces `count` patients
+    /// in `chunk_size` chunks, calling `on_chunk(Vec<FullPatient>)` for
+    /// each chunk in patient-id order. Memory peak is bounded by
+    /// `chunk_size` patients (~24 KB each in-arena), so a 10M-patient
+    /// run with `chunk_size = 1000` peaks at ~24 MB instead of ~240 GB.
+    ///
+    /// Each chunk is generated in parallel via rayon; consecutive
+    /// chunks run sequentially after the callback returns. Use this
+    /// when the consumer can write patients out as they arrive
+    /// (CSV/Parquet writers) and doesn't need the whole batch in RAM.
+    ///
+    /// Determinism: byte-identical to `generate_full(count)` for the
+    /// same seed and count — patient ids are 0..count regardless of
+    /// chunk size, so the same patient produces the same record.
+    pub fn generate_full_chunked<F>(
+        &self,
+        count: usize,
+        chunk_size: usize,
+        mut on_chunk: F,
+    ) where
+        F: FnMut(Vec<FullPatient>),
+    {
+        let chunk_size = chunk_size.max(1);
+        let n_chunks = count.div_ceil(chunk_size);
+        for chunk_idx in 0..n_chunks {
+            let start = chunk_idx * chunk_size;
+            let this_chunk_size = (count - start).min(chunk_size);
+            let chunk = self.generate_full_range(start, this_chunk_size);
+            on_chunk(chunk);
+        }
     }
 
     /// Generates a single full patient with all events.
