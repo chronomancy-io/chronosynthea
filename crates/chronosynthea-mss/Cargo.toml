@@ -69,6 +69,11 @@ name = "csv_to_parquet"
 path = "src/bin/csv_to_parquet.rs"
 required-features = ["parquet"]
 
+[[bin]]
+name = "parquet_stream_bench"
+path = "src/bin/parquet_stream_bench.rs"
+required-features = ["parquet"]
+
 [[bench]]
 name = "mss_generation"
 harness = false
