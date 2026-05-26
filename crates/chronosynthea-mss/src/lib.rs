@@ -20,6 +20,7 @@ pub mod fingerprint;
 pub mod java_compat;
 pub mod sampler;
 pub mod stats;
+pub mod synthehrella;
 pub mod tables;
 pub mod types;
 
@@ -33,7 +34,7 @@ pub use error::{MssError, MssResult};
 pub use extractor::MssExtractor;
 pub use fingerprint::MssFingerprint;
 pub use java_compat::{CalibratedRegistry, JavaValidation};
-pub use causal_dag::{CausalDagModel, GIBBS_ITERATIONS};
+pub use causal_dag::{CausalDagModel, FitReport, GIBBS_ITERATIONS};
 pub use csv_writer::{patient_uuid, SyntheaCsvWriter};
 pub use sampler::{EventBitset, EventSampler, SimdSampler};
 pub use stats::StreamingStatistics;

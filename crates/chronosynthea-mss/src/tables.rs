@@ -277,6 +277,26 @@ impl CodeTable {
             + self.observations.len()
             + self.procedures.len()
     }
+
+    /// Number of condition codes.
+    pub fn num_conditions(&self) -> usize {
+        self.conditions.len()
+    }
+
+    /// Number of medication codes.
+    pub fn num_medications(&self) -> usize {
+        self.medications.len()
+    }
+
+    /// Number of observation codes.
+    pub fn num_observations(&self) -> usize {
+        self.observations.len()
+    }
+
+    /// Number of procedure codes.
+    pub fn num_procedures(&self) -> usize {
+        self.procedures.len()
+    }
 }
 
 impl Default for CodeTable {
