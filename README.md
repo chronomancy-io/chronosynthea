@@ -1,6 +1,6 @@
 # ChronoSynthea
 
-Java Synthea-equivalent synthetic patient data, generated in Rust on top of a calibrated statistical fingerprint instead of a per-patient state machine.
+Synthea-equivalent synthetic patient data generator, with data generated in Rust on top of a calibrated statistical fingerprint instead of a per-patient state machine.
 
 ![License](https://img.shields.io/badge/License-Apache_2.0-blue)
 ![Rust](https://img.shields.io/badge/Rust-1.75+-orange)
