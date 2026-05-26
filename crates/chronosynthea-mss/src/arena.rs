@@ -142,7 +142,11 @@ pub struct FullEncounter {
     /// Timestamp as days since patient birth.
     pub days_since_birth: u16,
     /// Events in this encounter.
-    pub events: SmallVec<[CompactEvent; 16]>,
+    /// Encounter events. Inline-cap 32 covers ~95% of generated
+    /// encounters (median is ~22 events: vitals + condition-triggered
+    /// labs + per-encounter meds/procs/imaging) — keeps the bulk of
+    /// event accumulation off the heap.
+    pub events: SmallVec<[CompactEvent; 32]>,
 }
 
 impl FullPatient {
