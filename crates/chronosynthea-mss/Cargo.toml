@@ -22,6 +22,7 @@ rmp-serde = { workspace = true }
 flate2 = { workspace = true }
 memmap2 = "0.9"
 bytemuck = { version = "1.14", features = ["derive"] }
+sha2 = { workspace = true }
 smallvec = { version = "1.13", features = ["const_generics", "union"] }
 itoa = { workspace = true }
 # Used by src/bin/csv_bench.rs as the global allocator. Optional for lib

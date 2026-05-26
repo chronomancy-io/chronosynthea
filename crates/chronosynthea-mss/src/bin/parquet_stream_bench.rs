@@ -22,6 +22,7 @@ fn main() {
         SyntheaParquetFullWriter, SyntheaParquetWriter,
         SyntheaStatsParquetWriter,
     };
+    use chronosynthea_mss::reproducibility::CohortManifest;
     use chronosynthea_mss::{BatchConfig, BatchGenerator, CalibratedRegistry};
     use std::path::PathBuf;
     use std::time::Instant;
@@ -47,8 +48,9 @@ fn main() {
     }
     let registry = CalibratedRegistry::load(&p).unwrap();
     let fingerprint = registry.to_fingerprint();
+    let seed: u64 = 42;
     let config = BatchConfig {
-        seed: 42,
+        seed,
         ..Default::default()
     };
     let generator = BatchGenerator::new(fingerprint, config);
@@ -77,6 +79,8 @@ fn main() {
     );
     println!("{}", "-".repeat(67));
 
+    let fp_hash = *generator.fingerprint_hash();
+
     // ---- Parquet full (patients.parquet) ----
     {
         let dir = bench_root.join("stream-parquet-full");
@@ -90,9 +94,15 @@ fn main() {
         });
         w.finish().unwrap();
         let dt = t.elapsed();
-        let bytes = std::fs::metadata(dir.join("parquet/patients.parquet"))
-            .map(|m| m.len())
-            .unwrap_or(0);
+        let path = dir.join("parquet/patients.parquet");
+        let bytes = std::fs::metadata(&path).map(|m| m.len()).unwrap_or(0);
+        let mut manifest =
+            CohortManifest::new(&fp_hash, seed, n, "parquet-full");
+        manifest.output_bytes = bytes;
+        manifest.output_sha256 = Some(sha256_of_file(&path));
+        manifest
+            .write_json(dir.join("parquet/manifest.json"))
+            .unwrap();
         println!(
             "{:>16}  {:>10.3}  {:>11.0}  {:>10.2}  {:>10.0}",
             "parquet full",
@@ -183,6 +193,29 @@ fn main() {
 
     println!();
     println!("(end-to-end wall time: generate + write streamed in chunks.)");
+}
+
+#[cfg(feature = "parquet")]
+fn sha256_of_file(p: &std::path::Path) -> String {
+    use sha2::{Digest, Sha256};
+    use std::io::Read;
+    let mut hasher = Sha256::new();
+    if let Ok(mut f) = std::fs::File::open(p) {
+        let mut buf = [0u8; 1 << 16];
+        loop {
+            match f.read(&mut buf) {
+                Ok(0) | Err(_) => break,
+                Ok(n) => hasher.update(&buf[..n]),
+            }
+        }
+    }
+    let h: [u8; 32] = hasher.finalize().into();
+    let mut s = String::with_capacity(64);
+    for b in &h {
+        use std::fmt::Write;
+        write!(&mut s, "{:02x}", b).unwrap();
+    }
+    s
 }
 
 #[cfg(feature = "parquet")]
