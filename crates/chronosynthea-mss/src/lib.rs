@@ -12,6 +12,7 @@
 pub mod archetype;
 pub mod arena;
 pub mod batch;
+pub mod cascade;
 pub mod causal_dag;
 pub mod csv_writer;
 pub mod error;
@@ -35,6 +36,7 @@ pub use error::{MssError, MssResult};
 pub use extractor::MssExtractor;
 pub use fingerprint::MssFingerprint;
 pub use java_compat::{CalibratedRegistry, JavaValidation};
+pub use cascade::{CascadeRule, CausalCascadeModel};
 pub use causal_dag::{CausalDagModel, FitReport, GIBBS_ITERATIONS};
 pub use csv_writer::{patient_uuid, SyntheaCsvWriter};
 pub use sampler::{EventBitset, EventSampler, SimdSampler};
