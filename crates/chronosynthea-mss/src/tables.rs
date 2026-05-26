@@ -206,6 +206,24 @@ pub struct CodeTable {
     pub medication_index: AHashMap<String, u16>,
     pub observation_index: AHashMap<String, u16>,
     pub procedure_index: AHashMap<String, u16>,
+
+    /// Per-condition careplan tuple (SNOMED code, description) — `None`
+    /// when the condition has no associated care plan. Indexed by
+    /// condition `u16` so the writer's careplan loop can probe directly
+    /// instead of running the per-event `careplan_for(&cond_code)`
+    /// linear-match (Java's careplan-trigger set is ~9 conditions).
+    pub condition_careplan: Vec<Option<(&'static str, &'static str)>>,
+    /// Per-condition device tuple (SNOMED code, description) — `None`
+    /// when no implantable device applies. Same probe-vs-scan story as
+    /// `condition_careplan`.
+    pub condition_device: Vec<Option<(&'static str, &'static str)>>,
+    /// Per-procedure pre-formatted base cost (e.g. `"432.85"`).
+    /// `base_cost_for_procedure` is deterministic per procedure code,
+    /// so we run it + the `{:.2}` `Display::fmt` once at registry load
+    /// and the CSV writer's procedures-loop + claims-transactions loop
+    /// emits it via `write_all` — eliminates the Grisu/Dragon
+    /// fixed-precision path from the per-event hot loop.
+    pub procedure_cost_str: Vec<String>,
 }
 
 /// A single code entry.
@@ -247,6 +265,9 @@ impl CodeTable {
             medication_index: AHashMap::new(),
             observation_index: AHashMap::new(),
             procedure_index: AHashMap::new(),
+            condition_careplan: Vec::new(),
+            condition_device: Vec::new(),
+            procedure_cost_str: Vec::new(),
         }
     }
 
@@ -254,9 +275,17 @@ impl CodeTable {
     pub fn from_fingerprint(fp: &crate::fingerprint::MssFingerprint) -> Self {
         let mut table = Self::new();
 
-        // Load conditions
+        // Load conditions, pre-resolving careplan/device lookups so the
+        // CSV writer's careplans + devices loop can probe by index
+        // instead of running per-event `careplan_for(&cond_code)` /
+        // `device_for(&cond_code)` linear matches against the static
+        // SNOMED set.
         for (i, cond) in fp.conditions.iter().enumerate() {
             table.condition_index.insert(cond.code.clone(), i as u16);
+            table.condition_careplan
+                .push(crate::csv_writer::careplan_for(&cond.code));
+            table.condition_device
+                .push(crate::csv_writer::device_for(&cond.code));
             table.conditions.push(CodeEntry {
                 display_escaped: escape_csv_display(&cond.display),
                 is_imaging_hint: false, // not used for conditions
@@ -294,9 +323,13 @@ impl CodeTable {
         }
 
         // Load procedures (compute `is_imaging_hint` here — only used by
-        // the procedure-loop's imaging-study emission).
+        // the procedure-loop's imaging-study emission). Also pre-format
+        // the per-procedure base cost so the writer can skip Grisu on
+        // every procedure event.
         for (i, proc) in fp.procedures.iter().enumerate() {
             table.procedure_index.insert(proc.code.clone(), i as u16);
+            let cost = crate::csv_writer::base_cost_for_procedure(&proc.code);
+            table.procedure_cost_str.push(format!("{:.2}", cost));
             table.procedures.push(CodeEntry {
                 display_escaped: escape_csv_display(&proc.display),
                 is_imaging_hint: contains_imaging_keyword(&proc.display),

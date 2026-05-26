@@ -44,10 +44,7 @@ fn csv_write_throughput() {
     let t0 = Instant::now();
     let patients = generator.generate_full(n);
     let gen_dt = t0.elapsed();
-    let total_events: usize = patients
-        .iter()
-        .map(|p| p.encounters.iter().map(|e| e.events.len()).sum::<usize>())
-        .sum();
+    let total_events: usize = patients.iter().map(|p| p.total_events()).sum();
     eprintln!(
         "[gen] {} patients in {:.3}s = {:.0}/sec; {:.0}M events",
         n,

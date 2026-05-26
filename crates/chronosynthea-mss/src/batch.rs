@@ -1136,15 +1136,13 @@ impl BatchGenerator {
         // keeps this O(n_events) with no quadratic contains() check.
         let mut proc_seen = [0u64; (u16::MAX as usize / 64) + 1];
         for enc in &patient.encounters {
-            for ev in &enc.events {
-                if ev.event_type == 2 {
-                    let idx = ev.code_idx as usize;
-                    let word = idx / 64;
-                    let bit = 1u64 << (idx % 64);
-                    if proc_seen[word] & bit == 0 {
-                        proc_seen[word] |= bit;
-                        patient.procedures.push(ev.code_idx);
-                    }
+            for ev in &enc.procedures {
+                let idx = ev.code_idx as usize;
+                let word = idx / 64;
+                let bit = 1u64 << (idx % 64);
+                if proc_seen[word] & bit == 0 {
+                    proc_seen[word] |= bit;
+                    patient.procedures.push(ev.code_idx);
                 }
             }
         }

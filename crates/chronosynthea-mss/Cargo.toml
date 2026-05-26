@@ -24,10 +24,17 @@ memmap2 = "0.9"
 bytemuck = { version = "1.14", features = ["derive"] }
 smallvec = { version = "1.13", features = ["const_generics", "union"] }
 itoa = { workspace = true }
+# Used by src/bin/csv_bench.rs as the global allocator. Optional for lib
+# consumers; pulling it in always saves a separate dev-deps split and
+# keeps the bin's allocator choice visible in the crate manifest.
+mimalloc = { workspace = true }
 
 [dev-dependencies]
 criterion = { workspace = true }
-mimalloc = { workspace = true }
+
+[[bin]]
+name = "csv_bench"
+path = "src/bin/csv_bench.rs"
 
 [[bench]]
 name = "mss_generation"
