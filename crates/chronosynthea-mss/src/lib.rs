@@ -24,6 +24,9 @@ pub mod stats;
 pub mod synthea_fixtures;
 pub mod synthehrella;
 pub mod tables;
+
+#[cfg(feature = "gpu")]
+pub mod gpu;
 pub mod types;
 
 pub use archetype::{ArchetypeRegistry, CooccurrenceModel, PatientArchetype};
