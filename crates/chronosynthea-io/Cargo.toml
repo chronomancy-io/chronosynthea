@@ -1,6 +1,6 @@
 [package]
 name = "chronosynthea-io"
-description = "I/O formats and streaming for ChronoSynthea"
+description = "I/O helpers and stream formatting for ChronoSynthea — Parquet writers live in `chronosynthea-mss` behind the `parquet` feature"
 version.workspace = true
 edition.workspace = true
 license.workspace = true

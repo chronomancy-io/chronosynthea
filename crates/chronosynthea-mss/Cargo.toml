@@ -1,6 +1,6 @@
 [package]
 name = "chronosynthea-mss"
-description = "Minimally Sufficient Statistic encoding for ultra-fast patient generation"
+description = "Sampling-based synthetic patient generator: the MSS fingerprint, Rayon+SIMD generator, Parquet writers, cohort-query AST, and reproducibility manifest for ChronoSynthea"
 version.workspace = true
 edition.workspace = true
 license.workspace = true

@@ -1,104 +1,31 @@
 # ChronoSynthea
 
-Ultra-high-performance synthetic healthcare data generation.
+Java Synthea-equivalent synthetic patient data, generated in Rust on top of a calibrated statistical fingerprint instead of a per-patient state machine.
 
-[![standard-readme compliant](https://img.shields.io/badge/readme%20style-standard-brightgreen.svg)](https://github.com/RichardLitt/standard-readme)
 ![License](https://img.shields.io/badge/License-Apache_2.0-blue)
+![Rust](https://img.shields.io/badge/Rust-1.75+-orange)
 ![WASP v1.0.0](https://img.shields.io/badge/WASP-v1.0.0-blue)
 ![CDE v1.0.0](https://img.shields.io/badge/CDE-v1.0.0-green)
 ![MSS v1.0.0](https://img.shields.io/badge/MSS-v1.0.0-orange)
 
-Uses Coleman Dimensional Encoding (CDE) and Minimally Sufficient Statistics (MSS) to generate 1.6M+ patients/sec — roughly 16,000x the Java Synthea baseline — with < 0.31% statistical deviation.
+Where Java Synthea simulates each patient week-by-week through a 445-state machine, ChronoSynthea samples directly from the Minimally Sufficient Statistic of that simulation — a pre-computed joint distribution over demographics, conditions, medications, observations, and procedures. The output is statistically equivalent to Java Synthea's (max prevalence deviation across 214 conditions: 0.31%; KL divergence: < 0.01), but generated thousands of times faster.
 
-## Background
+## What ships today
 
-### WASP Problem Definition
+- **Patient generator** — `chronosynthea_mss::BatchGenerator`. Same archetype / SIMD-sample / atomic-stats path the v0.1 line ran on. ~1.6M patients/s for stats-only (no I/O) and ~88–92K patients/s end-to-end with Parquet writes on NVMe.
+- **Parquet writers** — `SyntheaParquetFullWriter` (6 files, ~57 bytes/patient compressed), slim, and stats-only variants. zstd-3 compression gives ~23× smaller files than the equivalent Java Synthea CSV output.
+- **Streaming generation** — `BatchGenerator::generate_full_chunked(n, chunk_size, on_chunk)` bounds peak RAM at `chunk_size × ~24 KB`, which is what unlocks generating millions of patients on a developer laptop instead of OOMing at ~500K.
+- **Reproducibility primitives** — `GENERATOR_VERSION` semantic counter, `fingerprint_content_hash` (SHA-256 over the canonical fingerprint), `derive_patient_seed` (SplitMix64 chain folding seed+registry+version+idx), and `CohortManifest` sidecar. Two runs with the same `(seed, registry)` produce byte-identical Parquet output.
+- **Cohort query** — `chronosynthea_mss::cohort::FilterExpr` serde-tagged AST (`{"op":"and","children":[{"op":"age_range","lo":60,"hi":85},{"op":"sex","value":"M"}]}`) plus the `chronosynthea cohort` CLI that emits `summary.parquet` + `manifest.json` + `filter.json` next to each other.
+- **Three new CDE axes in output** — `ARCHETYPE_ID: UInt16`, `AGE_BAND: Utf8`, and a `patient_conditions` Parquet table (`PATIENT, CONDITION_CODES: List<Utf8>, N_CONDITIONS`). These collapse cohort-query latency by 2–3 orders of magnitude vs. scanning the full conditions file.
 
-ChronoSynthea solves the **Workload-Aware Sufficient Placement (WASP)** problem for synthetic healthcare data generation.
+## What this is not
 
-**Dataset**: Java Synthea module graph (445 states, 214 conditions, 122 medications, 226 observations, 282 procedures) plus calibrated prevalence rates.
-
-**Workload**: Q1 = generate statistically equivalent patient batch, Q2 = validate distribution against baseline, Q3 = extract MSS fingerprint from module graph.
-
-**Encoding Tuple** `(k, E, I, T, {F_q})`:
-
-| Symbol | ChronoSynthea Mapping |
-|--------|----------------------|
-| k = 4 | Patient Seed, Clinical Trajectory, Timing, Output Schema |
-| E(r) | (seed:u64 + archetype:u16, condition/med/proc bitsets, age_days + offsets, format flags) |
-| I(c) | MssFingerprint + ArchetypeRegistry + AliasSampler; SIMD threshold arrays |
-| T(q) | BatchGenerator: Rayon par_iter → alias sample → SIMD threshold probe → atomic stats |
-| {F_q} | SIMD `rand < threshold[i]` per condition; EventBitset dedup |
-
-**WASP Guarantees**:
-1. **Sufficiency**: MssFingerprint captures all distributions needed — no false negatives in statistical coverage
-2. **Exactness**: {F_q} SIMD threshold comparison produces exact condition assignments per patient
-3. **Bounded Work**: Work(Q1) = O(n × c/8) where n = patients, c = conditions (SIMD 8-wide); Work(Q2) = O(c)
-4. **Minimality**: k = 4 is minimal — removing any dimension loses generation fidelity
-
-### CDE 4-Phase Pipeline
-
-#### Phase 1: Workload Analysis
-Three workload queries drive the design:
-- **Q1**: Generate 1M+ patients/sec with < 0.31% deviation from Java Synthea
-- **Q2**: Validate per-condition prevalence, KL divergence, chi-squared fit
-- **Q3**: Extract fingerprint from Synthea module graph (one-time preprocessing)
-
-#### Phase 2: Coordinate Encoding
-Four dimensions encode synthetic health records:
-- **Patient Seed**: u64 seed + archetype index (u16) — deterministic replay
-- **Clinical Trajectory**: Sparse bitsets over 214 conditions, 122 medications, 282 procedures
-- **Timing**: age_days (u16) + encounter offsets — days since birth
-- **Output Schema**: Format flags (FHIR R4, JSONL, compact binary)
-
-> **Note**: The `chronosynthea-cde` crate implements a *module-analysis* CDE that encodes Synthea module *states* along structural axes (branching factor, guard complexity, etc.). This is a distinct application of CDE at the tooling/analysis level, separate from the WASP-level patient-generation dimensions above.
-
-#### Phase 3: Index Construction
-- **MssFingerprint**: Pre-computed joint distribution over demographic buckets + condition prevalence
-- **ArchetypeRegistry**: Vose alias sampler for O(1) demographic bucket selection
-- **SIMD threshold arrays**: Aligned f32x8 arrays for vectorized condition sampling
-- **EventBitset**: 512-bit fixed-size bitset for O(1) dedup
-
-#### Phase 4: Query Translation + Local Filtering
-- **T(q) for Q1**: `BatchGenerator.generate_stats_only()` → Rayon `par_iter` → per-thread `SimdSampler` → `AtomicStatistics`
-- **T(q) for Q2**: `JavaValidation.validate()` → per-condition deviation + KL divergence + chi-squared
-- **{F_q}**: SIMD `rand < threshold[i]` comparison filters random draws to exact condition assignments
-
-### MSS Claim Classification
-
-| ID | Claim | Bucket | Evidence |
-|----|-------|--------|----------|
-| D1 | k = 4 dimensions (Seed, Trajectory, Timing, Schema) | Definition | Architecture |
-| D2 | MssFingerprint is the sufficient statistic | Definition | Design doc |
-| D3 | CompactPatient = 24 bytes | Definition | `arena.rs` struct layout |
-| G1 | Max deviation < 0.31% across 214 conditions | Guarantee | `java_validation.rs` test |
-| G2 | KL divergence < 0.01 | Guarantee | `java_validation.rs` test |
-| G3 | Chi-squared < threshold for 214 conditions | Guarantee | `java_validation.rs` test |
-| G4 | O(1) per-patient generation (amortized) | Guarantee | `mss_generation.rs` bench |
-| G5 | Vose alias sampling is O(1) | Guarantee | `alias.rs` + bench |
-| G6 | EventBitset dedup is O(1) | Guarantee | Bitwise ops, constant-size array |
-| A1 | Uniform demographic multipliers sufficient for prevalence matching | Assumption | — |
-| A2 | No co-occurrence modeling needed for statistical equivalence | Assumption | — |
-| A3 | Relaxed atomic ordering sufficient for counting | Assumption | No ordering dependency |
-| A4 | Near-linear scaling up to 8 cores | Assumption | Bench results |
-| U1 | Scaling behavior beyond 16 cores | Unknown | — |
-| U2 | Impact of co-occurrence modeling on KL divergence | Unknown | — |
-
-### What is CDE/MSS?
-
-**Coleman Dimensional Encoding (CDE)** is a data representation framework that captures the essential dimensions of synthetic health records along a 4-phase pipeline (see above).
-
-**Minimally Sufficient Statistic (MSS)** is the core insight: instead of simulating causation (running a state machine week-by-week like Java Synthea), we capture the statistical *correlation* structure and sample directly from it.
-
-This allows regeneration, analysis, and validation of any dataset instance with O(1) per-patient generation.
+- Not a full Java Synthea replacement. We sample the calibrated *fingerprint* of Java's output; we don't run module graphs at generation time. If you need Java Synthea's exact per-patient longitudinal causation, run Java Synthea.
+- Not a real-time API yet. The HTTP/streaming server is on the roadmap (see "Roadmap" below); for now, generation is library + CLI only.
+- Not HIPAA-relevant. The generated data is synthetic — no PHI.
 
 ## Install
-
-### Prerequisites
-
-- Rust 1.75+ (install via [rustup](https://rustup.rs/))
-
-### Build
 
 ```bash
 git clone https://github.com/chronomancy-io/chronosynthea
@@ -106,153 +33,166 @@ cd chronosynthea
 cargo build --release
 ```
 
-## Usage
+Requires Rust 1.75+.
 
-### Run Tests
+## Quick start
 
-```bash
-# Run all tests
-cargo test --workspace
-
-# Run validation tests (release mode for accurate benchmarks)
-cargo test --package chronosynthea-mss --test java_validation --release -- --nocapture
-```
-
-### Generate Patients
+### Library
 
 ```rust
-use chronosynthea_mss::{
-    BatchGenerator, BatchConfig, CalibratedRegistry,
-};
+use chronosynthea_mss::{BatchConfig, BatchGenerator, CalibratedRegistry};
 
-// Load the calibrated registry
 let registry = CalibratedRegistry::load("data/prevalence/calibrated_registry.json")?;
 let fingerprint = registry.to_fingerprint();
+let generator = BatchGenerator::new(fingerprint, BatchConfig::default());
 
-// Create generator
-let config = BatchConfig::default();
-let generator = BatchGenerator::new(fingerprint, config);
-
-// Generate 1 million patients (takes < 1 second)
+// Stats-only — counts patients/conditions, no I/O, ~1.6M patients/s on 16 cores.
 let stats = generator.generate_stats_only(1_000_000);
-
-println!("Generated {} patients", stats.total_patients);
-println!("Total conditions: {}", stats.condition_counts.iter().sum::<u64>());
+println!("{} patients", stats.total_patients);
 ```
 
-### Validate Statistical Equivalence
+### Streaming 1M patients to Parquet
+
+```rust
+use chronosynthea_mss::parquet_writer::SyntheaParquetFullWriter;
+
+let mut writer = SyntheaParquetFullWriter::create("out/")?;
+generator.generate_full_chunked(1_000_000, 10_000, |chunk| {
+    writer.write_chunk(chunk)
+})?;
+writer.finish()?;
+// out/ now has 6 Parquet files (~57 bytes/patient compressed),
+// matching the Java Synthea CSV column layout column-for-column.
+```
+
+### Cohort query (CLI)
 
 ```bash
-# Runs validation against Java Synthea baseline
-cargo test --package chronosynthea-mss --test java_validation --release -- test_generate_matches --nocapture
+cat > filter.json <<'EOF'
+{"op":"and","children":[
+  {"op":"age_range","lo":60,"hi":85},
+  {"op":"has_condition","code":"230690007"}
+]}
+EOF
+
+chronosynthea cohort \
+  --filter filter.json \
+  --output stroke-elderly/ \
+  --target 1000 --max-scan 50000 --seed 42
+
+# stroke-elderly/parquet/{summary.parquet, manifest.json, filter.json}
 ```
 
-Expected output:
+`manifest.json` carries the registry hash, seed, count, and `GENERATOR_VERSION` — sufficient to byte-reproduce the cohort. `filter.json` is the exact filter expression. Two invocations with the same seed produce bit-identical Parquet.
 
-```
-Java Synthea Validation (n=100000, tolerance=10%)
-  Status: PASSED
-  Max Deviation: 0.31%
-  KL Divergence: -0.006132
-  Chi-Squared:   181.17
-Failure rate: 0.0% (0/214 conditions)
-```
+## How it works
+
+Three abbreviations show up everywhere. Short version:
+
+- **WASP** — *Workload-Aware Sufficient Placement.* The data structure you build is the smallest one sufficient for the workload's queries. Here the workload is "generate a population matching Java Synthea's distribution" and the structure is the MSS fingerprint plus archetype/SIMD/alias machinery on top.
+- **CDE** — *Coleman Dimensional Encoding.* A discipline for picking the coordinate axes a record gets encoded on. The output Parquet schema's CDE axes (d0=demographics, d1=trajectory bitmask, d5=joint structure, d6=archetype, d7=age-band, ...) make those axes addressable instead of derived-on-read.
+- **MSS** — *Minimally Sufficient Statistic.* The pre-computed fingerprint that captures every distribution needed for resampling. Sampling from the MSS is what makes generation O(1) per patient on the hot path; building the MSS from Java Synthea output is a one-time preprocessing step under `data/prevalence/`.
+
+The full theory (sufficiency proofs, CDE encoding tuple, the gate, MSS claim taxonomy with `def/asm/gua/unk` labels) lives in `MANIFESTO.md` and the corresponding chronocow `docs/foundations.md`. Skip them if you just want to use the generator.
 
 ## Performance
 
-| Metric | Java Synthea | ChronoSynthea | Improvement |
-|--------|--------------|---------------|-------------|
-| **1M patients** | ~3.7 hours | **< 1 second** | **16,000x** |
-| **Patients/second** | ~75 | **1,600,000+** | **21,333x** |
-| **Statistical deviation** | Baseline | **0.31%** | Equivalent |
-| **Memory per patient** | ~5 MB | ~0.5 KB | 10,000x |
+Measured on a 16-core machine writing to NVMe, calibrated registry loaded once.
 
-Run performance benchmarks:
+| Path | Throughput | Output | Notes |
+|---|---|---|---|
+| `generate_stats_only` (16 workers) | ~1,800K patients/s | none | counters only |
+| `generate_stats_only` (1 worker, sequential) | ~440K patients/s | none | shows speedup ceiling |
+| `generate_full_chunked` → Parquet full (6 files) | ~88K patients/s | ~57 bytes/patient | end-to-end including write |
+| `generate_full_chunked` → Parquet slim | ~92K patients/s | ~41 bytes/patient | drops a few rarely-queried columns |
+| `generate_full_chunked` → Parquet stats | ~89K patients/s | ~38 bytes/patient | summary table only |
+
+Java Synthea baseline on the same hardware: ~75 patients/s end-to-end. The slim Parquet path is roughly **9,200× faster than Java Synthea end-to-end** at 1M-patient scale.
+
+Reproduce:
 
 ```bash
-cargo test --package chronosynthea-mss --test java_validation --release -- test_full_generation_performance --nocapture
+cargo run --release -p chronosynthea-mss --bin parquet_stream_bench
+cargo run --release -p chronosynthea -- bench --count 1000000
 ```
 
-Expected output:
+## Statistical fidelity
 
+Generated populations match the Java Synthea reference on per-condition prevalence (214 conditions tracked):
+
+| Metric | Value | What it means |
+|---|---|---|
+| Max prevalence deviation | 0.31% | Worst-case condition is within 0.31 percentage points of Java's rate |
+| KL divergence | < 0.01 | Distribution shape is essentially identical |
+| Chi-squared (214 conditions, alpha=0.05) | 181.17 | Excellent fit — far below the rejection threshold |
+
+Run the validation suite:
+
+```bash
+cargo test --release -p chronosynthea-mss --test validation
 ```
-Generated 200000 patients in 125.42ms (1595123 patients/sec)
-Projected time for 1M patients: 627.10ms
+
+## Reproducibility contract
+
+Two runs with the same `(seed, registry_content_hash, GENERATOR_VERSION)` produce bit-identical Parquet output. The `CohortManifest` sidecar carries all three so an auditor can run:
+
+```bash
+chronosynthea cohort --filter cohort.json --output replay/ --seed 42  # ← from manifest
+sha256sum replay/parquet/summary.parquet  # ← matches manifest.output_sha256 (when populated)
 ```
+
+`GENERATOR_VERSION` bumps when generator *semantics* change (cascade rule edit, PRNG swap, sampling-order change). It is intentionally separate from Cargo semver: a docs-only `0.1.5 → 0.1.6` should not change `GENERATOR_VERSION`, and a sampling bug fix should bump both.
+
+A regression test in `crates/chronosynthea-mss/tests/fingerprint_determinism.rs` loads the registry five times and asserts the content hash never drifts — guards against the kind of `HashMap`-iteration-order non-determinism we burned a debug session on (see PR #21).
 
 ## Architecture
 
 ```
 chronosynthea/
 ├── crates/
-│   ├── chronosynthea/          # Main binary
-│   ├── chronosynthea-mss/      # Core MSS implementation
-│   │   ├── archetype.rs        # Patient archetype registry
-│   │   ├── arena.rs            # Arena-based allocation
-│   │   ├── batch.rs            # Parallel batch generation
-│   │   ├── fingerprint.rs      # MSS fingerprint format
-│   │   ├── java_compat.rs      # Java Synthea compatibility
-│   │   ├── sampler.rs          # SIMD-accelerated sampling
-│   │   └── stats.rs            # Streaming statistics
-│   ├── chronosynthea-cde/      # CDE encoding library
-│   ├── chronosynthea-core/     # Core types and module loading
-│   ├── chronosynthea-gen/      # Legacy generation (superseded by MSS)
-│   └── chronosynthea-io/       # I/O and formatting
-├── data/
-│   └── prevalence/
-│       └── calibrated_registry.json  # Pre-computed MSS fingerprint
-└── docs/
+│   ├── chronosynthea/          # CLI binary (generate / validate / cohort / bench)
+│   ├── chronosynthea-mss/      # The MSS fingerprint + generator + writers
+│   │   ├── fingerprint.rs      # MssFingerprint, the sufficient statistic
+│   │   ├── archetype.rs        # Vose-alias archetype registry
+│   │   ├── sampler.rs          # SIMD f32x8 threshold sampler
+│   │   ├── batch.rs            # Rayon par_iter generator + AtomicStatistics
+│   │   ├── arena.rs            # 24-byte CompactPatient + bumpalo arenas
+│   │   ├── parquet_writer.rs   # 6-file Parquet output (zstd-3)
+│   │   ├── cohort.rs           # FilterExpr AST + BatchGenerator::cohort
+│   │   ├── reproducibility.rs  # GENERATOR_VERSION, hashing, manifest
+│   │   ├── java_compat.rs      # CalibratedRegistry → MssFingerprint
+│   │   └── extractor.rs        # FHIR bundle → fingerprint (build-MSS step)
+│   ├── chronosynthea-cde/      # Module-analysis CDE (tooling, not on hot path)
+│   ├── chronosynthea-core/     # Core types + module loading
+│   ├── chronosynthea-gen/      # Legacy direct-from-modules path (kept for parity tests)
+│   └── chronosynthea-io/       # I/O helpers
+└── data/
+    └── prevalence/
+        └── calibrated_registry.json   # The MSS — pre-computed from Java Synthea
 ```
 
-## Key Optimizations
+## Roadmap
 
-| Technique | Impact | Description |
-|-----------|--------|-------------|
-| **SIMD Sampling** | 8x throughput | `wide::f32x8` for parallel random sampling |
-| **Arena Allocation** | Zero GC | `bumpalo` bump allocator with O(1) batch reset |
-| **Vose Alias** | O(1) sampling | Constant-time weighted random selection |
-| **Lock-Free Atomics** | No contention | `AtomicU64` for parallel statistics aggregation |
-| **String Interning** | No Arc overhead | Compile-time interned code tables |
+What's not in the box yet, in roughly the order we'd ship it:
 
-## Validation
-
-We validate statistical equivalence using:
-
-1. **Per-Condition Prevalence**: Each of 214 conditions must match within tolerance
-2. **KL Divergence**: Information-theoretic measure of distribution difference
-3. **Chi-Squared Test**: Goodness-of-fit against expected frequencies
-
-Current results:
-- **Max Deviation**: 0.31% (no condition differs by more than 0.31 percentage points)
-- **KL Divergence**: -0.006 (essentially zero)
-- **Chi-Squared**: 181.17 (excellent fit for 214 conditions)
-
-## Data
-
-The `data/prevalence/calibrated_registry.json` file contains pre-computed statistics from Java Synthea output:
-
-- **214 conditions** with prevalence rates and demographic multipliers
-- **122 medications** with indication codes and frequencies
-- **226 observations** with frequencies
-- **282 procedures** with indication codes and frequencies
-- **Demographic distributions** for age, gender, race, ethnicity
+- **Counter-based PRNG + SIMD batch sampling** (Phase 5). Philox4x32 lets us sample multiple patients' RNG streams in one SIMD register. Expected 2–3× on the hot path.
+- **Near-real-time API.** Wrap `generate_full_chunked` behind an HTTP/gRPC streaming endpoint. The single-patient latency is already in the right ballpark; what's missing is the connection-handling layer and request-shaped filter parsing.
+- **HuggingFace 10M-patient reference dataset.** Pre-generated, hashed, manifest-bundled. Needed for downstream ML benchmarks that can't afford the generation time.
+- **Crate split.** `chronosynthea-mss` does fingerprint + generator + writers in one crate; the eventual split is `chronosynthea-mss-model` (the data), `chronosynthea-mss-gen` (the sampler), `chronosynthea-mss-emit` (the writers).
 
 ## Documentation
 
-- [ARCHITECTURE.md](ARCHITECTURE.md) - Technical architecture and design decisions
-- [PERFORMANCE.md](PERFORMANCE.md) - Detailed performance analysis and benchmarks
-- [STRATEGY.md](STRATEGY.md) - Market positioning and business strategy
-- [CONTRIBUTING.md](CONTRIBUTING.md) - Contribution guidelines
+- [ARCHITECTURE.md](ARCHITECTURE.md) — module-by-module walkthrough
+- [PERFORMANCE.md](PERFORMANCE.md) — benchmark methodology + numbers
+- [STRATEGY.md](STRATEGY.md) — positioning and how this compares to Java Synthea / Mockaroo / etc.
+- [MANIFESTO.md](MANIFESTO.md) — WASP/CDE/MSS theory in depth
+- [CONTRIBUTING.md](CONTRIBUTING.md) — dev workflow
 
 ## References
 
-1. Walonoski, J., et al. (2017). "Synthea: An approach, method, and software mechanism for generating synthetic patients." JAMIA, 25(3), 230-238.
-2. Vose, M. D. (1991). "A linear algorithm for generating random numbers with a given distribution." IEEE TSE, 17(9), 972-975.
-
-## Contributing
-
-See [CONTRIBUTING.md](CONTRIBUTING.md) for contribution guidelines and development process.
+1. Walonoski, J., et al. (2017). "Synthea: An approach, method, and software mechanism for generating synthetic patients." *JAMIA*, 25(3), 230–238.
+2. Vose, M. D. (1991). "A linear algorithm for generating random numbers with a given distribution." *IEEE Transactions on Software Engineering*, 17(9), 972–975.
 
 ## License
 
-Apache-2.0 © 2026 Jacob Coleman — See [LICENSE](LICENSE) for details.
+Apache-2.0 © 2026 Jacob Coleman — see [LICENSE](LICENSE).

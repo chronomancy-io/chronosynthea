@@ -1,6 +1,6 @@
 [package]
 name = "chronosynthea-core"
-description = "Core types for ChronoSynthea synthetic patient generation"
+description = "Shared core types and Synthea module loaders for ChronoSynthea — used by the MSS generator and the CDE encoders"
 version.workspace = true
 edition.workspace = true
 license.workspace = true

@@ -1,6 +1,6 @@
 [package]
 name = "chronosynthea"
-description = "High-performance synthetic patient generation with Coleman Dimensional Encoding"
+description = "CLI for ChronoSynthea — generate, validate, and run cohort queries over Java Synthea-equivalent synthetic patient data, sampled from a calibrated MSS fingerprint"
 version.workspace = true
 edition.workspace = true
 license.workspace = true

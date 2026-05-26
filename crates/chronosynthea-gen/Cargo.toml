@@ -1,6 +1,6 @@
 [package]
 name = "chronosynthea-gen"
-description = "High-performance patient generation for ChronoSynthea"
+description = "Legacy direct-from-modules patient generator for ChronoSynthea — kept for parity comparisons against Java Synthea; the production path is `chronosynthea-mss`"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
