@@ -10,6 +10,7 @@ chronosynthea-core = { path = "../chronosynthea-core" }
 chronosynthea-cde = { path = "../chronosynthea-cde" }
 chronosynthea-gen = { path = "../chronosynthea-gen" }
 chronosynthea-io = { path = "../chronosynthea-io" }
+chronosynthea-mss = { path = "../chronosynthea-mss", features = ["parquet"] }
 clap = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }

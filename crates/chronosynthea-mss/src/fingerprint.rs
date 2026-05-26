@@ -13,7 +13,7 @@ use std::fs::File;
 use std::io::{BufReader, BufWriter, Read, Write};
 use std::path::Path;
 
-use ahash::AHashMap;
+use std::collections::BTreeMap;
 use flate2::read::GzDecoder;
 use flate2::write::GzEncoder;
 use flate2::Compression;
@@ -67,7 +67,7 @@ pub struct MssFingerprint {
     pub onset_stats: Vec<(String, f64, f64)>,
 
     /// Code co-occurrence probabilities (sparse).
-    pub cooccurrence: AHashMap<(String, String), f64>,
+    pub cooccurrence: BTreeMap<(String, String), f64>,
 
     /// Per-dependent-condition boost scale produced by the recalibration loop
     /// (see `e1_recalibrate_marginals`). When non-empty, the
@@ -75,7 +75,7 @@ pub struct MssFingerprint {
     /// `dependent_scale` vector from here so the d5 `pairwise-empirical`
     /// joint sampler converges to the calibrated marginal targets.
     #[serde(default)]
-    pub cooccurrence_dependent_scale: AHashMap<String, f64>,
+    pub cooccurrence_dependent_scale: BTreeMap<String, f64>,
 
     /// Encounter statistics.
     pub encounter_stats: EncounterStats,
@@ -85,14 +85,14 @@ pub struct MssFingerprint {
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct JointDemographics {
     /// Probability for each demographic bucket.
-    pub buckets: AHashMap<DemographicBucket, f64>,
+    pub buckets: BTreeMap<DemographicBucket, f64>,
 
     /// Total patients used to compute this distribution.
     pub total_patients: u64,
 }
 
 /// A demographic bucket key.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct DemographicBucket {
     pub age_bucket: String,
     pub gender: String,
@@ -201,13 +201,13 @@ pub struct ConditionStats {
     pub prevalence: f64,
 
     /// Prevalence multiplier by age bucket.
-    pub by_age_bucket: AHashMap<String, f64>,
+    pub by_age_bucket: BTreeMap<String, f64>,
 
     /// Prevalence multiplier by gender.
-    pub by_gender: AHashMap<String, f64>,
+    pub by_gender: BTreeMap<String, f64>,
 
     /// Prevalence multiplier by race.
-    pub by_race: AHashMap<String, f64>,
+    pub by_race: BTreeMap<String, f64>,
 
     /// Whether the condition is chronic.
     pub chronic: bool,
@@ -304,10 +304,10 @@ pub struct ProcedureStats {
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct EncounterStats {
     /// Mean encounters per patient by age bucket.
-    pub mean_by_age: AHashMap<String, f64>,
+    pub mean_by_age: BTreeMap<String, f64>,
 
     /// Distribution of encounter types.
-    pub type_distribution: AHashMap<String, f64>,
+    pub type_distribution: BTreeMap<String, f64>,
 
     /// Mean events per encounter.
     pub mean_events_per_encounter: f64,
@@ -388,7 +388,7 @@ impl MssFingerprint {
     }
 
     /// Builds a lookup map from condition code to index.
-    pub fn condition_index(&self) -> AHashMap<String, u16> {
+    pub fn condition_index(&self) -> BTreeMap<String, u16> {
         self.conditions
             .iter()
             .enumerate()
@@ -424,7 +424,6 @@ impl MssFingerprint {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::io::Cursor;
 
     #[test]
     fn test_demographic_bucket_index_roundtrip() {
@@ -450,8 +449,8 @@ mod tests {
             medications: vec![],
             observations: vec![],
             procedures: vec![],
-            cooccurrence: AHashMap::new(),
-            cooccurrence_dependent_scale: AHashMap::new(),
+            cooccurrence: BTreeMap::new(),
+            cooccurrence_dependent_scale: BTreeMap::new(),
             onset_stats: Vec::new(),
             encounter_stats: EncounterStats::default(),
         };
