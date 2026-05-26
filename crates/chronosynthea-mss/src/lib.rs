@@ -23,6 +23,7 @@ pub mod sampler;
 pub mod stats;
 pub mod synthea_fixtures;
 pub mod synthehrella;
+pub mod cohort;
 pub mod reproducibility;
 pub mod tables;
 
