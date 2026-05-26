@@ -1,6 +1,6 @@
 [package]
 name = "chronosynthea-cde"
-description = "Coleman Dimensional Encoding for ChronoSynthea"
+description = "Coleman Dimensional Encoding for Synthea module graphs — encodes module states along structural axes (branching factor, guard complexity, etc.) for analysis and signature computation"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
