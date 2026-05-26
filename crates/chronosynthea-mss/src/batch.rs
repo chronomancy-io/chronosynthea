@@ -293,6 +293,14 @@ pub struct BatchGenerator {
     /// Active d5 joint-structure mode. Set once at construction from the
     /// fingerprint contents and `CHRONOSYNTHEA_JOINT_MODE` env var.
     joint_mode: JointMode,
+
+    /// SHA-256 of the fingerprint's canonical JSON. Folded into every
+    /// per-patient seed so that the same `(base_seed, patient_idx)`
+    /// produces *different* patients under different fingerprints.
+    /// Without this, "I'll just bump the registry and reuse seed 42"
+    /// silently gives you patients that don't match the new registry's
+    /// distributions. Computed once at construction; cheap to clone (32 bytes).
+    fingerprint_hash: [u8; 32],
 }
 
 impl BatchGenerator {
@@ -343,6 +351,11 @@ impl BatchGenerator {
                 .unwrap_or_default();
         let cascade = Arc::new(CausalCascadeModel::from_rules(&cascade_rules, &code_table));
 
+        // Reproducibility: hash the fingerprint's canonical JSON once
+        // at construction. Folded into every per-patient seed below.
+        let fingerprint_hash =
+            crate::reproducibility::fingerprint_content_hash(&fingerprint);
+
         let fingerprint = Arc::new(fingerprint);
 
         Self {
@@ -354,7 +367,15 @@ impl BatchGenerator {
             causal_dag,
             cascade,
             joint_mode,
+            fingerprint_hash,
         }
+    }
+
+    /// Hash of the fingerprint this generator was constructed with.
+    /// Use this in cohort manifests so an auditor can verify the
+    /// fingerprint they're replaying against matches.
+    pub fn fingerprint_hash(&self) -> &[u8; 32] {
+        &self.fingerprint_hash
     }
 
     /// Returns the active d5 joint-structure mode.
@@ -403,8 +424,15 @@ impl BatchGenerator {
                 |mut s, patient_id| {
                     // Per-patient reseed preserves deterministic-per-patient
                     // output that the original generate_stats_only contract
-                    // promised.
-                    let patient_seed = base_seed.wrapping_add(patient_id as u64);
+                    // promised. Uses the reproducibility-grade seed
+                    // derivation so changing the fingerprint or
+                    // generator version automatically changes outputs.
+                    let patient_seed = crate::reproducibility::derive_patient_seed(
+                        base_seed,
+                        &self.fingerprint_hash,
+                        crate::reproducibility::GENERATOR_VERSION,
+                        patient_id as u64,
+                    );
                     s.rng = Xoshiro256PlusPlus::seed_from_u64(patient_seed);
 
                     let archetype = archetypes.sample(&mut s.rng);
@@ -522,8 +550,12 @@ impl BatchGenerator {
                     )
                 },
                 |(rng, sampler, condition_buffer), patient_id| {
-                    // Deterministic per-patient seed
-                    let patient_seed = base_seed.wrapping_add(patient_id as u64);
+                    let patient_seed = crate::reproducibility::derive_patient_seed(
+                        base_seed,
+                        &self.fingerprint_hash,
+                        crate::reproducibility::GENERATOR_VERSION,
+                        patient_id as u64,
+                    );
                     *rng = Xoshiro256PlusPlus::seed_from_u64(patient_seed);
 
                     self.generate_compact_patient(
@@ -755,7 +787,30 @@ impl BatchGenerator {
                         proc_counts: vec![0u64; num_procedures],
                     }
                 },
-                |mut s, _patient_id| {
+                |mut s, patient_id| {
+                    // Reproducibility fix: reseed the three per-patient
+                    // RNGs from a single deterministic per-patient seed
+                    // so the output is invariant to rayon thread count
+                    // and dispatch order. Without this reseed, the
+                    // RNGs are seeded once per worker and carry state
+                    // across patients, making aggregate stats
+                    // thread-count-dependent.
+                    let patient_seed = crate::reproducibility::derive_patient_seed(
+                        base_seed,
+                        &self.fingerprint_hash,
+                        crate::reproducibility::GENERATOR_VERSION,
+                        patient_id as u64,
+                    );
+                    s.cond_rng = Xoshiro256PlusPlus::seed_from_u64(
+                        patient_seed.wrapping_mul(0x9E3779B97F4A7C15),
+                    );
+                    s.med_rng = Xoshiro256PlusPlus::seed_from_u64(
+                        patient_seed.wrapping_mul(0xBF58476D1CE4E5B9),
+                    );
+                    s.evt_rng = Xoshiro256PlusPlus::seed_from_u64(
+                        patient_seed.wrapping_mul(0x94D049BB133111EB),
+                    );
+
                     let archetype = archetypes.sample(&mut s.cond_rng);
 
                     match joint_mode {
@@ -901,7 +956,16 @@ impl BatchGenerator {
                     )
                 },
                 |(rng, condition_buffer, event_sampler, sampler), patient_id| {
-                    let patient_seed = base_seed.wrapping_add(patient_id as u64);
+                    // Reproducibility-grade per-patient seed: folds in
+                    // fingerprint hash + generator version so changing
+                    // either gives different patients for the same
+                    // (base_seed, patient_id).
+                    let patient_seed = crate::reproducibility::derive_patient_seed(
+                        base_seed,
+                        &self.fingerprint_hash,
+                        crate::reproducibility::GENERATOR_VERSION,
+                        patient_id as u64,
+                    );
                     *rng = Xoshiro256PlusPlus::seed_from_u64(patient_seed);
 
                     self.generate_full_patient(
