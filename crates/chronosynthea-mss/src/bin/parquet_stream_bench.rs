@@ -19,7 +19,8 @@ fn main() {
 #[cfg(feature = "parquet")]
 fn main() {
     use chronosynthea_mss::parquet_writer::{
-        SyntheaParquetWriter, SyntheaStatsParquetWriter,
+        SyntheaParquetFullWriter, SyntheaParquetWriter,
+        SyntheaStatsParquetWriter,
     };
     use chronosynthea_mss::{BatchConfig, BatchGenerator, CalibratedRegistry};
     use std::path::PathBuf;
@@ -128,6 +129,32 @@ fn main() {
         );
     }
 
+    // ---- Parquet 6-file (patients + encounters + conditions + obs + meds + procs) ----
+    {
+        let dir = bench_root.join("stream-parquet-6file");
+        let _ = std::fs::remove_dir_all(&dir);
+        let mut w = SyntheaParquetFullWriter::create(&dir).unwrap();
+        let archetypes = generator.archetypes();
+        let code_table = generator.code_table();
+        let t = Instant::now();
+        generator.generate_full_chunked(n, chunk_size, |chunk| {
+            for pat in &chunk {
+                w.write_patient(pat, archetypes, code_table).unwrap();
+            }
+        });
+        w.finish().unwrap();
+        let dt = t.elapsed();
+        let bytes = dir_size_recursive(&dir.join("parquet"));
+        println!(
+            "{:>16}  {:>10.3}  {:>11.0}  {:>10.2}  {:>10.0}",
+            "parquet 6-file",
+            dt.as_secs_f64(),
+            n as f64 / dt.as_secs_f64(),
+            bytes as f64 / 1e6,
+            bytes as f64 / n as f64,
+        );
+    }
+
     // ---- Parquet stats (summary.parquet) ----
     {
         let dir = bench_root.join("stream-parquet-stats");
@@ -156,4 +183,23 @@ fn main() {
 
     println!();
     println!("(end-to-end wall time: generate + write streamed in chunks.)");
+}
+
+#[cfg(feature = "parquet")]
+fn dir_size_recursive(p: &std::path::Path) -> u64 {
+    use std::fs;
+    let mut total = 0u64;
+    let Ok(entries) = fs::read_dir(p) else { return 0 };
+    for e in entries.flatten() {
+        if let Ok(meta) = e.metadata() {
+            total += if meta.is_file() {
+                meta.len()
+            } else if meta.is_dir() {
+                dir_size_recursive(&e.path())
+            } else {
+                0
+            };
+        }
+    }
+    total
 }

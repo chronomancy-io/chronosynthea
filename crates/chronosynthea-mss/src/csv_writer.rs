@@ -1481,7 +1481,7 @@ fn epoch_to_date(days_since_epoch: i32) -> String {
     d.format("%Y-%m-%d").to_string()
 }
 
-fn epoch_to_iso8601(
+pub fn epoch_to_iso8601(
     days_since_epoch: i32,
     rng: &mut u64,
     next: &dyn Fn(&mut u64) -> u64,
@@ -1496,7 +1496,7 @@ fn epoch_to_iso8601(
     format!("{}T{:02}:{:02}:{:02}Z", d.format("%Y-%m-%d"), h, m, s)
 }
 
-fn iso8601_plus_minutes(start: &str, minutes: u32) -> String {
+pub fn iso8601_plus_minutes(start: &str, minutes: u32) -> String {
     // Parse minimal ISO 8601 `YYYY-MM-DDTHH:MM:SSZ`, add minutes, format.
     // Avoids a chrono parse round-trip on the hot path.
     let (date_part, time_part) = match start.split_once('T') {
@@ -1534,7 +1534,7 @@ fn years_since(birth_date_days: i32) -> u32 {
 // per event (~hundreds of MBs of transient allocator churn for a 10k
 // patient run). A missing index reflects a registry bug, not normal
 // flow.
-fn lookup_condition<'a>(
+pub fn lookup_condition<'a>(
     _archetypes: &'a ArchetypeRegistry,
     code_table: &'a CodeTable,
     idx: u16,
@@ -1545,7 +1545,7 @@ fn lookup_condition<'a>(
         .unwrap_or(("cond-unknown", "unknown"))
 }
 
-fn lookup_medication<'a>(
+pub fn lookup_medication<'a>(
     _archetypes: &'a ArchetypeRegistry,
     code_table: &'a CodeTable,
     idx: u16,
@@ -1556,7 +1556,7 @@ fn lookup_medication<'a>(
         .unwrap_or(("med-unknown", "unknown"))
 }
 
-fn lookup_procedure<'a>(
+pub fn lookup_procedure<'a>(
     _archetypes: &'a ArchetypeRegistry,
     code_table: &'a CodeTable,
     idx: u16,
@@ -1583,7 +1583,7 @@ pub struct Uuid36([u8; 36]);
 
 impl Uuid36 {
     #[inline]
-    fn as_str(&self) -> &str {
+    pub fn as_str(&self) -> &str {
         // SAFETY: every byte in `self.0` is written from the hex-nibble table
         // (`HEX_NIBBLES`) or a literal `b'-'`, both pure-ASCII.
         unsafe { std::str::from_utf8_unchecked(&self.0) }
@@ -1648,7 +1648,7 @@ fn stable_uuid(id: u64, salt: &[u8]) -> Uuid36 {
 }
 
 #[inline]
-fn encounter_uuid(patient_id: u64, encounter_idx: u32) -> Uuid36 {
+pub fn encounter_uuid(patient_id: u64, encounter_idx: u32) -> Uuid36 {
     let mixed = patient_id
         .wrapping_mul(0x9E37_79B9_7F4A_7C15)
         .wrapping_add(encounter_idx as u64 * 0xBF58_476D_1CE4_E5B9);
@@ -1694,7 +1694,7 @@ fn dicom_uid(
 /// it as a `&'static str` lets the writer skip the per-row
 /// `to_uppercase()` heap allocation that previously fired ~6× per
 /// encounter.
-fn encounter_class_info(
+pub fn encounter_class_info(
     t: u8,
 ) -> (&'static str, &'static str, &'static str, &'static str, f32) {
     match t {
