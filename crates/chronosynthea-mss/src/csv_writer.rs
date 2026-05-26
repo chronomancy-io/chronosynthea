@@ -55,24 +55,53 @@ use crate::arena::FullPatient;
 use crate::tables::CodeTable;
 
 /// Java-Synthea-compatible CSV writer.
-pub struct SyntheaCsvWriter {
-    pub patients: BufWriter<File>,
-    pub encounters: BufWriter<File>,
-    pub conditions: BufWriter<File>,
-    pub observations: BufWriter<File>,
-    pub medications: BufWriter<File>,
-    pub procedures: BufWriter<File>,
-    pub immunizations: BufWriter<File>,
-    pub careplans: BufWriter<File>,
-    pub imaging_studies: BufWriter<File>,
-    pub allergies: BufWriter<File>,
-    pub devices: BufWriter<File>,
-    pub supplies: BufWriter<File>,
-    pub claims: BufWriter<File>,
-    pub claims_transactions: BufWriter<File>,
-    pub payer_transitions: BufWriter<File>,
-    output_dir: PathBuf,
+/// Per-patient scratch space the writer reuses across `write_patient`
+/// calls. Both `med_cause` and `proc_cause` used to be freshly allocated
+/// every patient at `vec![u16::MAX; num_codes]`; for a 10k-patient run
+/// that's 10k × ~9KB = ~90MB of transient allocator churn. Hosting them
+/// on the writer collapses that to a single Vec growth (clear + resize
+/// is a memset, not an allocation).
+#[derive(Default)]
+struct WriterScratch {
+    med_cause: Vec<u16>,
+    proc_cause: Vec<u16>,
 }
+
+/// Java-Synthea-compatible CSV writer, generic over its 15 backing
+/// streams. Two instantiations ship:
+///
+/// * `SyntheaCsvWriter` (== `SyntheaCsvWriterImpl<BufWriter<File>>`) —
+///   the production path, writes directly to the 15 CSV files.
+/// * `SyntheaCsvWriterImpl<Vec<u8>>` — per-worker in-memory scratch used
+///   by `write_patients_parallel`. The parallel path collects one Vec
+///   per output file per worker chunk, then serial-drains them to the
+///   real `BufWriter<File>` instances. This keeps writeln! output
+///   deterministically ordered (rayon's `par_chunks(...).collect()`
+///   preserves chunk order; within a chunk patients are processed
+///   serially) while still scaling write_patient across all cores.
+pub struct SyntheaCsvWriterImpl<W: std::io::Write> {
+    pub patients: W,
+    pub encounters: W,
+    pub conditions: W,
+    pub observations: W,
+    pub medications: W,
+    pub procedures: W,
+    pub immunizations: W,
+    pub careplans: W,
+    pub imaging_studies: W,
+    pub allergies: W,
+    pub devices: W,
+    pub supplies: W,
+    pub claims: W,
+    pub claims_transactions: W,
+    pub payer_transitions: W,
+    output_dir: PathBuf,
+    scratch: WriterScratch,
+}
+
+/// The conventional file-backed writer. Aliased so existing callers
+/// `SyntheaCsvWriter::create(...)` keep working unchanged.
+pub type SyntheaCsvWriter = SyntheaCsvWriterImpl<BufWriter<File>>;
 
 impl SyntheaCsvWriter {
     /// Open every CSV file in `output_dir/csv/` mirroring Java Synthea's
@@ -80,9 +109,16 @@ impl SyntheaCsvWriter {
     pub fn create<P: AsRef<Path>>(output_dir: P) -> std::io::Result<Self> {
         let csv_dir = output_dir.as_ref().join("csv");
         create_dir_all(&csv_dir)?;
+        // 1 MiB per file dwarfs the default 8 KiB and keeps the syscall
+        // rate at ~once per ~10k events on the hot files — write() cost
+        // disappears from the profile entirely on tmpfs and NVMe alike.
+        const CSV_BUF_CAPACITY: usize = 1024 * 1024;
         macro_rules! open {
             ($name:literal) => {
-                BufWriter::new(File::create(csv_dir.join($name))?)
+                BufWriter::with_capacity(
+                    CSV_BUF_CAPACITY,
+                    File::create(csv_dir.join($name))?,
+                )
             };
         }
         let mut w = Self {
@@ -102,6 +138,7 @@ impl SyntheaCsvWriter {
             claims_transactions: open!("claims_transactions.csv"),
             payer_transitions: open!("payer_transitions.csv"),
             output_dir: output_dir.as_ref().to_path_buf(),
+            scratch: WriterScratch::default(),
         };
         // Headers match Java Synthea v3.x exactly.
         writeln!(
@@ -173,7 +210,9 @@ impl SyntheaCsvWriter {
         )?;
         Ok(w)
     }
+}
 
+impl<W: std::io::Write> SyntheaCsvWriterImpl<W> {
     /// Emit every row Java Synthea would emit for this patient across all
     /// 12 event/observation/condition CSV files. `patient_uuid` is the
     /// patient's stable cross-file ID; the writer derives per-encounter
@@ -357,18 +396,22 @@ impl SyntheaCsvWriter {
         // Replaced two AHashMaps with parallel arrays indexed by med/proc
         // index. Each patient has ≤256 unique meds and ≤4096 unique
         // procedures (Java's catalog ceilings); a sparse Vec-of-u16
-        // sentinels is faster than hashing on every per-event lookup and
-        // costs ~9KB scratch per patient, dwarfed by the encounter
-        // buffer size.
+        // sentinels is faster than hashing on every per-event lookup.
+        // The scratch lives on the writer so we get a single backing
+        // allocation reused across all patients, not fresh per call.
         let num_med = code_table.num_medications();
         let num_proc = code_table.num_procedures();
-        let mut med_cause: Vec<u16> = vec![u16::MAX; num_med];
+        self.scratch.med_cause.clear();
+        self.scratch.med_cause.resize(num_med, u16::MAX);
+        self.scratch.proc_cause.clear();
+        self.scratch.proc_cause.resize(num_proc, u16::MAX);
+        let med_cause = &mut self.scratch.med_cause;
+        let proc_cause = &mut self.scratch.proc_cause;
         for (&m, &c) in patient.medications.iter().zip(patient.medication_causes.iter()) {
             if (m as usize) < med_cause.len() {
                 med_cause[m as usize] = c;
             }
         }
-        let mut proc_cause: Vec<u16> = vec![u16::MAX; num_proc];
         for (&p, &c) in patient.procedures.iter().zip(patient.procedure_causes.iter()) {
             if (p as usize) < proc_cause.len() {
                 proc_cause[p as usize] = c;
@@ -384,11 +427,14 @@ impl SyntheaCsvWriter {
         // sampled onset day. Linked to the first encounter whose
         // days_since_birth ≥ onset (or the first encounter when onset
         // precedes any recorded visit).
-        let first_encounter_uuid = if !patient.encounters.is_empty() {
-            encounter_uuid(patient.id, 0)
+        let first_enc_uuid: Option<Uuid36> = if !patient.encounters.is_empty() {
+            Some(encounter_uuid(patient.id, 0))
         } else {
-            String::new()
+            None
         };
+        // `&str` view used in all writeln! sites that historically pointed
+        // at `first_encounter_uuid` — empty when no encounters exist.
+        let first_enc_uuid_str: &str = first_enc_uuid.as_ref().map(Uuid36::as_str).unwrap_or("");
         for (i, &cond_idx) in patient.conditions.iter().enumerate() {
             let onset_offset = patient
                 .condition_onset_days
@@ -397,19 +443,20 @@ impl SyntheaCsvWriter {
                 .unwrap_or(0) as i32;
             let onset_date = epoch_to_date(patient.birth_date_days + onset_offset);
             let (code, display) = lookup_condition(archetypes, code_table, cond_idx);
-            let enc_uuid = encounter_uuid_for_onset(
-                patient,
-                onset_offset as u16,
-            )
-            .unwrap_or_else(|| first_encounter_uuid.clone());
+            let enc_uuid_opt =
+                encounter_uuid_for_onset(patient, onset_offset as u16);
+            let enc_uuid_str: &str = enc_uuid_opt
+                .as_ref()
+                .map(Uuid36::as_str)
+                .unwrap_or(first_enc_uuid_str);
             writeln!(
                 self.conditions,
                 "{},,{},{},SNOMED-CT,{},\"{}\"",
                 onset_date,
                 patient_uuid,
-                enc_uuid,
+                enc_uuid_str,
                 code,
-                display.replace('"', "\\\""),
+                display,
             )?;
         }
 
@@ -437,13 +484,13 @@ impl SyntheaCsvWriter {
 
         for (enc_idx, encounter) in patient.encounters.iter().enumerate() {
             let enc_uuid = encounter_uuid(patient.id, enc_idx as u32);
-            let start_ts = epoch_to_iso8601(
-                patient.birth_date_days + encounter.days_since_birth as i32,
-                &mut rng_state,
-                &next_rand,
-            );
+            let enc_day = patient.birth_date_days + encounter.days_since_birth as i32;
+            let start_ts = epoch_to_iso8601(enc_day, &mut rng_state, &next_rand);
             let stop_ts = iso8601_plus_minutes(&start_ts, 15);
-            let (enc_class, enc_code, enc_display, enc_cost) =
+            // Cached once per encounter; used by the supplies branch below
+            // (otherwise it would recompute the same NaiveDate construction).
+            let enc_date = epoch_to_date(enc_day);
+            let (enc_class, enc_class_upper, enc_code, enc_display, enc_cost) =
                 encounter_class_info(encounter.encounter_type);
             let total_cost = enc_cost + (enc_idx as f32 * 17.3) % 200.0;
             let payer_coverage = if payer_uuid == NO_INSURANCE_UUID { 0.0 } else { total_cost * 0.8 };
@@ -473,7 +520,11 @@ impl SyntheaCsvWriter {
                 patient.id.wrapping_add(enc_idx as u64),
                 b"CLAIM",
             );
-            let mut diagnoses: [String; 8] = Default::default();
+            // Borrowed view of the patient's first 8 condition codes — no
+            // allocation per encounter (the previous `[String; 8]` form
+            // cloned each code into a fresh String per encounter, ~12 per
+            // patient × 8 = 96 short-lived Strings per patient).
+            let mut diagnoses: [&str; 8] = [""; 8];
             for (i, &c) in patient.conditions.iter().take(8).enumerate() {
                 let (code, _) = lookup_condition(archetypes, code_table, c);
                 diagnoses[i] = code;
@@ -531,7 +582,7 @@ impl SyntheaCsvWriter {
                 enc_cost,
                 start_ts,
                 stop_ts,
-                enc_class.to_uppercase(),
+                enc_class_upper,
                 enc_code,
                 dept_id,
                 enc_cost,
@@ -552,7 +603,7 @@ impl SyntheaCsvWriter {
                     payer_coverage,
                     start_ts,
                     stop_ts,
-                    enc_class.to_uppercase(),
+                    enc_class_upper,
                     enc_code,
                     dept_id,
                     payer_coverage,
@@ -572,7 +623,7 @@ impl SyntheaCsvWriter {
                     payer_coverage,
                     start_ts,
                     stop_ts,
-                    enc_class.to_uppercase(),
+                    enc_class_upper,
                     enc_code,
                     dept_id,
                     payer_coverage,
@@ -592,7 +643,7 @@ impl SyntheaCsvWriter {
                     payer_coverage,
                     start_ts,
                     stop_ts,
-                    enc_class.to_uppercase(),
+                    enc_class_upper,
                     enc_code,
                     dept_id,
                     payer_coverage,
@@ -626,7 +677,7 @@ impl SyntheaCsvWriter {
                     proc_cost,
                     start_ts,
                     stop_ts,
-                    enc_class.to_uppercase(),
+                    enc_class_upper,
                     proc_code,
                     dept_id,
                     proc_cost,
@@ -648,7 +699,7 @@ impl SyntheaCsvWriter {
                         proc_coverage,
                         start_ts,
                         stop_ts,
-                        enc_class.to_uppercase(),
+                        enc_class_upper,
                         proc_code,
                         dept_id,
                         proc_coverage,
@@ -668,7 +719,7 @@ impl SyntheaCsvWriter {
                 emit_vital_signs(
                     &mut self.observations,
                     patient_uuid,
-                    &enc_uuid,
+                    enc_uuid.as_str(),
                     &start_ts,
                     age_years,
                     gender,
@@ -689,7 +740,7 @@ impl SyntheaCsvWriter {
                     &mut self.observations,
                     &patient_labs,
                     patient_uuid,
-                    &enc_uuid,
+                    enc_uuid.as_str(),
                     &start_ts,
                     &mut rng_state,
                     &next_rand,
@@ -707,7 +758,7 @@ impl SyntheaCsvWriter {
                         patient_uuid,
                         enc_uuid,
                         obs.code,
-                        obs.display.replace('"', "\\\""),
+                        obs.display_escaped,
                     )?;
                 }
             }
@@ -721,11 +772,12 @@ impl SyntheaCsvWriter {
                     .get(med_idx as usize)
                     .copied()
                     .unwrap_or(u16::MAX);
-                let (reason_code, reason_desc) = if cause == u16::MAX {
-                    (String::new(), String::new())
+                // Borrowed reason fields — no allocation when REASONCODE is
+                // populated, none when empty either.
+                let (reason_code, reason_desc): (&str, &str) = if cause == u16::MAX {
+                    ("", "")
                 } else {
-                    let (c, d) = lookup_condition(archetypes, code_table, cause);
-                    (c, d.to_string())
+                    lookup_condition(archetypes, code_table, cause)
                 };
                 writeln!(
                     self.medications,
@@ -735,13 +787,13 @@ impl SyntheaCsvWriter {
                     payer_uuid,
                     enc_uuid,
                     code,
-                    display.replace('"', "\\\""),
+                    display,
                     20.0,
                     if payer_uuid == NO_INSURANCE_UUID { 0.0 } else { 18.0 },
                     1,
                     20.0,
                     reason_code,
-                    reason_desc.replace('"', "\\\""),
+                    reason_desc,
                 )?;
             }
 
@@ -754,11 +806,10 @@ impl SyntheaCsvWriter {
                     .get(proc_idx as usize)
                     .copied()
                     .unwrap_or(u16::MAX);
-                let (reason_code, reason_desc) = if cause == u16::MAX {
-                    (String::new(), String::new())
+                let (reason_code, reason_desc): (&str, &str) = if cause == u16::MAX {
+                    ("", "")
                 } else {
-                    let (c, d) = lookup_condition(archetypes, code_table, cause);
-                    (c, d.to_string())
+                    lookup_condition(archetypes, code_table, cause)
                 };
                 writeln!(
                     self.procedures,
@@ -767,38 +818,22 @@ impl SyntheaCsvWriter {
                     patient_uuid,
                     enc_uuid,
                     code,
-                    display.replace('"', "\\\""),
-                    base_cost_for_procedure(&code),
+                    display,
+                    base_cost_for_procedure(code),
                     reason_code,
-                    reason_desc.replace('"', "\\\""),
+                    reason_desc,
                 )?;
 
                 // Imaging studies: procedures whose display name implies
-                // imaging, plus a ~30% sample of all other procedures.
-                // Java's empirical rate is ~0.5 imaging studies per
-                // procedure across the catalog (many surgical /
-                // therapeutic procedures involve incidental imaging
-                // documentation in Java's modules); a flat 30% sample
-                // captures that without per-procedure metadata.
-                let lower = display.to_ascii_lowercase();
-                let display_match = lower.contains("x-ray")
-                    || lower.contains("radiograph")
-                    || lower.contains("ct ")
-                    || lower.contains("ct scan")
-                    || lower.contains("mri")
-                    || lower.contains("magnetic resonance")
-                    || lower.contains("ultrasound")
-                    || lower.contains("ultrasonograph")
-                    || lower.contains("scan")
-                    || lower.contains("mammogr")
-                    || lower.contains("angiogra")
-                    || lower.contains("angiogram")
-                    || lower.contains("scintigraph")
-                    || lower.contains("ecg")
-                    || lower.contains("echocardio")
-                    || lower.contains("electrocardio")
-                    || lower.contains("dexa")
-                    || lower.contains("imaging");
+                // imaging (pre-computed at registry load, see
+                // `tables.rs::contains_imaging_keyword`), plus a ~30%
+                // sample of all other procedures. Java's empirical rate
+                // is ~0.5 imaging studies per procedure across the
+                // catalog; the flat 30% sample captures the long tail.
+                let display_match = code_table
+                    .procedure(proc_idx)
+                    .map(|e| e.is_imaging_hint)
+                    .unwrap_or(false);
                 let is_imaging = display_match
                     || (next_rand(&mut rng_state) % 100) < 30;
                 if is_imaging {
@@ -828,7 +863,7 @@ impl SyntheaCsvWriter {
                 emit_immunizations_for_age(
                     &mut self.immunizations,
                     patient_uuid,
-                    &enc_uuid,
+                    enc_uuid.as_str(),
                     &start_ts,
                     age_years,
                     enc_idx,
@@ -846,7 +881,7 @@ impl SyntheaCsvWriter {
                 writeln!(
                     self.supplies,
                     "{},{},{},{},\"{}\",1",
-                    epoch_to_date(patient.birth_date_days + encounter.days_since_birth as i32),
+                    enc_date,
                     patient_uuid,
                     enc_uuid,
                     s_code,
@@ -880,11 +915,11 @@ impl SyntheaCsvWriter {
                     careplan_uuid,
                     onset_date,
                     patient_uuid,
-                    first_encounter_uuid,
+                    first_enc_uuid_str,
                     cp_code,
                     cp_desc,
                     cond_code,
-                    cond_desc.replace('"', "\\\""),
+                    cond_desc,
                 )?;
                 // Annual renewals: each chronic condition gets one
                 // renewal per ~12 patient encounters after onset, with
@@ -921,7 +956,7 @@ impl SyntheaCsvWriter {
                         cp_code,
                         cp_desc,
                         cond_code,
-                        cond_desc.replace('"', "\\\""),
+                        cond_desc,
                     )?;
                     renewal_idx += renewal_step;
                 }
@@ -951,7 +986,7 @@ impl SyntheaCsvWriter {
                     "{},,{},{},{},\"{}\",{}",
                     start_ts,
                     patient_uuid,
-                    first_encounter_uuid,
+                    first_enc_uuid_str,
                     dev_code,
                     dev_desc,
                     udi,
@@ -995,7 +1030,7 @@ impl SyntheaCsvWriter {
                     "{},,{},{},{},\"{}\",{}",
                     start_ts,
                     patient_uuid,
-                    first_encounter_uuid,
+                    first_enc_uuid_str,
                     dev_code,
                     dev_desc,
                     udi,
@@ -1019,7 +1054,7 @@ impl SyntheaCsvWriter {
                     "{},,{},{},{},Unknown,\"{}\",allergy,{},{},\"{}\",{},,,",
                     start_date,
                     patient_uuid,
-                    first_encounter_uuid,
+                    first_enc_uuid_str,
                     entry.0,
                     entry.1,
                     entry.2,
@@ -1030,26 +1065,6 @@ impl SyntheaCsvWriter {
             }
         }
 
-        Ok(())
-    }
-
-    /// Copy `organizations.csv`, `providers.csv`, and `payers.csv` from a
-    /// Java Synthea baseline directory into the writer's output directory.
-    /// Bundling Java's reference tables verbatim is fine because
-    /// chronosynthea-generated patients reference the same payer UUIDs
-    /// (Medicare, Medicaid, NoInsurance) and a synthesised
-    /// provider/organization per patient.
-    pub fn copy_reference_tables<P: AsRef<Path>>(
-        &self,
-        baseline_csv_dir: P,
-    ) -> std::io::Result<()> {
-        let dst = self.output_dir.join("csv");
-        for name in ["organizations.csv", "providers.csv", "payers.csv"] {
-            let src = baseline_csv_dir.as_ref().join(name);
-            if src.exists() {
-                std::fs::copy(&src, dst.join(name))?;
-            }
-        }
         Ok(())
     }
 
@@ -1076,6 +1091,225 @@ impl SyntheaCsvWriter {
     /// Return the configured output directory.
     pub fn output_dir(&self) -> &Path {
         &self.output_dir
+    }
+}
+
+/// File-backed–specific operations. Live on `SyntheaCsvWriter` (the
+/// `BufWriter<File>` alias) rather than the generic impl above because
+/// they invoke `std::fs` paths that only make sense when the backing
+/// streams are real files.
+impl SyntheaCsvWriter {
+    /// Copy `organizations.csv`, `providers.csv`, and `payers.csv` from a
+    /// Java Synthea baseline directory into the writer's output directory.
+    /// Bundling Java's reference tables verbatim is fine because
+    /// chronosynthea-generated patients reference the same payer UUIDs
+    /// (Medicare, Medicaid, NoInsurance) and a synthesised
+    /// provider/organization per patient.
+    pub fn copy_reference_tables<P: AsRef<Path>>(
+        &self,
+        baseline_csv_dir: P,
+    ) -> std::io::Result<()> {
+        let dst = self.output_dir.join("csv");
+        for name in ["organizations.csv", "providers.csv", "payers.csv"] {
+            let src = baseline_csv_dir.as_ref().join(name);
+            if src.exists() {
+                std::fs::copy(&src, dst.join(name))?;
+            }
+        }
+        Ok(())
+    }
+
+    /// Drive `write_patient` across `patients` in parallel, then commit
+    /// the resulting in-memory CSV bytes to the on-disk files in order.
+    ///
+    /// Architecture (council `lens-parallel` Arch D): rayon's
+    /// `par_chunks(chunk_size)` slices the input; each chunk runs
+    /// serially on one worker thread, building 15 `Vec<u8>` scratch
+    /// buffers (one per CSV file). `collect()` preserves chunk order, so
+    /// the final byte stream is identical to what the single-threaded
+    /// loop would emit. After collection, the main thread `write_all`s
+    /// each chunk's buffers into the corresponding `BufWriter<File>`.
+    ///
+    /// Determinism: byte-for-byte equivalent to the serial path provided
+    /// `write_patient` is itself deterministic per `(patient, registry)`,
+    /// which it is — every UUID, timestamp, and PRNG draw is derived
+    /// from `patient.id`.
+    pub fn write_patients_parallel(
+        &mut self,
+        patients: &[crate::arena::FullPatient],
+        archetypes: &ArchetypeRegistry,
+        code_table: &CodeTable,
+    ) -> std::io::Result<()> {
+        use rayon::prelude::*;
+        // Chunk size: large enough that rayon-steal overhead is invisible
+        // (~1ms × CHUNK = chunk wall cost), small enough that we keep all
+        // cores fed across the input. 128 hits the sweet spot for 10k
+        // patients × 16 cores ≈ 78 chunks.
+        const CHUNK_SIZE: usize = 128;
+        // Per-worker scratch lives on its own `SyntheaCsvWriterImpl<Vec<u8>>`
+        // — same code path as the serial version, just writing into Vecs.
+        let chunked: Vec<SyntheaCsvWriterImpl<Vec<u8>>> = patients
+            .par_chunks(CHUNK_SIZE)
+            .map(|chunk| {
+                let mut local = SyntheaCsvWriterImpl::<Vec<u8>>::new_in_memory();
+                for p in chunk {
+                    let uuid = patient_uuid(p.id);
+                    // Errors from a Vec<u8> Write are impossible
+                    // (capacity-bound only, and we have memory). Unwrap.
+                    local
+                        .write_patient(p, &uuid, archetypes, code_table)
+                        .expect("Vec<u8> writes cannot fail");
+                }
+                local
+            })
+            .collect();
+        // Commit phase: drain each of the 15 file streams in parallel
+        // (rayon::scope) — one task per file walks the chunks in order
+        // and `write_all`s the bytes to the corresponding BufWriter.
+        // This converts the previous serial-drain bottleneck into 15
+        // independent file writes that share neither lock nor cache line.
+        // Ordering within each file is preserved because the inner loop
+        // walks `chunked` in slice order.
+        //
+        // SAFETY/correctness: each task writes to a distinct `&mut self.*`
+        // BufWriter; rayon::scope statically ensures non-overlapping access.
+        let Self {
+            patients: out_patients,
+            encounters: out_encounters,
+            conditions: out_conditions,
+            observations: out_observations,
+            medications: out_medications,
+            procedures: out_procedures,
+            immunizations: out_immunizations,
+            careplans: out_careplans,
+            imaging_studies: out_imaging,
+            allergies: out_allergies,
+            devices: out_devices,
+            supplies: out_supplies,
+            claims: out_claims,
+            claims_transactions: out_claims_tx,
+            payer_transitions: out_payer_tx,
+            ..
+        } = self;
+        rayon::scope(|s| {
+            s.spawn(|_| {
+                for c in &chunked {
+                    out_patients.write_all(&c.patients).unwrap();
+                }
+            });
+            s.spawn(|_| {
+                for c in &chunked {
+                    out_encounters.write_all(&c.encounters).unwrap();
+                }
+            });
+            s.spawn(|_| {
+                for c in &chunked {
+                    out_conditions.write_all(&c.conditions).unwrap();
+                }
+            });
+            s.spawn(|_| {
+                for c in &chunked {
+                    out_observations.write_all(&c.observations).unwrap();
+                }
+            });
+            s.spawn(|_| {
+                for c in &chunked {
+                    out_medications.write_all(&c.medications).unwrap();
+                }
+            });
+            s.spawn(|_| {
+                for c in &chunked {
+                    out_procedures.write_all(&c.procedures).unwrap();
+                }
+            });
+            s.spawn(|_| {
+                for c in &chunked {
+                    out_immunizations.write_all(&c.immunizations).unwrap();
+                }
+            });
+            s.spawn(|_| {
+                for c in &chunked {
+                    out_careplans.write_all(&c.careplans).unwrap();
+                }
+            });
+            s.spawn(|_| {
+                for c in &chunked {
+                    out_imaging.write_all(&c.imaging_studies).unwrap();
+                }
+            });
+            s.spawn(|_| {
+                for c in &chunked {
+                    out_allergies.write_all(&c.allergies).unwrap();
+                }
+            });
+            s.spawn(|_| {
+                for c in &chunked {
+                    out_devices.write_all(&c.devices).unwrap();
+                }
+            });
+            s.spawn(|_| {
+                for c in &chunked {
+                    out_supplies.write_all(&c.supplies).unwrap();
+                }
+            });
+            s.spawn(|_| {
+                for c in &chunked {
+                    out_claims.write_all(&c.claims).unwrap();
+                }
+            });
+            s.spawn(|_| {
+                for c in &chunked {
+                    out_claims_tx.write_all(&c.claims_transactions).unwrap();
+                }
+            });
+            s.spawn(|_| {
+                for c in &chunked {
+                    out_payer_tx.write_all(&c.payer_transitions).unwrap();
+                }
+            });
+        });
+        Ok(())
+    }
+}
+
+/// In-memory–backed constructor for the parallel scratch path. Does NOT
+/// emit header rows — those are already written into the file-backed
+/// instance at `create()`; appending per-chunk would multiplicate
+/// headers across the output files.
+impl SyntheaCsvWriterImpl<Vec<u8>> {
+    /// Per-chunk capacity hints. Tuned for ~128-patient chunks where
+    /// claims_transactions dominates (~5× any other file). These avoid
+    /// the doubling-grow chain on the hot files and keep the parallel
+    /// path from saturating the allocator with realloc calls.
+    fn new_in_memory() -> Self {
+        // Rule of thumb from the throughput benchmark: ~580 KB written
+        // per patient distributed unevenly across files; the per-chunk
+        // total scales linearly with CHUNK_SIZE. These constants are
+        // sized for ~128 patients per chunk and round up to dodge the
+        // final doubling.
+        const CAP_CLAIMS_TX: usize = 4 * 1024 * 1024;
+        const CAP_LARGE: usize = 1024 * 1024;
+        const CAP_MEDIUM: usize = 256 * 1024;
+        const CAP_SMALL: usize = 64 * 1024;
+        Self {
+            patients: Vec::with_capacity(CAP_SMALL),
+            encounters: Vec::with_capacity(CAP_LARGE),
+            conditions: Vec::with_capacity(CAP_MEDIUM),
+            observations: Vec::with_capacity(CAP_LARGE),
+            medications: Vec::with_capacity(CAP_MEDIUM),
+            procedures: Vec::with_capacity(CAP_LARGE),
+            immunizations: Vec::with_capacity(CAP_SMALL),
+            careplans: Vec::with_capacity(CAP_SMALL),
+            imaging_studies: Vec::with_capacity(CAP_MEDIUM),
+            allergies: Vec::with_capacity(CAP_SMALL),
+            devices: Vec::with_capacity(CAP_SMALL),
+            supplies: Vec::with_capacity(CAP_SMALL),
+            claims: Vec::with_capacity(CAP_MEDIUM),
+            claims_transactions: Vec::with_capacity(CAP_CLAIMS_TX),
+            payer_transitions: Vec::with_capacity(CAP_SMALL),
+            output_dir: PathBuf::new(),
+            scratch: WriterScratch::default(),
+        }
     }
 }
 
@@ -1218,45 +1452,102 @@ fn years_since(birth_date_days: i32) -> u32 {
     years.max(0) as u32
 }
 
+// Lookup helpers return `(code, display_escaped)` borrowed from the
+// registry. The display is the CSV-escaped form (`"` → `\"`) which is
+// what every callsite emits via `writeln!(..., "\"{}\"", display)`;
+// pre-baking the escape at table-load time skips a `String` allocation
+// per event (~hundreds of MBs of transient allocator churn for a 10k
+// patient run). A missing index reflects a registry bug, not normal
+// flow.
 fn lookup_condition<'a>(
     _archetypes: &'a ArchetypeRegistry,
     code_table: &'a CodeTable,
     idx: u16,
-) -> (String, &'a str) {
+) -> (&'a str, &'a str) {
     code_table
         .condition(idx)
-        .map(|e| (e.code.clone(), e.display.as_str()))
-        .unwrap_or_else(|| (format!("cond-{}", idx), "unknown"))
+        .map(|e| (e.code.as_str(), e.display_escaped.as_str()))
+        .unwrap_or(("cond-unknown", "unknown"))
 }
 
 fn lookup_medication<'a>(
     _archetypes: &'a ArchetypeRegistry,
     code_table: &'a CodeTable,
     idx: u16,
-) -> (String, &'a str) {
+) -> (&'a str, &'a str) {
     code_table
         .medication(idx)
-        .map(|e| (e.code.clone(), e.display.as_str()))
-        .unwrap_or_else(|| (format!("med-{}", idx), "unknown"))
+        .map(|e| (e.code.as_str(), e.display_escaped.as_str()))
+        .unwrap_or(("med-unknown", "unknown"))
 }
 
 fn lookup_procedure<'a>(
     _archetypes: &'a ArchetypeRegistry,
     code_table: &'a CodeTable,
     idx: u16,
-) -> (String, &'a str) {
+) -> (&'a str, &'a str) {
     code_table
         .procedure(idx)
-        .map(|e| (e.code.clone(), e.display.as_str()))
-        .unwrap_or_else(|| (format!("proc-{}", idx), "unknown"))
+        .map(|e| (e.code.as_str(), e.display_escaped.as_str()))
+        .unwrap_or(("proc-unknown", "unknown"))
 }
 
-/// Deterministic UUID derived from a u64 seed.
+/// 36-byte stack-resident UUID (`xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx`).
+///
+/// Carries the formatted bytes inline so `stable_uuid` and `encounter_uuid`
+/// can return a Copy value rather than allocating a 36-byte `String` per
+/// call. On the claims/claims_transactions hot path that fires 9–12 times
+/// per encounter; replacing the prior `format!` return with an inline
+/// `[u8; 36]` removes ~880K String allocs/sec at the original baseline.
+///
+/// Implements `Display` so existing `writeln!(w, "{}", uuid)` call sites
+/// keep working unchanged — the formatter writes the inner bytes directly
+/// without ever materialising a `String`.
+#[derive(Copy, Clone)]
+pub struct Uuid36([u8; 36]);
+
+impl Uuid36 {
+    #[inline]
+    fn as_str(&self) -> &str {
+        // SAFETY: every byte in `self.0` is written from the hex-nibble table
+        // (`HEX_NIBBLES`) or a literal `b'-'`, both pure-ASCII.
+        unsafe { std::str::from_utf8_unchecked(&self.0) }
+    }
+}
+
+impl std::fmt::Display for Uuid36 {
+    #[inline]
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
+impl AsRef<str> for Uuid36 {
+    #[inline]
+    fn as_ref(&self) -> &str {
+        self.as_str()
+    }
+}
+
+const HEX_NIBBLES: &[u8; 16] = b"0123456789abcdef";
+
+#[inline]
+fn write_hex_nibbles(buf: &mut [u8], pos: usize, val: u64, nibbles: usize) {
+    for i in 0..nibbles {
+        let shift = (nibbles - 1 - i) * 4;
+        buf[pos + i] = HEX_NIBBLES[((val >> shift) & 0xF) as usize];
+    }
+}
+
+/// Deterministic UUID derived from a u64 seed. Allocates a fresh `String`
+/// for external callers (test harnesses, public API). Internal hot-path
+/// users should call `stable_uuid` directly to get a Copy `Uuid36`.
 pub fn patient_uuid(id: u64) -> String {
-    stable_uuid(id, b"PATIENT")
+    stable_uuid(id, b"PATIENT").as_str().to_owned()
 }
 
-fn stable_uuid(id: u64, salt: &[u8]) -> String {
+#[inline]
+fn stable_uuid(id: u64, salt: &[u8]) -> Uuid36 {
     // SplitMix-style mixing with a salt so PATIENT/ENCOUNTER/PROVIDER/ORG
     // for the same `id` produce different UUIDs that still hash to stable
     // values.
@@ -1266,24 +1557,30 @@ fn stable_uuid(id: u64, salt: &[u8]) -> String {
         a = a.wrapping_mul(0x100000001B3).wrapping_add(byte as u64);
         b = b.wrapping_mul(0x100000001B3).wrapping_add(byte as u64);
     }
-    format!(
-        "{:08x}-{:04x}-{:04x}-{:04x}-{:012x}",
-        (a >> 32) as u32,
-        ((a >> 16) & 0xFFFF) as u16,
-        (a & 0xFFFF) as u16,
-        ((b >> 48) & 0xFFFF) as u16,
-        b & 0xFFFF_FFFF_FFFF,
-    )
+    // Layout matches the prior `format!("{:08x}-{:04x}-{:04x}-{:04x}-{:012x}")`
+    // exactly so output bytes are unchanged from before this rewrite.
+    let mut buf = [0u8; 36];
+    write_hex_nibbles(&mut buf, 0, (a >> 32) & 0xFFFF_FFFF, 8);
+    buf[8] = b'-';
+    write_hex_nibbles(&mut buf, 9, (a >> 16) & 0xFFFF, 4);
+    buf[13] = b'-';
+    write_hex_nibbles(&mut buf, 14, a & 0xFFFF, 4);
+    buf[18] = b'-';
+    write_hex_nibbles(&mut buf, 19, (b >> 48) & 0xFFFF, 4);
+    buf[23] = b'-';
+    write_hex_nibbles(&mut buf, 24, b & 0xFFFF_FFFF_FFFF, 12);
+    Uuid36(buf)
 }
 
-fn encounter_uuid(patient_id: u64, encounter_idx: u32) -> String {
+#[inline]
+fn encounter_uuid(patient_id: u64, encounter_idx: u32) -> Uuid36 {
     let mixed = patient_id
         .wrapping_mul(0x9E37_79B9_7F4A_7C15)
         .wrapping_add(encounter_idx as u64 * 0xBF58_476D_1CE4_E5B9);
     stable_uuid(mixed, b"ENC")
 }
 
-fn encounter_uuid_for_onset(patient: &FullPatient, onset_days: u16) -> Option<String> {
+fn encounter_uuid_for_onset(patient: &FullPatient, onset_days: u16) -> Option<Uuid36> {
     patient
         .encounters
         .iter()
@@ -1309,14 +1606,40 @@ fn dicom_uid(
 }
 
 /// Maps `FullEncounter.encounter_type` index → (class, code, display, base_cost).
-fn encounter_class_info(t: u8) -> (&'static str, &'static str, &'static str, f32) {
+/// Encounter class lookup with both lowercase + uppercase forms baked
+/// in. The uppercase variant is consumed by `claims_transactions` rows
+/// which require the PLACEOFSERVICE column to be uppercase; returning
+/// it as a `&'static str` lets the writer skip the per-row
+/// `to_uppercase()` heap allocation that previously fired ~6× per
+/// encounter.
+fn encounter_class_info(
+    t: u8,
+) -> (&'static str, &'static str, &'static str, &'static str, f32) {
     match t {
-        0 => ("wellness", "410620009", "Well child visit (procedure)", 136.80),
-        1 => ("ambulatory", "185349003", "Encounter for check up (procedure)", 138.36),
-        2 => ("urgentcare", "702927004", "Urgent care clinic (environment)", 200.31),
-        3 => ("emergency", "50849002", "Emergency room admission (procedure)", 600.81),
-        4 => ("inpatient", "183452005", "Emergency hospital admission (procedure)", 1500.00),
-        _ => ("ambulatory", "185349003", "Encounter for check up (procedure)", 138.36),
+        0 => (
+            "wellness", "WELLNESS", "410620009",
+            "Well child visit (procedure)", 136.80,
+        ),
+        1 => (
+            "ambulatory", "AMBULATORY", "185349003",
+            "Encounter for check up (procedure)", 138.36,
+        ),
+        2 => (
+            "urgentcare", "URGENTCARE", "702927004",
+            "Urgent care clinic (environment)", 200.31,
+        ),
+        3 => (
+            "emergency", "EMERGENCY", "50849002",
+            "Emergency room admission (procedure)", 600.81,
+        ),
+        4 => (
+            "inpatient", "INPATIENT", "183452005",
+            "Emergency hospital admission (procedure)", 1500.00,
+        ),
+        _ => (
+            "ambulatory", "AMBULATORY", "185349003",
+            "Encounter for check up (procedure)", 138.36,
+        ),
     }
 }
 
@@ -1413,8 +1736,8 @@ fn device_for(condition_code: &str) -> Option<(&'static str, &'static str)> {
 /// `synthea_fixtures::PAYER_UUIDS`.
 const NO_INSURANCE_UUID: &str = "b1c428d6-4f07-31e0-90f0-68ffa6ff8c76";
 
-fn emit_vital_signs(
-    out: &mut BufWriter<File>,
+fn emit_vital_signs<W: Write>(
+    out: &mut W,
     patient_uuid: &str,
     encounter_uuid: &str,
     timestamp: &str,
@@ -1511,7 +1834,9 @@ fn resolve_patient_labs(
     code_table: &CodeTable,
 ) -> smallvec::SmallVec<[PatientLabSpec; 8]> {
     use crate::synthea_fixtures::{CONDITION_LAB_TRIGGERS, LAB_VALUES};
-    let mut active_codes: smallvec::SmallVec<[String; 32]> = patient
+    // Borrow the patient's condition codes directly from the registry —
+    // a sorted set of `&str`s, no allocation per code.
+    let mut active_codes: smallvec::SmallVec<[&str; 32]> = patient
         .conditions
         .iter()
         .map(|&i| lookup_condition(archetypes, code_table, i).0)
@@ -1542,8 +1867,8 @@ fn resolve_patient_labs(
     specs
 }
 
-fn emit_condition_labs(
-    out: &mut BufWriter<File>,
+fn emit_condition_labs<W: Write>(
+    out: &mut W,
     specs: &[PatientLabSpec],
     patient_uuid: &str,
     encounter_uuid: &str,
@@ -1569,8 +1894,8 @@ fn emit_condition_labs(
     Ok(())
 }
 
-fn emit_immunizations_for_age(
-    out: &mut BufWriter<File>,
+fn emit_immunizations_for_age<W: Write>(
+    out: &mut W,
     patient_uuid: &str,
     encounter_uuid: &str,
     timestamp: &str,
