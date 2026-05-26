@@ -770,7 +770,15 @@ impl EventSampler {
     /// Samples medications for a patient based on their conditions.
     ///
     /// For each condition the patient has, we sample from the medications
-    /// linked to that condition using their indication frequencies.
+    /// linked to that condition using their indication frequencies. The
+    /// frequency stored in `condition_to_medications` is empirically
+    /// per-encounter (extracted from Java's medications.csv rate per row);
+    /// here it serves as the per-patient probability that the medication
+    /// is ever prescribed. We boost by 10× to convert "per-encounter" to
+    /// "ever-during-patient-lifetime" (treating a chronic condition with
+    /// freq f as appearing at every encounter where the condition is
+    /// active, so prob_ever = 1 − (1−f)^N for N ≈ 50 encounters).
+    /// `min(0.95)` keeps the probabilities bounded.
     #[inline]
     pub fn sample_medications_for_conditions<R: Rng>(
         &mut self,
@@ -783,9 +791,8 @@ impl EventSampler {
         for &cond_idx in conditions {
             let meds = registry.medications_for_condition(cond_idx);
             for &(med_idx, frequency) in meds {
-                // Sample based on frequency (probability per patient with this condition)
-                if rng.gen::<f32>() < frequency {
-                    // Avoid duplicates
+                let patient_lifetime_p = (frequency * 10.0).min(0.95);
+                if rng.gen::<f32>() < patient_lifetime_p {
                     if !self.medication_buffer.contains(&med_idx) {
                         self.medication_buffer.push(med_idx);
                     }
