@@ -1179,21 +1179,25 @@ impl SyntheaCsvWriter {
         Ok(())
     }
 
-    /// Drive `write_patient` across `patients` in parallel, then commit
-    /// the resulting in-memory CSV bytes to the on-disk files in order.
+    /// Drive `write_patient` across `patients` in parallel.
     ///
-    /// Architecture (council `lens-parallel` Arch D): rayon's
-    /// `par_chunks(chunk_size)` slices the input; each chunk runs
-    /// serially on one worker thread, building 15 `Vec<u8>` scratch
-    /// buffers (one per CSV file). `collect()` preserves chunk order, so
-    /// the final byte stream is identical to what the single-threaded
-    /// loop would emit. After collection, the main thread `write_all`s
-    /// each chunk's buffers into the corresponding `BufWriter<File>`.
+    /// Architecture: pre-allocate one `SyntheaCsvWriterImpl<Vec<u8>>`
+    /// per chunk *upfront* on the main thread, then have workers fill
+    /// their assigned slot via `par_iter_mut().zip`. After all chunks
+    /// complete, a 15-way `rayon::scope` drains the per-file streams
+    /// in parallel to the real `BufWriter<File>`s.
     ///
-    /// Determinism: byte-for-byte equivalent to the serial path provided
-    /// `write_patient` is itself deterministic per `(patient, registry)`,
-    /// which it is — every UUID, timestamp, and PRNG draw is derived
-    /// from `patient.id`.
+    /// Why pre-allocate upfront: the prior `par_chunks().map().collect()`
+    /// pattern triggered ~1170 `Vec::with_capacity` calls per 10k-patient
+    /// run from inside the parallel section — the samply profile pinned
+    /// `Vec::new` at 22% of cycles. Hoisting those allocations to a
+    /// single serial loop on the main thread removes them from the hot
+    /// parallel path entirely (the allocator's total byte traffic is the
+    /// same, but it no longer contends with worker compute).
+    ///
+    /// Determinism: byte-for-byte equivalent to the serial path — each
+    /// worker writes its chunk's output into a deterministic-index slot,
+    /// and the commit phase drains slots in order.
     pub fn write_patients_parallel(
         &mut self,
         patients: &[crate::arena::FullPatient],
@@ -1201,38 +1205,36 @@ impl SyntheaCsvWriter {
         code_table: &CodeTable,
     ) -> std::io::Result<()> {
         use rayon::prelude::*;
-        // Chunk size: large enough that rayon-steal overhead is invisible
-        // (~1ms × CHUNK = chunk wall cost), small enough that we keep all
-        // cores fed across the input. 128 hits the sweet spot for 10k
-        // patients × 16 cores ≈ 78 chunks.
+
         const CHUNK_SIZE: usize = 128;
-        // Per-worker scratch lives on its own `SyntheaCsvWriterImpl<Vec<u8>>`
-        // — same code path as the serial version, just writing into Vecs.
-        let chunked: Vec<SyntheaCsvWriterImpl<Vec<u8>>> = patients
+        let n_chunks = patients.len().div_ceil(CHUNK_SIZE);
+
+        // Pre-allocate one buffer-set per chunk on the main thread.
+        // This is the same total byte traffic the parallel path used to
+        // pay during compute, but it now happens before the hot loop —
+        // mimalloc is uncontended, and the parallel section sees zero
+        // `Vec::with_capacity` calls.
+        let mut chunked: Vec<SyntheaCsvWriterImpl<Vec<u8>>> = (0..n_chunks)
+            .map(|_| SyntheaCsvWriterImpl::<Vec<u8>>::new_in_memory())
+            .collect();
+
+        // Parallel fill: each worker zips a chunk-of-patients with its
+        // assigned bufset slot and runs `write_patient` for each patient.
+        patients
             .par_chunks(CHUNK_SIZE)
-            .map(|chunk| {
-                let mut local = SyntheaCsvWriterImpl::<Vec<u8>>::new_in_memory();
+            .zip(chunked.par_iter_mut())
+            .for_each(|(chunk, local)| {
                 for p in chunk {
                     let uuid = patient_uuid(p.id);
-                    // Errors from a Vec<u8> Write are impossible
-                    // (capacity-bound only, and we have memory). Unwrap.
                     local
                         .write_patient(p, &uuid, archetypes, code_table)
                         .expect("Vec<u8> writes cannot fail");
                 }
-                local
-            })
-            .collect();
-        // Commit phase: drain each of the 15 file streams in parallel
-        // (rayon::scope) — one task per file walks the chunks in order
-        // and `write_all`s the bytes to the corresponding BufWriter.
-        // This converts the previous serial-drain bottleneck into 15
-        // independent file writes that share neither lock nor cache line.
-        // Ordering within each file is preserved because the inner loop
-        // walks `chunked` in slice order.
-        //
-        // SAFETY/correctness: each task writes to a distinct `&mut self.*`
-        // BufWriter; rayon::scope statically ensures non-overlapping access.
+            });
+
+        // Commit phase: 15-way fan-out drain to the real BufWriters.
+        // Each spawned task owns one file's stream end-to-end; no lock
+        // and no cache-line contention between tasks.
         let Self {
             patients: out_patients,
             encounters: out_encounters,
@@ -1328,6 +1330,7 @@ impl SyntheaCsvWriter {
                 }
             });
         });
+
         Ok(())
     }
 }
