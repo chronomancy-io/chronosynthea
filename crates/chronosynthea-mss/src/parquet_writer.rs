@@ -33,7 +33,8 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use arrow::array::{
-    ArrayBuilder, ArrayRef, Float64Builder, Int64Builder, StringBuilder, UInt32Builder,
+    ArrayBuilder, ArrayRef, Float64Builder, Int64Builder, ListBuilder, StringBuilder,
+    UInt32Builder,
 };
 use arrow::datatypes::{DataType, Field, Schema, SchemaRef};
 use arrow::record_batch::RecordBatch;
@@ -92,6 +93,13 @@ struct PatientsBuilder {
     healthcare_expenses: Float64Builder,
     healthcare_coverage: Float64Builder,
     income: Int64Builder,
+    // CDE coordinate columns — first-class probe axes for cohort
+    // queries. ARCHETYPE_ID is the cluster label every patient was
+    // sampled from; AGE_BAND is a 10-year bucket of the birth year
+    // relative to today. Both let downstream consumers filter cohorts
+    // without joining the conditions table or computing on birthdate.
+    archetype_id: arrow::array::UInt16Builder,
+    age_band: StringBuilder,
     // PII columns (full mode only).
     ssn: StringBuilder,
     drivers: StringBuilder,
@@ -124,6 +132,8 @@ impl PatientsBuilder {
             healthcare_expenses: Float64Builder::with_capacity(FLUSH_ROWS),
             healthcare_coverage: Float64Builder::with_capacity(FLUSH_ROWS),
             income: Int64Builder::with_capacity(FLUSH_ROWS),
+            archetype_id: arrow::array::UInt16Builder::with_capacity(FLUSH_ROWS),
+            age_band: sb(),
             ssn: sb(),
             drivers: sb(),
             passport: sb(),
@@ -174,6 +184,13 @@ impl PatientsBuilder {
             Field::new("HEALTHCARE_EXPENSES", DataType::Float64, false),
             Field::new("HEALTHCARE_COVERAGE", DataType::Float64, false),
             Field::new("INCOME", DataType::Int64, false),
+            // CDE coordinate columns. The chronosynthea pivot from
+            // "Java-Synthea-compat" toward "WASP-native cohort query"
+            // surfaces these axes at write time so downstream
+            // consumers can filter by them in O(matching rows)
+            // without joining or scanning.
+            Field::new("ARCHETYPE_ID", DataType::UInt16, false),
+            Field::new("AGE_BAND", DataType::Utf8, false),
         ]);
         Arc::new(Schema::new(fields))
     }
@@ -213,6 +230,8 @@ impl PatientsBuilder {
         cols.push(Arc::new(self.healthcare_expenses.finish()));
         cols.push(Arc::new(self.healthcare_coverage.finish()));
         cols.push(Arc::new(self.income.finish()));
+        cols.push(Arc::new(self.archetype_id.finish()));
+        cols.push(Arc::new(self.age_band.finish()));
         RecordBatch::try_new(Self::schema(self.slim), cols)
     }
 }
@@ -306,6 +325,8 @@ impl SyntheaParquetWriter {
         b.healthcare_expenses.append_value(pii.healthcare_expenses);
         b.healthcare_coverage.append_value(pii.healthcare_coverage);
         b.income.append_value(pii.income);
+        b.archetype_id.append_value(pii.archetype_id);
+        b.age_band.append_value(pii.age_band);
 
         if b.len() >= FLUSH_ROWS {
             self.flush()?;
@@ -355,6 +376,8 @@ struct StatsBuilder {
     race: StringBuilder,
     ethnicity: StringBuilder,
     age_years: UInt32Builder,
+    age_band: StringBuilder,
+    archetype_id: arrow::array::UInt16Builder,
     n_conditions: UInt32Builder,
     n_encounters: UInt32Builder,
     n_medications: UInt32Builder,
@@ -374,6 +397,8 @@ impl StatsBuilder {
             race: sb(),
             ethnicity: sb(),
             age_years: UInt32Builder::with_capacity(FLUSH_ROWS),
+            age_band: sb(),
+            archetype_id: arrow::array::UInt16Builder::with_capacity(FLUSH_ROWS),
             n_conditions: UInt32Builder::with_capacity(FLUSH_ROWS),
             n_encounters: UInt32Builder::with_capacity(FLUSH_ROWS),
             n_medications: UInt32Builder::with_capacity(FLUSH_ROWS),
@@ -393,6 +418,8 @@ impl StatsBuilder {
             Field::new("RACE", DataType::Utf8, false),
             Field::new("ETHNICITY", DataType::Utf8, false),
             Field::new("AGE_YEARS", DataType::UInt32, false),
+            Field::new("AGE_BAND", DataType::Utf8, false),
+            Field::new("ARCHETYPE_ID", DataType::UInt16, false),
             Field::new("N_CONDITIONS", DataType::UInt32, false),
             Field::new("N_ENCOUNTERS", DataType::UInt32, false),
             Field::new("N_MEDICATIONS", DataType::UInt32, false),
@@ -418,6 +445,8 @@ impl StatsBuilder {
                 Arc::new(self.race.finish()),
                 Arc::new(self.ethnicity.finish()),
                 Arc::new(self.age_years.finish()),
+                Arc::new(self.age_band.finish()),
+                Arc::new(self.archetype_id.finish()),
                 Arc::new(self.n_conditions.finish()),
                 Arc::new(self.n_encounters.finish()),
                 Arc::new(self.n_medications.finish()),
@@ -468,6 +497,8 @@ impl SyntheaStatsParquetWriter {
         b.race.append_value(pii.race);
         b.ethnicity.append_value(pii.ethnicity);
         b.age_years.append_value(pii.age_years);
+        b.age_band.append_value(pii.age_band);
+        b.archetype_id.append_value(pii.archetype_id);
         b.n_conditions.append_value(counts.diagnoses);
         b.n_encounters.append_value(patient.encounters.len() as u32);
         b.n_medications.append_value(counts.medications);
@@ -518,6 +549,8 @@ struct PatientPii {
     race: &'static str,
     ethnicity: &'static str,
     age_years: u32,
+    age_band: &'static str,
+    archetype_id: u16,
     first: String,
     middle: String,
     last: String,
@@ -556,6 +589,8 @@ fn derive_patient_pii(patient: &FullPatient) -> PatientPii {
         "nonhispanic"
     };
     let age_years = years_since(patient.birth_date_days);
+    let age_band = age_band_str(age_years);
+    let archetype_id = patient.archetype_id.0;
 
     let first_pool: &[&str] = if patient.sex == 1 {
         FIRST_NAMES_F
@@ -636,6 +671,8 @@ fn derive_patient_pii(patient: &FullPatient) -> PatientPii {
         race,
         ethnicity,
         age_years,
+        age_band,
+        archetype_id,
         first,
         middle,
         last,
@@ -1025,9 +1062,64 @@ impl ProceduresBuilder {
     }
 }
 
+/// `patient_conditions.parquet` builder — one row per patient with
+/// the patient's full condition-code list as a `List<Utf8>` column.
+/// This is the WASP probe target for cohort queries: a consumer
+/// asking "give me patients with condition='stroke'" can scan this
+/// single column instead of joining `conditions.parquet` back to
+/// `patients.parquet` and aggregating. Dictionary-encodes very hard
+/// (a few hundred unique SNOMED codes across millions of rows).
+struct PatientConditionsBuilder {
+    patient: StringBuilder,
+    condition_codes: ListBuilder<StringBuilder>,
+    n_conditions: UInt32Builder,
+}
+
+impl PatientConditionsBuilder {
+    fn new() -> Self {
+        Self {
+            patient: sb(),
+            condition_codes: ListBuilder::new(sb()),
+            n_conditions: UInt32Builder::with_capacity(FLUSH_ROWS),
+        }
+    }
+
+    fn schema() -> SchemaRef {
+        Arc::new(Schema::new(vec![
+            Field::new("PATIENT", DataType::Utf8, false),
+            Field::new(
+                "CONDITION_CODES",
+                // Arrow's `ListBuilder` defaults to `nullable: true` for
+                // the list's item field. Match that so the writer's
+                // emitted batches line up with the declared schema.
+                DataType::List(Arc::new(Field::new("item", DataType::Utf8, true))),
+                false,
+            ),
+            Field::new("N_CONDITIONS", DataType::UInt32, false),
+        ]))
+    }
+
+    fn len(&self) -> usize {
+        self.patient.len()
+    }
+
+    fn to_record_batch(&mut self) -> arrow::error::Result<RecordBatch> {
+        RecordBatch::try_new(
+            Self::schema(),
+            vec![
+                Arc::new(self.patient.finish()) as ArrayRef,
+                Arc::new(self.condition_codes.finish()),
+                Arc::new(self.n_conditions.finish()),
+            ],
+        )
+    }
+}
+
 /// Full-coverage Parquet writer: emits patients, encounters,
 /// conditions, observations, medications, procedures all in one pass
-/// per patient. ~98% of Synthea's output volume in Parquet format.
+/// per patient — and a `patient_conditions.parquet` summary table so
+/// cohort queries by condition probe in O(matching) instead of
+/// O(events). ~98% of Synthea's output volume in Parquet format.
 pub struct SyntheaParquetFullWriter {
     patients_builder: PatientsBuilder,
     patients_writer: ArrowWriter<File>,
@@ -1041,6 +1133,8 @@ pub struct SyntheaParquetFullWriter {
     medications_writer: ArrowWriter<File>,
     procedures_builder: ProceduresBuilder,
     procedures_writer: ArrowWriter<File>,
+    patient_conditions_builder: PatientConditionsBuilder,
+    patient_conditions_writer: ArrowWriter<File>,
     output_dir: PathBuf,
 }
 
@@ -1075,6 +1169,11 @@ impl SyntheaParquetFullWriter {
             )?,
             procedures_builder: ProceduresBuilder::new(),
             procedures_writer: make("procedures.parquet", ProceduresBuilder::schema())?,
+            patient_conditions_builder: PatientConditionsBuilder::new(),
+            patient_conditions_writer: make(
+                "patient_conditions.parquet",
+                PatientConditionsBuilder::schema(),
+            )?,
             output_dir: output_dir.as_ref().to_path_buf(),
         })
     }
@@ -1129,8 +1228,25 @@ impl SyntheaParquetFullWriter {
             b.healthcare_expenses.append_value(pii.healthcare_expenses);
             b.healthcare_coverage.append_value(pii.healthcare_coverage);
             b.income.append_value(pii.income);
+            b.archetype_id.append_value(pii.archetype_id);
+            b.age_band.append_value(pii.age_band);
             if b.len() >= FLUSH_ROWS {
                 self.flush_patients()?;
+            }
+        }
+
+        // ---- patient_conditions.parquet row (WASP probe target) ----
+        {
+            let pc = &mut self.patient_conditions_builder;
+            pc.patient.append_value(&pii.uuid);
+            for &cond_idx in patient.conditions.iter() {
+                let (code, _) = lookup_condition(archetypes, code_table, cond_idx);
+                pc.condition_codes.values().append_value(code);
+            }
+            pc.condition_codes.append(true);
+            pc.n_conditions.append_value(patient.conditions.len() as u32);
+            if pc.len() >= FLUSH_ROWS {
+                self.flush_patient_conditions()?;
             }
         }
 
@@ -1352,6 +1468,14 @@ impl SyntheaParquetFullWriter {
         self.procedures_writer.write(&batch)?;
         Ok(())
     }
+    fn flush_patient_conditions(&mut self) -> arrow::error::Result<()> {
+        if self.patient_conditions_builder.len() == 0 {
+            return Ok(());
+        }
+        let batch = self.patient_conditions_builder.to_record_batch()?;
+        self.patient_conditions_writer.write(&batch)?;
+        Ok(())
+    }
 
     pub fn finish(mut self) -> arrow::error::Result<()> {
         self.flush_patients()?;
@@ -1360,12 +1484,14 @@ impl SyntheaParquetFullWriter {
         self.flush_observations()?;
         self.flush_medications()?;
         self.flush_procedures()?;
+        self.flush_patient_conditions()?;
         self.patients_writer.close()?;
         self.encounters_writer.close()?;
         self.conditions_writer.close()?;
         self.observations_writer.close()?;
         self.medications_writer.close()?;
         self.procedures_writer.close()?;
+        self.patient_conditions_writer.close()?;
         Ok(())
     }
 
@@ -1412,6 +1538,24 @@ fn epoch_to_date(days_since_epoch: i32) -> String {
     let d = NaiveDate::from_ymd_opt(1970, 1, 1).unwrap()
         + Duration::days(days_since_epoch as i64);
     d.format("%Y-%m-%d").to_string()
+}
+
+/// Decadal age band string ("0-9", "10-19", …, "80+"). One subtract +
+/// one bucket selection at write time; eliminates the BIRTHDATE range
+/// scan a Pandas / DuckDB consumer would otherwise do for every
+/// demographic query.
+fn age_band_str(age_years: u32) -> &'static str {
+    match age_years {
+        0..=9 => "0-9",
+        10..=19 => "10-19",
+        20..=29 => "20-29",
+        30..=39 => "30-39",
+        40..=49 => "40-49",
+        50..=59 => "50-59",
+        60..=69 => "60-69",
+        70..=79 => "70-79",
+        _ => "80+",
+    }
 }
 
 fn years_since(birth_date_days: i32) -> u32 {
