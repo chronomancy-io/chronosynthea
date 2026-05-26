@@ -29,12 +29,27 @@ itoa = { workspace = true }
 # keeps the bin's allocator choice visible in the crate manifest.
 mimalloc = { workspace = true }
 
+# Optional GPU compute path. Behind a feature flag because wgpu adds
+# ~60 transitive deps and a few minutes to a fresh build. Enable with
+# `--features gpu`.
+wgpu = { workspace = true, optional = true }
+pollster = { workspace = true, optional = true }
+
+[features]
+default = []
+gpu = ["dep:wgpu", "dep:pollster"]
+
 [dev-dependencies]
 criterion = { workspace = true }
 
 [[bin]]
 name = "csv_bench"
 path = "src/bin/csv_bench.rs"
+
+[[bin]]
+name = "gpu_uuid_bench"
+path = "src/bin/gpu_uuid_bench.rs"
+required-features = ["gpu"]
 
 [[bench]]
 name = "mss_generation"
