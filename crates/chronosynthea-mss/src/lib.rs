@@ -20,6 +20,7 @@ pub mod fingerprint;
 pub mod java_compat;
 pub mod sampler;
 pub mod stats;
+pub mod synthea_fixtures;
 pub mod synthehrella;
 pub mod tables;
 pub mod types;
