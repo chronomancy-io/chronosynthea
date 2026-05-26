@@ -27,6 +27,9 @@ pub mod tables;
 
 #[cfg(feature = "gpu")]
 pub mod gpu;
+
+#[cfg(feature = "parquet")]
+pub mod parquet_writer;
 pub mod types;
 
 pub use archetype::{ArchetypeRegistry, CooccurrenceModel, PatientArchetype};

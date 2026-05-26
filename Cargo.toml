@@ -73,6 +73,14 @@ itoa = "1.0"
 wgpu = "22"
 pollster = "0.3"
 
+# Apache Arrow + Parquet output paths. Optional behind feature flags;
+# `arrow` adds ~50 transitive deps and `parquet` pulls in compression
+# codecs (zstd, snappy, lz4) — keep them off the default build.
+arrow = { version = "55", default-features = false, features = ["ipc", "csv"] }
+arrow-array = "55"
+arrow-schema = "55"
+parquet = { version = "55", default-features = false, features = ["arrow", "zstd", "snap", "lz4"] }
+
 [profile.release]
 lto = "fat"
 codegen-units = 1

@@ -63,8 +63,16 @@ fn main() {
     let archetypes = generator.archetypes();
     let code_table = generator.code_table();
 
+    // Bench output root: ~/.cache/chronosynthea-bench/ on real disk.
+    // NOT /tmp — that's tmpfs (16 GB RAM) and a 10k-patient run writes
+    // ~5.8 GB; back-to-back runs fill it and the whole machine flakes.
+    let bench_root: PathBuf = std::env::var_os("HOME")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| PathBuf::from("."))
+        .join(".cache/chronosynthea-bench");
+
     // Serial baseline.
-    let out_dir = std::env::temp_dir().join("chronosynthea-csv-bench");
+    let out_dir = bench_root.join("serial");
     let _ = std::fs::remove_dir_all(&out_dir);
     let mut writer = SyntheaCsvWriter::create(&out_dir).unwrap();
     let t1 = Instant::now();
@@ -85,7 +93,7 @@ fn main() {
     );
 
     // Parallel path (only for n large enough that workers amortize).
-    let out_dir_p = std::env::temp_dir().join("chronosynthea-csv-bench-par");
+    let out_dir_p = bench_root.join("parallel");
     let _ = std::fs::remove_dir_all(&out_dir_p);
     let mut writer_p = SyntheaCsvWriter::create(&out_dir_p).unwrap();
     let t2 = Instant::now();
