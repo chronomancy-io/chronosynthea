@@ -8,6 +8,47 @@ use std::sync::OnceLock;
 
 use ahash::AHashMap;
 
+/// Pre-escape a display string for embedding inside CSV's `"…"` quoted
+/// fields: every internal `"` becomes `\"`. Computed once at table-load
+/// time so per-event writeln!() sites can emit it verbatim.
+fn escape_csv_display(s: &str) -> String {
+    // Fast path: most display strings have no embedded quote and the
+    // escaped form is byte-identical to the original.
+    if !s.contains('"') {
+        return s.to_owned();
+    }
+    s.replace('"', "\\\"")
+}
+
+/// Imaging-keyword detector for procedure displays. Java Synthea's
+/// state machines flag a procedure as imaging when its display contains
+/// any of these substrings; we mirror that once at load so the
+/// CSV-write loop doesn't have to `to_ascii_lowercase()` per event.
+fn contains_imaging_keyword(display: &str) -> bool {
+    let lower = display.to_ascii_lowercase();
+    const IMAGING_KEYWORDS: &[&str] = &[
+        "x-ray",
+        "radiograph",
+        "ct ",
+        "ct scan",
+        "mri",
+        "magnetic resonance",
+        "ultrasound",
+        "ultrasonograph",
+        "scan",
+        "mammogr",
+        "angiogra",
+        "angiogram",
+        "scintigraph",
+        "ecg",
+        "echocardio",
+        "electrocardio",
+        "dexa",
+        "imaging",
+    ];
+    IMAGING_KEYWORDS.iter().any(|kw| lower.contains(kw))
+}
+
 /// System codes (indexed by u8).
 pub const SYSTEMS: &[&str] = &[
     "SNOMED-CT", // 0
@@ -168,12 +209,26 @@ pub struct CodeTable {
 }
 
 /// A single code entry.
+///
+/// `display_escaped` and `is_imaging_hint` are precomputed at load time
+/// so the CSV-write hot path can skip per-event `replace('"', "\\\"")`
+/// (an allocation per event) and the per-event
+/// `display.to_ascii_lowercase().contains(...)` imaging-keyword scan.
 #[derive(Debug, Clone)]
 pub struct CodeEntry {
     /// The code string (owned for table storage).
     pub code: String,
     /// The display string.
     pub display: String,
+    /// `display` with embedded `"` characters replaced by `\"` —
+    /// pre-baked once at load so the per-event writeln! sites can
+    /// emit it verbatim instead of allocating a quote-escaped copy.
+    pub display_escaped: String,
+    /// True when `display` matches one of Java Synthea's imaging
+    /// keywords (x-ray, ct scan, mri, ultrasound, etc.). Lets the
+    /// procedure-loop skip the per-event `to_ascii_lowercase` + contains
+    /// chain that used to fire on every procedure event.
+    pub is_imaging_hint: bool,
     /// System index.
     pub system_idx: u8,
     /// Per-encounter frequency (for sampling).
@@ -203,6 +258,8 @@ impl CodeTable {
         for (i, cond) in fp.conditions.iter().enumerate() {
             table.condition_index.insert(cond.code.clone(), i as u16);
             table.conditions.push(CodeEntry {
+                display_escaped: escape_csv_display(&cond.display),
+                is_imaging_hint: false, // not used for conditions
                 code: cond.code.clone(),
                 display: cond.display.clone(),
                 system_idx: 0, // SNOMED-CT
@@ -214,6 +271,8 @@ impl CodeTable {
         for (i, med) in fp.medications.iter().enumerate() {
             table.medication_index.insert(med.code.clone(), i as u16);
             table.medications.push(CodeEntry {
+                display_escaped: escape_csv_display(&med.display),
+                is_imaging_hint: false,
                 code: med.code.clone(),
                 display: med.display.clone(),
                 system_idx: 1, // RxNorm
@@ -225,6 +284,8 @@ impl CodeTable {
         for (i, obs) in fp.observations.iter().enumerate() {
             table.observation_index.insert(obs.code.clone(), i as u16);
             table.observations.push(CodeEntry {
+                display_escaped: escape_csv_display(&obs.display),
+                is_imaging_hint: false,
                 code: obs.code.clone(),
                 display: obs.display.clone(),
                 system_idx: system_to_idx(&obs.system),
@@ -232,10 +293,13 @@ impl CodeTable {
             });
         }
 
-        // Load procedures
+        // Load procedures (compute `is_imaging_hint` here — only used by
+        // the procedure-loop's imaging-study emission).
         for (i, proc) in fp.procedures.iter().enumerate() {
             table.procedure_index.insert(proc.code.clone(), i as u16);
             table.procedures.push(CodeEntry {
+                display_escaped: escape_csv_display(&proc.display),
+                is_imaging_hint: contains_imaging_keyword(&proc.display),
                 code: proc.code.clone(),
                 display: proc.display.clone(),
                 system_idx: system_to_idx(&proc.system),

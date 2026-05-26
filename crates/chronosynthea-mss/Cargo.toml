@@ -23,9 +23,11 @@ flate2 = { workspace = true }
 memmap2 = "0.9"
 bytemuck = { version = "1.14", features = ["derive"] }
 smallvec = { version = "1.13", features = ["const_generics", "union"] }
+itoa = { workspace = true }
 
 [dev-dependencies]
 criterion = { workspace = true }
+mimalloc = { workspace = true }
 
 [[bench]]
 name = "mss_generation"
