@@ -76,3 +76,14 @@ strip = "symbols"
 [profile.bench]
 inherits = "release"
 debug = true
+
+# Release-equivalent codegen with full debug info AND frame pointers
+# retained for samply / perf / flamegraph runs. Profile stacks rely on
+# either frame pointers or full unwind tables; release ships with
+# `panic = "abort"` which trims unwind info, breaking samply's stack
+# walk. We override both here.
+[profile.profiling]
+inherits = "release"
+debug = "full"
+strip = false
+panic = "unwind"

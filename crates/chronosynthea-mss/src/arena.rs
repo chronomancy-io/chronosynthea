@@ -140,18 +140,28 @@ pub struct FullPatient {
 }
 
 /// Full encounter with event details.
+///
+/// Events are partitioned by type at sample-time into typed
+/// sub-collections rather than living in one mixed vec. The CSV-write
+/// path used to do three filtered linear scans per encounter
+/// (`events.iter().filter(event_type == X)` for medications, procedures,
+/// observations) — at ~22 events × 3 scans × 12 encounters × 10k
+/// patients that was ~8M filter comparisons per run. With the typed
+/// split below those become direct iterations.
 #[derive(Debug, Clone)]
 pub struct FullEncounter {
     /// Encounter type index.
     pub encounter_type: u8,
     /// Timestamp as days since patient birth.
     pub days_since_birth: u16,
-    /// Events in this encounter.
-    /// Encounter events. Inline-cap 32 covers ~95% of generated
-    /// encounters (median is ~22 events: vitals + condition-triggered
-    /// labs + per-encounter meds/procs/imaging) — keeps the bulk of
-    /// event accumulation off the heap.
-    pub events: SmallVec<[CompactEvent; 32]>,
+    /// Medication events (was event_type == 1).
+    pub medications: SmallVec<[CompactEvent; 8]>,
+    /// Procedure events (was event_type == 2). Inline-cap 16 covers
+    /// most real encounters; the few outliers spill to heap.
+    pub procedures: SmallVec<[CompactEvent; 16]>,
+    /// Observation events (was event_type == 3). Inline-cap 16 covers
+    /// vitals + condition-triggered labs typically.
+    pub observations: SmallVec<[CompactEvent; 16]>,
 }
 
 impl FullPatient {
@@ -183,7 +193,7 @@ impl FullPatient {
 
     /// Returns the total number of events across all encounters.
     pub fn total_events(&self) -> usize {
-        self.encounters.iter().map(|e| e.events.len()).sum()
+        self.encounters.iter().map(|e| e.total_events()).sum()
     }
 
     /// Returns the number of encounters.
@@ -191,20 +201,18 @@ impl FullPatient {
         self.encounters.len()
     }
 
-    /// Counts events by type.
+    /// Counts events by type. Diagnoses are computed from the patient's
+    /// condition list directly (the per-encounter diagnosis events were
+    /// dropped when event_type became a coordinate axis — see
+    /// `FullEncounter::add_event`). Immunizations are emitted from the
+    /// CDC schedule rather than from per-encounter records.
     pub fn event_counts(&self) -> EventCounts {
         let mut counts = EventCounts::default();
+        counts.diagnoses = self.conditions.len() as u32;
         for encounter in &self.encounters {
-            for event in &encounter.events {
-                match event.event_type {
-                    0 => counts.diagnoses += 1,
-                    1 => counts.medications += 1,
-                    2 => counts.procedures += 1,
-                    3 => counts.observations += 1,
-                    4 => counts.immunizations += 1,
-                    _ => {}
-                }
-            }
+            counts.medications += encounter.medications.len() as u32;
+            counts.procedures += encounter.procedures.len() as u32;
+            counts.observations += encounter.observations.len() as u32;
         }
         counts
     }
@@ -216,14 +224,36 @@ impl FullEncounter {
         Self {
             encounter_type,
             days_since_birth,
-            events: SmallVec::new(),
+            medications: SmallVec::new(),
+            procedures: SmallVec::new(),
+            observations: SmallVec::new(),
         }
     }
 
-    /// Adds an event to this encounter.
+    /// Total events across all three typed sub-vecs (used by stats /
+    /// throughput counters).
+    #[inline]
+    pub fn total_events(&self) -> usize {
+        self.medications.len() + self.procedures.len() + self.observations.len()
+    }
+
+    /// Routes a `CompactEvent` to its typed sub-vec based on its
+    /// `event_type` byte (1=medication, 2=procedure, 3=observation).
+    /// Diagnosis (type 0) and immunization (type 4) events are dropped
+    /// because nothing in the CSV writer or stats consumes them — the
+    /// writer reads `patient.conditions` directly for diagnoses and
+    /// emits immunizations from the CDC schedule, not from
+    /// per-encounter event records.
     #[inline]
     pub fn add_event(&mut self, event: CompactEvent) {
-        self.events.push(event);
+        match event.event_type {
+            1 => self.medications.push(event),
+            2 => self.procedures.push(event),
+            3 => self.observations.push(event),
+            // 0 (diagnosis) and 4 (immunization) intentionally dropped;
+            // see doc comment above.
+            _ => {}
+        }
     }
 }
 

@@ -80,25 +80,20 @@ fn csv_smoke_synthea_compatible() {
             .map(|(&pr, &c)| (pr, c))
             .collect();
         for enc in &p.encounters {
-            for ev in &enc.events {
-                match ev.event_type {
-                    1 => {
-                        total_med_events += 1;
-                        if let Some(&c) = med_cause.get(&ev.code_idx) {
-                            if c != u16::MAX {
-                                meds_with_reason += 1;
-                            }
-                        }
+            for ev in &enc.medications {
+                total_med_events += 1;
+                if let Some(&c) = med_cause.get(&ev.code_idx) {
+                    if c != u16::MAX {
+                        meds_with_reason += 1;
                     }
-                    2 => {
-                        total_proc_events += 1;
-                        if let Some(&c) = proc_cause.get(&ev.code_idx) {
-                            if c != u16::MAX {
-                                procs_with_reason += 1;
-                            }
-                        }
+                }
+            }
+            for ev in &enc.procedures {
+                total_proc_events += 1;
+                if let Some(&c) = proc_cause.get(&ev.code_idx) {
+                    if c != u16::MAX {
+                        procs_with_reason += 1;
                     }
-                    _ => {}
                 }
             }
         }

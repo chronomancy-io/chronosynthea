@@ -406,7 +406,7 @@ fn test_full_generation_with_events() {
         eprintln!(
             "  First encounter: type={}, events={}",
             enc.encounter_type,
-            enc.events.len()
+            enc.total_events()
         );
     }
 }

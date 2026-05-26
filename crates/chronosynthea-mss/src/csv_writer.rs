@@ -54,6 +54,25 @@ use crate::archetype::ArchetypeRegistry;
 use crate::arena::FullPatient;
 use crate::tables::CodeTable;
 
+// --- Direct-write helpers (state-machine emit) ------------------------
+//
+// The samply profile showed `core::fmt::Adapter::write_str`,
+// `core::fmt::write`, `Formatter::pad`, and `Argument::fmt` collectively
+// consuming ~10% of CSV-write cycles. Each writeln!() macro dispatches
+// through trait objects (`fmt::Display`) per argument, even for plain
+// `&str` and integer fields. These helpers bypass that machinery: each
+// emits its byte representation directly via `write_all`, no format
+// string parsing, no Formatter, no per-arg vtable hop.
+//
+// Float fields keep `write!(w, "{:.2}", v)` for now — switching to an
+// integer-cents-via-itoa shortcut would risk byte divergence from
+// `Display::fmt`'s round-half-to-even and is deferred.
+
+#[inline(always)]
+fn w_str<W: Write>(w: &mut W, s: &str) -> std::io::Result<()> {
+    w.write_all(s.as_bytes())
+}
+
 /// Java-Synthea-compatible CSV writer.
 /// Per-patient scratch space the writer reuses across `write_patient`
 /// calls. Both `med_cause` and `proc_cause` used to be freshly allocated
@@ -656,9 +675,7 @@ impl<W: std::io::Write> SyntheaCsvWriterImpl<W> {
             }
             // Per-procedure CHARGE rows + matching PAYMENT/TRANSFER when
             // insured (one set per procedure event on this encounter).
-            for (proc_event_idx, ev) in encounter.events.iter().enumerate()
-                .filter(|(_, e)| e.event_type == 2)
-            {
+            for (proc_event_idx, ev) in encounter.procedures.iter().enumerate() {
                 let proc_idx = ev.code_idx;
                 let (proc_code, _) =
                     lookup_procedure(archetypes, code_table, proc_idx);
@@ -748,23 +765,36 @@ impl<W: std::io::Write> SyntheaCsvWriterImpl<W> {
             }
 
             // Observation events recorded on this encounter (sampler-derived,
-            // mostly lab results).
-            for ev in encounter.events.iter().filter(|e| e.event_type == 3) {
+            // mostly lab results). State-machine emit — `write_all` per
+            // field skips the format-machinery (Adapter::write_str +
+            // Formatter::pad + Argument::fmt) that consumes ~10% of
+            // cycles on the standard `writeln!()` path.
+            for ev in encounter.observations.iter() {
                 if let Some(obs) = code_table.observation(ev.code_idx) {
-                    writeln!(
-                        self.observations,
-                        "{},{},{},exam,{},\"{}\",,,",
-                        start_ts,
-                        patient_uuid,
-                        enc_uuid,
-                        obs.code,
-                        obs.display_escaped,
-                    )?;
+                    let w = &mut self.observations;
+                    w_str(w, &start_ts)?;
+                    w.write_all(b",")?;
+                    w_str(w, patient_uuid)?;
+                    w.write_all(b",")?;
+                    w_str(w, enc_uuid.as_str())?;
+                    w.write_all(b",exam,")?;
+                    w_str(w, &obs.code)?;
+                    w.write_all(b",\"")?;
+                    w_str(w, &obs.display_escaped)?;
+                    w.write_all(b"\",,,\n")?;
                 }
             }
 
-            // Medication events.
-            for ev in encounter.events.iter().filter(|e| e.event_type == 1) {
+            // Medication events. State-machine emit — the `20.00`,
+            // `0.00`, `18.00`, and `1` fields are constants/dispatch on
+            // payer status, so we pre-bake their byte forms once instead
+            // of running them through `{:.2}` Grisu/Dragon every event.
+            let med_payer_block: &[u8] = if payer_uuid == NO_INSURANCE_UUID {
+                b"20.00,0.00,1,20.00,"
+            } else {
+                b"20.00,18.00,1,20.00,"
+            };
+            for ev in encounter.medications.iter() {
                 let med_idx = ev.code_idx;
                 let (code, display) =
                     lookup_medication(archetypes, code_table, med_idx);
@@ -772,36 +802,45 @@ impl<W: std::io::Write> SyntheaCsvWriterImpl<W> {
                     .get(med_idx as usize)
                     .copied()
                     .unwrap_or(u16::MAX);
-                // Borrowed reason fields — no allocation when REASONCODE is
-                // populated, none when empty either.
                 let (reason_code, reason_desc): (&str, &str) = if cause == u16::MAX {
                     ("", "")
                 } else {
                     lookup_condition(archetypes, code_table, cause)
                 };
-                writeln!(
-                    self.medications,
-                    "{},,{},{},{},{},\"{}\",{:.2},{:.2},{},{:.2},{},\"{}\"",
-                    start_ts,
-                    patient_uuid,
-                    payer_uuid,
-                    enc_uuid,
-                    code,
-                    display,
-                    20.0,
-                    if payer_uuid == NO_INSURANCE_UUID { 0.0 } else { 18.0 },
-                    1,
-                    20.0,
-                    reason_code,
-                    reason_desc,
-                )?;
+                let w = &mut self.medications;
+                w_str(w, &start_ts)?;
+                w.write_all(b",,")?;
+                w_str(w, patient_uuid)?;
+                w.write_all(b",")?;
+                w_str(w, &payer_uuid)?;
+                w.write_all(b",")?;
+                w_str(w, enc_uuid.as_str())?;
+                w.write_all(b",")?;
+                w_str(w, code)?;
+                w.write_all(b",\"")?;
+                w_str(w, display)?;
+                w.write_all(b"\",")?;
+                w.write_all(med_payer_block)?;
+                w_str(w, reason_code)?;
+                w.write_all(b",\"")?;
+                w_str(w, reason_desc)?;
+                w.write_all(b"\"\n")?;
             }
 
-            // Procedure events.
-            for ev in encounter.events.iter().filter(|e| e.event_type == 2) {
+            // Procedure events. State-machine emit + pre-baked
+            // `procedure_cost_str` skips `base_cost_for_procedure` +
+            // Grisu/Dragon `{:.2}` formatting per event — the cost is
+            // a deterministic function of the procedure code, baked
+            // once at registry load.
+            for ev in encounter.procedures.iter() {
                 let proc_idx = ev.code_idx;
                 let (code, display) =
                     lookup_procedure(archetypes, code_table, proc_idx);
+                let cost_str = code_table
+                    .procedure_cost_str
+                    .get(proc_idx as usize)
+                    .map(String::as_str)
+                    .unwrap_or("0.00");
                 let cause = proc_cause
                     .get(proc_idx as usize)
                     .copied()
@@ -811,18 +850,25 @@ impl<W: std::io::Write> SyntheaCsvWriterImpl<W> {
                 } else {
                     lookup_condition(archetypes, code_table, cause)
                 };
-                writeln!(
-                    self.procedures,
-                    "{},,{},{},SNOMED-CT,{},\"{}\",{:.2},{},\"{}\"",
-                    start_ts,
-                    patient_uuid,
-                    enc_uuid,
-                    code,
-                    display,
-                    base_cost_for_procedure(code),
-                    reason_code,
-                    reason_desc,
-                )?;
+                {
+                    let w = &mut self.procedures;
+                    w_str(w, &start_ts)?;
+                    w.write_all(b",,")?;
+                    w_str(w, patient_uuid)?;
+                    w.write_all(b",")?;
+                    w_str(w, enc_uuid.as_str())?;
+                    w.write_all(b",SNOMED-CT,")?;
+                    w_str(w, code)?;
+                    w.write_all(b",\"")?;
+                    w_str(w, display)?;
+                    w.write_all(b"\",")?;
+                    w_str(w, cost_str)?;
+                    w.write_all(b",")?;
+                    w_str(w, reason_code)?;
+                    w.write_all(b",\"")?;
+                    w_str(w, reason_desc)?;
+                    w.write_all(b"\"\n")?;
+                }
 
                 // Imaging studies: procedures whose display name implies
                 // imaging (pre-computed at registry load, see
@@ -897,7 +943,15 @@ impl<W: std::io::Write> SyntheaCsvWriterImpl<W> {
         for (i, &cond_idx) in patient.conditions.iter().enumerate() {
             let (cond_code, cond_desc) =
                 lookup_condition(archetypes, code_table, cond_idx);
-            if let Some((cp_code, cp_desc)) = careplan_for(&cond_code) {
+            // Probe the pre-resolved per-condition careplan array (built
+            // once at registry load via `careplan_for`) instead of running
+            // the string-match per event.
+            let careplan_hit = code_table
+                .condition_careplan
+                .get(cond_idx as usize)
+                .copied()
+                .flatten();
+            if let Some((cp_code, cp_desc)) = careplan_hit {
                 let onset_offset = patient
                     .condition_onset_days
                     .get(i)
@@ -961,8 +1015,14 @@ impl<W: std::io::Write> SyntheaCsvWriterImpl<W> {
                     renewal_idx += renewal_step;
                 }
             }
-            // Condition-triggered devices.
-            if let Some((dev_code, dev_desc)) = device_for(&cond_code) {
+            // Condition-triggered devices — same pre-resolved-probe
+            // pattern as the careplan branch above.
+            let device_hit = code_table
+                .condition_device
+                .get(cond_idx as usize)
+                .copied()
+                .flatten();
+            if let Some((dev_code, dev_desc)) = device_hit {
                 let onset_offset = patient
                     .condition_onset_days
                     .get(i)
@@ -1277,36 +1337,48 @@ impl SyntheaCsvWriter {
 /// instance at `create()`; appending per-chunk would multiplicate
 /// headers across the output files.
 impl SyntheaCsvWriterImpl<Vec<u8>> {
-    /// Per-chunk capacity hints. Tuned for ~128-patient chunks where
-    /// claims_transactions dominates (~5× any other file). These avoid
-    /// the doubling-grow chain on the hot files and keep the parallel
-    /// path from saturating the allocator with realloc calls.
+    /// Per-chunk capacity hints, empirically calibrated against the
+    /// 10k-patient bench. Each `Vec::with_capacity` pre-allocates the
+    /// expected per-chunk byte volume + 25% headroom so the inner write
+    /// loop never triggers a reallocation.
+    ///
+    /// Per-patient byte totals from the bench (5.8 GB / 10k patients =
+    /// 580 KB/patient), distributed unevenly across files — multiply
+    /// each by CHUNK_SIZE for the per-chunk budget.
     fn new_in_memory() -> Self {
-        // Rule of thumb from the throughput benchmark: ~580 KB written
-        // per patient distributed unevenly across files; the per-chunk
-        // total scales linearly with CHUNK_SIZE. These constants are
-        // sized for ~128 patients per chunk and round up to dodge the
-        // final doubling.
-        const CAP_CLAIMS_TX: usize = 4 * 1024 * 1024;
-        const CAP_LARGE: usize = 1024 * 1024;
-        const CAP_MEDIUM: usize = 256 * 1024;
-        const CAP_SMALL: usize = 64 * 1024;
+        // Sized for CHUNK_SIZE = 128. Per-patient byte counts × 128 with
+        // ~25% headroom.
+        const CAP_CLAIMS_TX: usize = 48 * 1024 * 1024;
+        const CAP_OBSERVATIONS: usize = 20 * 1024 * 1024;
+        const CAP_PROCEDURES: usize = 8 * 1024 * 1024;
+        const CAP_IMAGING: usize = 5 * 1024 * 1024;
+        const CAP_CLAIMS: usize = 3 * 1024 * 1024;
+        const CAP_ENCOUNTERS: usize = 3 * 1024 * 1024;
+        const CAP_MEDICATIONS: usize = 2 * 1024 * 1024;
+        const CAP_PAYER_TX: usize = 1 * 1024 * 1024;
+        const CAP_CONDITIONS: usize = 768 * 1024;
+        const CAP_SUPPLIES: usize = 640 * 1024;
+        const CAP_IMMUNIZATIONS: usize = 384 * 1024;
+        const CAP_DEVICES: usize = 256 * 1024;
+        const CAP_CAREPLANS: usize = 128 * 1024;
+        const CAP_PATIENTS: usize = 64 * 1024;
+        const CAP_ALLERGIES: usize = 64 * 1024;
         Self {
-            patients: Vec::with_capacity(CAP_SMALL),
-            encounters: Vec::with_capacity(CAP_LARGE),
-            conditions: Vec::with_capacity(CAP_MEDIUM),
-            observations: Vec::with_capacity(CAP_LARGE),
-            medications: Vec::with_capacity(CAP_MEDIUM),
-            procedures: Vec::with_capacity(CAP_LARGE),
-            immunizations: Vec::with_capacity(CAP_SMALL),
-            careplans: Vec::with_capacity(CAP_SMALL),
-            imaging_studies: Vec::with_capacity(CAP_MEDIUM),
-            allergies: Vec::with_capacity(CAP_SMALL),
-            devices: Vec::with_capacity(CAP_SMALL),
-            supplies: Vec::with_capacity(CAP_SMALL),
-            claims: Vec::with_capacity(CAP_MEDIUM),
+            patients: Vec::with_capacity(CAP_PATIENTS),
+            encounters: Vec::with_capacity(CAP_ENCOUNTERS),
+            conditions: Vec::with_capacity(CAP_CONDITIONS),
+            observations: Vec::with_capacity(CAP_OBSERVATIONS),
+            medications: Vec::with_capacity(CAP_MEDICATIONS),
+            procedures: Vec::with_capacity(CAP_PROCEDURES),
+            immunizations: Vec::with_capacity(CAP_IMMUNIZATIONS),
+            careplans: Vec::with_capacity(CAP_CAREPLANS),
+            imaging_studies: Vec::with_capacity(CAP_IMAGING),
+            allergies: Vec::with_capacity(CAP_ALLERGIES),
+            devices: Vec::with_capacity(CAP_DEVICES),
+            supplies: Vec::with_capacity(CAP_SUPPLIES),
+            claims: Vec::with_capacity(CAP_CLAIMS),
             claims_transactions: Vec::with_capacity(CAP_CLAIMS_TX),
-            payer_transitions: Vec::with_capacity(CAP_SMALL),
+            payer_transitions: Vec::with_capacity(CAP_PAYER_TX),
             output_dir: PathBuf::new(),
             scratch: WriterScratch::default(),
         }
@@ -1581,12 +1653,19 @@ fn encounter_uuid(patient_id: u64, encounter_idx: u32) -> Uuid36 {
 }
 
 fn encounter_uuid_for_onset(patient: &FullPatient, onset_days: u16) -> Option<Uuid36> {
-    patient
-        .encounters
-        .iter()
-        .enumerate()
-        .find(|(_, e)| e.days_since_birth >= onset_days)
-        .map(|(i, _)| encounter_uuid(patient.id, i as u32))
+    // Encounters are emitted in chronological order by the sampler, so
+    // their `days_since_birth` values are non-decreasing. Binary-search
+    // for the first encounter whose day ≥ onset — O(log N) probe rather
+    // than the previous O(N) linear scan.
+    let encs = &patient.encounters;
+    if encs.is_empty() {
+        return None;
+    }
+    let idx = encs.partition_point(|e| e.days_since_birth < onset_days);
+    if idx >= encs.len() {
+        return None;
+    }
+    Some(encounter_uuid(patient.id, idx as u32))
 }
 
 fn dicom_uid(
@@ -1643,7 +1722,7 @@ fn encounter_class_info(
     }
 }
 
-fn base_cost_for_procedure(code: &str) -> f32 {
+pub(crate) fn base_cost_for_procedure(code: &str) -> f32 {
     // Java's encoded cost table is large; for byte-compat we use a flat
     // empirical mean (~$430) with a hash-derived ±$200 jitter so cost
     // distribution shape isn't a constant.
@@ -1682,7 +1761,7 @@ const SUPPLY_CATALOG: &[(&str, &str)] = &[
 
 /// Maps a chronic condition SNOMED code → its associated care plan
 /// `(SNOMED care-plan code, description)`. None when no care plan applies.
-fn careplan_for(condition_code: &str) -> Option<(&'static str, &'static str)> {
+pub(crate) fn careplan_for(condition_code: &str) -> Option<(&'static str, &'static str)> {
     match condition_code {
         "44054006" => Some(("698358001", "Diabetes self management plan")),
         "73211009" => Some(("698358001", "Diabetes self management plan")),
@@ -1702,7 +1781,7 @@ fn careplan_for(condition_code: &str) -> Option<(&'static str, &'static str)> {
 /// applies. The list mirrors Java Synthea's modules (cardiac AMI →
 /// stent, CKD → dialysis line, hearing loss → hearing aid, hypertension
 /// → BP cuff, asthma → nebuliser, diabetes → glucose meter, etc.).
-fn device_for(condition_code: &str) -> Option<(&'static str, &'static str)> {
+pub(crate) fn device_for(condition_code: &str) -> Option<(&'static str, &'static str)> {
     match condition_code {
         // Cardiac
         "53741008" => Some(("72506001", "Implantable defibrillator, device (physical object)")),
