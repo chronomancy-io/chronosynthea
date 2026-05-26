@@ -225,38 +225,32 @@ pub fn write_temporal_records<P: AsRef<Path>>(
             writeln!(w, "{},condition,{},{}", patient.id, code, onset)?;
             rows += 1;
         }
-        // Medication, procedure, observation events from encounters.
+        // Medication, procedure, observation events from encounters —
+        // now via the typed sub-collections (event_type is implicit in
+        // which Vec the event lives in).
         for enc in &patient.encounters {
-            for ev in &enc.events {
-                let (kind, code) = match ev.event_type {
-                    1 => (
-                        "medication",
-                        code_table
-                            .medication(ev.code_idx)
-                            .map(|e| e.code.as_str())
-                            .unwrap_or("?"),
-                    ),
-                    2 => (
-                        "procedure",
-                        code_table
-                            .procedure(ev.code_idx)
-                            .map(|e| e.code.as_str())
-                            .unwrap_or("?"),
-                    ),
-                    3 => (
-                        "observation",
-                        code_table
-                            .observation(ev.code_idx)
-                            .map(|e| e.code.as_str())
-                            .unwrap_or("?"),
-                    ),
-                    _ => continue,
-                };
-                writeln!(
-                    w,
-                    "{},{},{},{}",
-                    patient.id, kind, code, enc.days_since_birth
-                )?;
+            for ev in &enc.medications {
+                let code = code_table
+                    .medication(ev.code_idx)
+                    .map(|e| e.code.as_str())
+                    .unwrap_or("?");
+                writeln!(w, "{},medication,{},{}", patient.id, code, enc.days_since_birth)?;
+                rows += 1;
+            }
+            for ev in &enc.procedures {
+                let code = code_table
+                    .procedure(ev.code_idx)
+                    .map(|e| e.code.as_str())
+                    .unwrap_or("?");
+                writeln!(w, "{},procedure,{},{}", patient.id, code, enc.days_since_birth)?;
+                rows += 1;
+            }
+            for ev in &enc.observations {
+                let code = code_table
+                    .observation(ev.code_idx)
+                    .map(|e| e.code.as_str())
+                    .unwrap_or("?");
+                writeln!(w, "{},observation,{},{}", patient.id, code, enc.days_since_birth)?;
                 rows += 1;
             }
         }

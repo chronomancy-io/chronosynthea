@@ -37,10 +37,7 @@ fn full_pipeline_throughput() {
     let dt = t0.elapsed();
     assert_eq!(patients.len(), n);
     let rate = n as f64 / dt.as_secs_f64();
-    let total_events: usize = patients
-        .iter()
-        .map(|p| p.encounters.iter().map(|e| e.events.len()).sum::<usize>())
-        .sum();
+    let total_events: usize = patients.iter().map(|p| p.total_events()).sum();
     let mean_events_per_patient = total_events as f64 / n as f64;
     println!(
         "generated {} full patients in {:.2}s = {:.0}/sec (mean {:.1} events/patient)",
