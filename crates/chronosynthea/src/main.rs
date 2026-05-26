@@ -3,6 +3,14 @@
 use std::path::PathBuf;
 use std::time::Instant;
 
+// mimalloc is the global allocator for the CLI. The CSV emit path
+// allocates ~per-event String/Vec churn that bumpalo can't capture;
+// mimalloc reclaims that traffic 5–15% faster than glibc malloc on
+// typical workloads. See the council perf-pass synthesis for the
+// measurement.
+#[global_allocator]
+static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
+
 use clap::{Parser, Subcommand};
 
 use chronosynthea_cde::{

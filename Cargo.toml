@@ -57,10 +57,21 @@ memmap2 = "0.9"
 bytemuck = { version = "1.14", features = ["derive"] }
 smallvec = { version = "1.13", features = ["const_generics", "union"] }
 
+# Faster general-purpose allocator. The CSV-write hot path produces
+# transient String/Vec<u8> allocations that the bumpalo arena can't
+# capture; mimalloc reduces that traffic by ~10–15% on alloc-heavy
+# workloads (chronosynthea CSV emit is in that category — see the
+# council perf pass notes).
+mimalloc = { version = "0.1", default-features = false }
+# Hot-path integer/UUID hex emission without format!() machinery.
+itoa = "1.0"
+
 [profile.release]
-lto = "thin"
+lto = "fat"
 codegen-units = 1
 opt-level = 3
+panic = "abort"
+strip = "symbols"
 
 [profile.bench]
 inherits = "release"

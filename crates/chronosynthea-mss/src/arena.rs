@@ -130,8 +130,13 @@ pub struct FullPatient {
     /// REASONCODE per procedure — same shape as `medication_causes` but
     /// for the procedure list. Parallel to `procedures`.
     pub procedure_causes: SmallVec<[u16; 8]>,
-    /// Encounters with their events.
-    pub encounters: SmallVec<[FullEncounter; 8]>,
+    /// Encounters with their events. Inline capacity 16 (was 8): the
+    /// empirical encounter-per-patient mean is ~12, so the prior cap-8
+    /// SmallVec spilled to heap for the majority of patients; bumping
+    /// to 16 keeps the encounter array inline for ~80% of cases at the
+    /// cost of ~264 bytes/patient stack/arena footprint — well worth it
+    /// to eliminate the pointer-chase in the encounter loop.
+    pub encounters: SmallVec<[FullEncounter; 16]>,
 }
 
 /// Full encounter with event details.

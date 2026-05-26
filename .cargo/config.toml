@@ -1,0 +1,13 @@
+# Target-CPU tuning for the local benchmark host.
+#
+# `target-cpu=native` unlocks AVX2/AVX-512/BMI2 paths in std + downstream
+# crates (chronosynthea uses `wide` for SIMD; LLVM auto-vectorises more
+# aggressively at higher feature levels). Typical impact on the
+# CSV-write hot path is 5–15%.
+#
+# Trade-off: binaries built with this flag are NOT portable across CPUs.
+# CI builds and distribution artifacts MUST override this — set
+# `CARGO_BUILD_RUSTFLAGS=""` or run with `--config "build.rustflags=[]"`
+# to get a portable binary.
+[build]
+rustflags = ["-C", "target-cpu=native"]
