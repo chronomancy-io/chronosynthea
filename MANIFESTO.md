@@ -469,26 +469,37 @@ caught. The audit was uncomfortable; the system is better for it.
 
 ## Open future work
 
-After the polish wave, the remaining items are genuinely research-grade
-or below the floor of "moves a noticeable needle":
+After three polish waves and a research-grade extension wave, the
+remaining items are genuinely "we'd need a different algorithm" or
+"we'd need a different runtime":
 
-- **d5 = `causal-DAG` parameter fitting** (**research-grade**): the
-  Gibbs sampler is wired and dispatching but the J_ij parameters derived
-  directly from observed log-lifts do not yet specify an Ising-Boltzmann
-  distribution whose equilibrium marginals reproduce the source empirical
-  distribution. Fitting J via pseudo-likelihood maximisation or
-  Boltzmann learning is the next-level work. The `pairwise-empirical`
-  mode (additive boost + two-knob recalibration) is the validated
-  joint-modelling path for production today.
+- **d5 = `causal-DAG` parameter fitting** is **shipped as an
+  experimental path** ✓ — `CausalDagModel::fit_to_marginals` implements
+  Boltzmann learning (Ackley/Hinton/Sejnowski 1985) via stochastic
+  gradient ascent on the pseudo-log-likelihood. Per-archetype bias
+  overrides are learnt alongside the J_ij couplings. The convergence
+  test (`tests/boltzmann_fit.rs`) demonstrates the closing of the
+  Ising-Boltzmann calibration gap: max marginal residual goes from
+  **99% (pre-fit, log-lift init) → 7.7% (post-fit, 40 iters)**, a
+  ~13× reduction. The remaining 7–8% asymptote is structural — ~4k
+  pairwise constraints over 214 conditions cannot all be simultaneously
+  satisfied by a pure pairwise Ising model; closing it further requires
+  higher-order interactions (genuine hypergraph). For production joint
+  modelling today, `JointMode::PairwiseEmpirical` (additive boost +
+  two-knob recalibration) is still the validated mode.
 - **GPU offload via WGSL** (**research-grade**): most per-patient work
   is embarrassingly parallel and SIMD-friendly. A WGSL compute kernel
-  could push throughput by another 5–10× on consumer GPUs.
-- **SynthEHRella harness integration** (**adapter work**): the
-  arXiv:2411.04281 benchmark[^synthehrella] provides community-standard
-  fidelity evaluation. Running chronosynthea through it would convert
-  "we claim equivalence" into "here's where we sit in the field's
-  benchmark." Architectural work: write an adapter from chronosynthea's
-  compact patient output to SynthEHRella's expected format.
+  could push throughput by another 5–10× on consumer GPUs. This is
+  the only remaining throughput frontier with a clear path.
+- **SynthEHRella harness integration** is **shipped** ✓ —
+  `chronosynthea_mss::synthehrella::{write_binary_matrix,
+  write_temporal_records}` write both the patient × code binary matrix
+  and the long-form temporal record set that
+  SynthEHRella[^synthehrella] consumes. The driver script
+  `scripts/synthehrella_evaluate.py` invokes SynthEHRella's
+  `evaluate.py` against the output when a local checkout is supplied.
+  Smoke test: 10k patients → 10001 binary-matrix rows + 906k temporal
+  rows in **0.16s**.
 
 ### Polish thresholds (shipped, with characterised remaining gaps)
 
