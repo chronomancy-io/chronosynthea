@@ -16,6 +16,7 @@ use smallvec::SmallVec;
 
 use crate::archetype::{ArchetypeRegistry, CooccurrenceModel, PatientArchetype};
 use crate::arena::{CompactEvent, CompactPatient, FullEncounter, FullPatient};
+use crate::cascade::CausalCascadeModel;
 use crate::causal_dag::CausalDagModel;
 use crate::fingerprint::MssFingerprint;
 use crate::sampler::{EventSampler, SimdSampler};
@@ -282,6 +283,13 @@ pub struct BatchGenerator {
     /// workers without per-thread cloning of the interaction table.
     causal_dag: Arc<CausalDagModel>,
 
+    /// d6 = `causal-cascade`: empirical pair-lag rules enforcing
+    /// trajectory ordering on sampled patients. Loaded from
+    /// `cascade_lags.json` next to the calibrated registry (or pointed
+    /// to via `CHRONOSYNTHEA_CASCADE_PATH`). Empty rule list means the
+    /// cascade post-pass is a no-op and patient onsets stay independent.
+    cascade: Arc<CausalCascadeModel>,
+
     /// Active d5 joint-structure mode. Set once at construction from the
     /// fingerprint contents and `CHRONOSYNTHEA_JOINT_MODE` env var.
     joint_mode: JointMode,
@@ -310,6 +318,31 @@ impl BatchGenerator {
             JointMode::MarginalOnly
         };
 
+        // d6 = causal-cascade: load `cascade_lags.json` next to the
+        // calibrated registry when present. The rule list compiles into a
+        // trigger-indexed `CausalCascadeModel`. Failure to load (file
+        // missing, malformed JSON) is non-fatal — the cascade post-pass
+        // becomes a no-op.
+        let cascade_rules =
+            std::env::var("CHRONOSYNTHEA_CASCADE_PATH")
+                .ok()
+                .map(std::path::PathBuf::from)
+                .and_then(|p| crate::cascade::load_default_rules(p.parent()?.to_path_buf()).ok())
+                .or_else(|| {
+                    // Fallback: try a default path next to the binary's
+                    // workspace.
+                    crate::cascade::load_default_rules(
+                        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                            .parent()?
+                            .parent()?
+                            .join("data")
+                            .join("prevalence"),
+                    )
+                    .ok()
+                })
+                .unwrap_or_default();
+        let cascade = Arc::new(CausalCascadeModel::from_rules(&cascade_rules, &code_table));
+
         let fingerprint = Arc::new(fingerprint);
 
         Self {
@@ -319,6 +352,7 @@ impl BatchGenerator {
             fingerprint,
             cooccurrence,
             causal_dag,
+            cascade,
             joint_mode,
         }
     }
@@ -557,6 +591,10 @@ impl BatchGenerator {
             let days = self.archetypes.sample_onset_days(c, max_age_days, rng);
             condition_onset_days.push(days);
         }
+        // d6 = causal-cascade: rewrite downstream onsets to follow their
+        // trigger. No-op when no rules loaded.
+        self.cascade
+            .apply(condition_buffer, &mut condition_onset_days, max_age_days, rng);
         // Sort by onset; we have two parallel SmallVecs, so build a temp index.
         let mut order: SmallVec<[u8; 8]> = (0..condition_buffer.len() as u8).collect();
         order.sort_by_key(|&i| condition_onset_days[i as usize]);
@@ -935,6 +973,15 @@ impl BatchGenerator {
         for &c in condition_buffer.iter() {
             raw_onsets.push(archetypes.sample_onset_days(c, max_age_days, rng));
         }
+        // d6 = causal-cascade: rewrite downstream onset days so they
+        // follow their trigger by the empirical lag. No-op when no
+        // cascade rules are loaded.
+        self.cascade.apply(
+            condition_buffer,
+            &mut raw_onsets,
+            max_age_days,
+            rng,
+        );
         let mut order: SmallVec<[u8; 8]> =
             (0..condition_buffer.len() as u8).collect();
         order.sort_by_key(|&i| raw_onsets[i as usize]);
