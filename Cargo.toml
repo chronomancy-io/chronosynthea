@@ -66,6 +66,13 @@ mimalloc = { version = "0.1", default-features = false }
 # Hot-path integer/UUID hex emission without format!() machinery.
 itoa = "1.0"
 
+# GPU compute (Vulkan/Metal/DX12 backend). Used by the experimental
+# `gpu` feature in chronosynthea-mss for per-patient byte emission off
+# the CPU. Gated behind a feature flag to keep the default build
+# closure small.
+wgpu = "22"
+pollster = "0.3"
+
 [profile.release]
 lto = "fat"
 codegen-units = 1
