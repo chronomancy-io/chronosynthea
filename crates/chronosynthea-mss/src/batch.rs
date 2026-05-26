@@ -1308,10 +1308,10 @@ mod tests {
     use crate::fingerprint::{
         ConditionStats, DemographicBucket, EncounterStats, JointDemographics,
     };
-    use ahash::AHashMap;
+    use std::collections::BTreeMap;
 
     fn create_test_fingerprint() -> MssFingerprint {
-        let mut buckets = AHashMap::new();
+        let mut buckets: BTreeMap<DemographicBucket, f64> = BTreeMap::new();
         buckets.insert(
             DemographicBucket::new("18-44", "male", "white", "nonhispanic"),
             0.3,
@@ -1343,9 +1343,9 @@ mod tests {
                     code: "38341003".to_string(),
                     display: "Hypertension".to_string(),
                     prevalence: 0.3,
-                    by_age_bucket: AHashMap::new(),
-                    by_gender: AHashMap::new(),
-                    by_race: AHashMap::new(),
+                    by_age_bucket: BTreeMap::new(),
+                    by_gender: BTreeMap::new(),
+                    by_race: BTreeMap::new(),
                     chronic: true,
                     mean_onset_age: 50.0,
                 },
@@ -1353,9 +1353,9 @@ mod tests {
                     code: "44054006".to_string(),
                     display: "Diabetes".to_string(),
                     prevalence: 0.1,
-                    by_age_bucket: AHashMap::new(),
-                    by_gender: AHashMap::new(),
-                    by_race: AHashMap::new(),
+                    by_age_bucket: BTreeMap::new(),
+                    by_gender: BTreeMap::new(),
+                    by_race: BTreeMap::new(),
                     chronic: true,
                     mean_onset_age: 55.0,
                 },
@@ -1363,12 +1363,12 @@ mod tests {
             medications: vec![],
             observations: vec![],
             procedures: vec![],
-            cooccurrence: AHashMap::new(),
-            cooccurrence_dependent_scale: AHashMap::new(),
+            cooccurrence: BTreeMap::new(),
+            cooccurrence_dependent_scale: BTreeMap::new(),
             onset_stats: Vec::new(),
             encounter_stats: EncounterStats {
-                mean_by_age: AHashMap::new(),
-                type_distribution: AHashMap::new(),
+                mean_by_age: BTreeMap::new(),
+                type_distribution: BTreeMap::new(),
                 mean_events_per_encounter: 5.0,
             },
         }

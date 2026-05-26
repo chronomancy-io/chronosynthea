@@ -129,6 +129,49 @@ enum Commands {
         #[arg(short, long, default_value = "10000")]
         count: usize,
     },
+
+    /// Cohort query — generate only patients matching a filter
+    /// expression, write them to Parquet with audit-replayable
+    /// manifest + filter sidecar.
+    ///
+    /// The filter is a JSON-encoded `FilterExpr` (see
+    /// `chronosynthea_mss::cohort::FilterExpr`). Example filter:
+    ///
+    ///   {"op":"and","children":[
+    ///     {"op":"age_range","lo":60,"hi":80},
+    ///     {"op":"has_condition","code":"230690007"}
+    ///   ]}
+    ///
+    /// Output directory contains: `parquet/summary.parquet`,
+    /// `parquet/manifest.json`, `parquet/filter.json`.
+    Cohort {
+        /// Path to JSON-encoded FilterExpr.
+        #[arg(short, long)]
+        filter: PathBuf,
+
+        /// Output directory (writes parquet/* underneath).
+        #[arg(short, long)]
+        output: PathBuf,
+
+        /// Target number of matching patients to write.
+        #[arg(short, long, default_value = "1000")]
+        target: usize,
+
+        /// Maximum patients to generate-then-filter before giving up.
+        /// Set higher for rarer cohorts (selectivity < 1%).
+        #[arg(long, default_value = "100000")]
+        max_scan: usize,
+
+        /// Random seed for reproducibility.
+        #[arg(short, long, default_value = "42")]
+        seed: u64,
+
+        /// Path to calibrated registry JSON. Defaults to
+        /// `data/prevalence/calibrated_registry.json` next to the
+        /// repo's data dir.
+        #[arg(short, long)]
+        registry: Option<PathBuf>,
+    },
 }
 
 fn main() {
@@ -172,7 +215,95 @@ fn main() {
         Commands::Bench { count } => {
             run_bench(count);
         }
+        Commands::Cohort {
+            filter,
+            output,
+            target,
+            max_scan,
+            seed,
+            registry,
+        } => {
+            run_cohort(filter, output, target, max_scan, seed, registry);
+        }
     }
+}
+
+fn run_cohort(
+    filter_path: PathBuf,
+    output_dir: PathBuf,
+    target: usize,
+    max_scan: usize,
+    seed: u64,
+    registry_path: Option<PathBuf>,
+) {
+    use chronosynthea_mss::cohort::FilterExpr;
+    use chronosynthea_mss::parquet_writer::SyntheaStatsParquetWriter;
+    use chronosynthea_mss::reproducibility::CohortManifest;
+    use chronosynthea_mss::{BatchConfig, BatchGenerator, CalibratedRegistry};
+
+    let filter_text = std::fs::read_to_string(&filter_path).unwrap_or_else(|e| {
+        eprintln!("error reading filter {}: {}", filter_path.display(), e);
+        std::process::exit(1);
+    });
+    let filter: FilterExpr =
+        serde_json::from_str(&filter_text).unwrap_or_else(|e| {
+            eprintln!("error parsing filter JSON: {}", e);
+            std::process::exit(1);
+        });
+
+    let registry_path = registry_path.unwrap_or_else(|| {
+        let mut p = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        p.pop();
+        p.pop();
+        p.push("data");
+        p.push("prevalence");
+        p.push("calibrated_registry.json");
+        p
+    });
+    let registry = CalibratedRegistry::load(&registry_path).unwrap_or_else(|e| {
+        eprintln!("error loading registry: {}", e);
+        std::process::exit(1);
+    });
+    let generator = BatchGenerator::new(
+        registry.to_fingerprint(),
+        BatchConfig {
+            seed,
+            ..Default::default()
+        },
+    );
+    let fp_hash = *generator.fingerprint_hash();
+
+    let _ = std::fs::create_dir_all(&output_dir);
+    let mut writer = SyntheaStatsParquetWriter::create(&output_dir).unwrap_or_else(|e| {
+        eprintln!("error creating parquet writer: {}", e);
+        std::process::exit(1);
+    });
+    let t = Instant::now();
+    let result = generator.cohort(&filter, target, max_scan, |p| {
+        writer.write_patient(p).unwrap();
+    });
+    writer.finish().unwrap();
+    let dt = t.elapsed();
+
+    let out_path = output_dir.join("parquet/summary.parquet");
+    let bytes = std::fs::metadata(&out_path).map(|m| m.len()).unwrap_or(0);
+    let mut manifest = CohortManifest::new(&fp_hash, seed, result.matched, "parquet-stats-cohort");
+    manifest.output_bytes = bytes;
+    let _ = manifest.write_json(output_dir.join("parquet/manifest.json"));
+    let _ = std::fs::write(
+        output_dir.join("parquet/filter.json"),
+        serde_json::to_string_pretty(&filter).unwrap(),
+    );
+    eprintln!(
+        "cohort: matched {} of {} target ({:.2}% selectivity over {} scanned) in {:.3}s; out = {} ({:.1} KB)",
+        result.matched,
+        target,
+        result.selectivity() * 100.0,
+        result.scanned,
+        dt.as_secs_f64(),
+        out_path.display(),
+        bytes as f64 / 1024.0,
+    );
 }
 
 fn run_generate(

@@ -456,6 +456,7 @@ dependencies = [
  "chronosynthea-core",
  "chronosynthea-gen",
  "chronosynthea-io",
+ "chronosynthea-mss",
  "clap",
  "mimalloc",
  "serde",

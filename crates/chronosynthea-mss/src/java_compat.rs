@@ -313,9 +313,9 @@ impl CalibratedRegistry {
                     code: c.code.clone(),
                     display: c.display.clone(),
                     prevalence: corrected_prevalence,
-                    by_age_bucket: by_age,
-                    by_gender: by_gender,
-                    by_race: by_race,
+                    by_age_bucket: by_age.into_iter().collect(),
+                    by_gender: by_gender.into_iter().collect(),
+                    by_race: by_race.into_iter().collect(),
                     chronic: c.chronic,
                     mean_onset_age: self.estimate_onset_age(c),
                 }
@@ -451,12 +451,12 @@ impl CalibratedRegistry {
             medications,
             observations,
             procedures,
-            cooccurrence,
-            cooccurrence_dependent_scale,
+            cooccurrence: cooccurrence.into_iter().collect(),
+            cooccurrence_dependent_scale: cooccurrence_dependent_scale.into_iter().collect(),
             onset_stats,
             encounter_stats: EncounterStats {
-                mean_by_age: self.build_encounter_stats_by_age(),
-                type_distribution: self.build_encounter_type_distribution(),
+                mean_by_age: self.build_encounter_stats_by_age().into_iter().collect(),
+                type_distribution: self.build_encounter_type_distribution().into_iter().collect(),
                 mean_events_per_encounter: 5.0,
             },
         }
@@ -637,8 +637,18 @@ impl CalibratedRegistry {
     }
 
     /// Builds demographics from the calibrated registry.
+    ///
+    /// Uses BTreeMap so `buckets.values().sum()` iterates in sorted-key
+    /// order — float addition is non-associative, so summing over an
+    /// AHashMap (whose iteration order depends on a per-instance random
+    /// seed) would silently produce slightly different totals across
+    /// otherwise identical runs, and the subsequent `*prob /= total`
+    /// would propagate that into every probability. The fingerprint
+    /// hash depends on these values, so this needs deterministic order
+    /// for cross-run reproducibility.
     fn build_demographics(&self) -> JointDemographics {
-        let mut buckets = AHashMap::new();
+        let mut buckets: std::collections::BTreeMap<DemographicBucket, f64> =
+            std::collections::BTreeMap::new();
 
         // Create joint distribution from marginal distributions
         for (age, &age_prob) in &self.demographics.age_distribution {
@@ -655,7 +665,8 @@ impl CalibratedRegistry {
             }
         }
 
-        // Normalize
+        // Normalize. BTreeMap iteration is sorted-by-key, so this sum is
+        // deterministic across runs.
         let total: f64 = buckets.values().sum();
         if total > 0.0 {
             for prob in buckets.values_mut() {
@@ -671,7 +682,8 @@ impl CalibratedRegistry {
 
     /// Creates default US Census-based demographics.
     fn default_demographics(&self) -> JointDemographics {
-        let mut buckets = AHashMap::new();
+        let mut buckets: std::collections::BTreeMap<DemographicBucket, f64> =
+            std::collections::BTreeMap::new();
 
         // US Census-based distributions (approximate)
         let ages = [

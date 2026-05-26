@@ -1206,14 +1206,14 @@ mod tests {
             ConditionStats, DemographicBucket as FpDemo, EncounterStats, JointDemographics,
             MssFingerprint,
         };
-        use ahash::AHashMap;
+        use std::collections::BTreeMap;
         use crate::sampler::SimdSampler;
 
         // Two demographic buckets: a populated one and a "ghost" one.
         let populated = FpDemo::new("45-64", "male", "white", "nonhispanic");
         let ghost = FpDemo::new("18-44", "female", "asian", "hispanic");
 
-        let mut buckets = AHashMap::new();
+        let mut buckets: BTreeMap<FpDemo, f64> = BTreeMap::new();
         buckets.insert(populated.clone(), 0.7);
         buckets.insert(ghost.clone(), 0.3);
         let joint_demographics = JointDemographics {
@@ -1227,7 +1227,7 @@ mod tests {
         // prevalence by these multipliers, so the ghost archetype ends up with
         // prevalence 0 for every condition — filtered out by the
         // `if prob > 0.001` gate at line ~290 in `from_fingerprint`.
-        let mut zero_for_female: AHashMap<String, f64> = AHashMap::new();
+        let mut zero_for_female: BTreeMap<String, f64> = BTreeMap::new();
         zero_for_female.insert("male".to_string(), 1.0);
         zero_for_female.insert("female".to_string(), 0.0);
 
@@ -1235,9 +1235,9 @@ mod tests {
             code: code.to_string(),
             display: display.to_string(),
             prevalence,
-            by_age_bucket: AHashMap::new(),
+            by_age_bucket: BTreeMap::new(),
             by_gender: zero_for_female.clone(),
-            by_race: AHashMap::new(),
+            by_race: BTreeMap::new(),
             chronic: true,
             mean_onset_age: 40.0,
         };
@@ -1257,8 +1257,8 @@ mod tests {
             medications: vec![],
             observations: vec![],
             procedures: vec![],
-            cooccurrence: AHashMap::new(),
-            cooccurrence_dependent_scale: AHashMap::new(),
+            cooccurrence: BTreeMap::new(),
+            cooccurrence_dependent_scale: BTreeMap::new(),
             onset_stats: Vec::new(),
             encounter_stats: EncounterStats::default(),
         };

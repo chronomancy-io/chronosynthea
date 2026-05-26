@@ -3,7 +3,7 @@
 //! These tests verify that generated patients match the expected
 //! statistical distributions from the MSS fingerprint.
 
-use ahash::AHashMap;
+use std::collections::BTreeMap;
 use chronosynthea_mss::batch::{BatchConfig, BatchGenerator};
 use chronosynthea_mss::fingerprint::{
     ConditionStats, DemographicBucket, EncounterStats, JointDemographics, MssFingerprint,
@@ -12,7 +12,7 @@ use chronosynthea_mss::stats::StreamingStatistics;
 
 /// Creates a test fingerprint with known distributions.
 fn create_test_fingerprint() -> MssFingerprint {
-    let mut buckets = AHashMap::new();
+    let mut buckets: BTreeMap<DemographicBucket, f64> = BTreeMap::new();
     buckets.insert(
         DemographicBucket::new("18-44", "male", "white", "nonhispanic"),
         0.25,
@@ -44,9 +44,9 @@ fn create_test_fingerprint() -> MssFingerprint {
                 code: "COND001".to_string(),
                 display: "Test Condition 1".to_string(),
                 prevalence: 0.30,
-                by_age_bucket: AHashMap::new(),
-                by_gender: AHashMap::new(),
-                by_race: AHashMap::new(),
+                by_age_bucket: BTreeMap::new(),
+                by_gender: BTreeMap::new(),
+                by_race: BTreeMap::new(),
                 chronic: true,
                 mean_onset_age: 50.0,
             },
@@ -54,9 +54,9 @@ fn create_test_fingerprint() -> MssFingerprint {
                 code: "COND002".to_string(),
                 display: "Test Condition 2".to_string(),
                 prevalence: 0.10,
-                by_age_bucket: AHashMap::new(),
-                by_gender: AHashMap::new(),
-                by_race: AHashMap::new(),
+                by_age_bucket: BTreeMap::new(),
+                by_gender: BTreeMap::new(),
+                by_race: BTreeMap::new(),
                 chronic: false,
                 mean_onset_age: 40.0,
             },
@@ -64,9 +64,9 @@ fn create_test_fingerprint() -> MssFingerprint {
                 code: "COND003".to_string(),
                 display: "Test Condition 3".to_string(),
                 prevalence: 0.05,
-                by_age_bucket: AHashMap::new(),
-                by_gender: AHashMap::new(),
-                by_race: AHashMap::new(),
+                by_age_bucket: BTreeMap::new(),
+                by_gender: BTreeMap::new(),
+                by_race: BTreeMap::new(),
                 chronic: true,
                 mean_onset_age: 60.0,
             },
@@ -74,12 +74,12 @@ fn create_test_fingerprint() -> MssFingerprint {
         medications: vec![],
         observations: vec![],
         procedures: vec![],
-        cooccurrence: AHashMap::new(),
-            cooccurrence_dependent_scale: AHashMap::new(),
-            onset_stats: Vec::new(),
+        cooccurrence: BTreeMap::new(),
+        cooccurrence_dependent_scale: BTreeMap::new(),
+        onset_stats: Vec::new(),
         encounter_stats: EncounterStats {
-            mean_by_age: AHashMap::new(),
-            type_distribution: AHashMap::new(),
+            mean_by_age: BTreeMap::new(),
+            type_distribution: BTreeMap::new(),
             mean_events_per_encounter: 5.0,
         },
     }
