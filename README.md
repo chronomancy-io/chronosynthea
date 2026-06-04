@@ -93,7 +93,7 @@ Three abbreviations show up everywhere. Short version:
 - **CDE** — *Coleman Dimensional Encoding.* A discipline for picking the coordinate axes a record gets encoded on. The output Parquet schema's CDE axes (d0=demographics, d1=trajectory bitmask, d5=joint structure, d6=archetype, d7=age-band, ...) make those axes addressable instead of derived-on-read.
 - **MSS** — *Minimally Sufficient Statistic.* The pre-computed fingerprint that captures every distribution needed for resampling. Sampling from the MSS is what makes generation O(1) per patient on the hot path; building the MSS from Java Synthea output is a one-time preprocessing step under `data/prevalence/`.
 
-The full theory (sufficiency proofs, CDE encoding tuple, the gate, MSS claim taxonomy with `def/asm/gua/unk` labels) lives in `MANIFESTO.md` and the corresponding chronocow `docs/foundations.md`. Skip them if you just want to use the generator.
+The full theory (sufficiency proofs, CDE encoding tuple, the gate, MSS claim taxonomy with `def/asm/gua/unk` labels) lives in the chronocow `docs/foundations.md`. Skip it if you just want to use the generator.
 
 ## Performance
 
@@ -184,8 +184,6 @@ What's not in the box yet, in roughly the order we'd ship it:
 
 - [ARCHITECTURE.md](ARCHITECTURE.md) — module-by-module walkthrough
 - [PERFORMANCE.md](PERFORMANCE.md) — benchmark methodology + numbers
-- [STRATEGY.md](STRATEGY.md) — positioning and how this compares to Java Synthea / Mockaroo / etc.
-- [MANIFESTO.md](MANIFESTO.md) — WASP/CDE/MSS theory in depth
 - [CONTRIBUTING.md](CONTRIBUTING.md) — dev workflow
 
 ## References
