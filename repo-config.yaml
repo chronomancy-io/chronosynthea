@@ -2,7 +2,7 @@ project:
   name: chronosynthea
   type: application
   language: rust
-  description: Ultra-high-performance synthetic healthcare data generation using CDE and MSS
+  description: High-throughput synthetic patient-statistics generator (CDE/MSS). Samples conditions independently from precomputed base rates (no causal state machine, no co-occurrence by default); measured at ~8.4-9.0M patients/sec stats-only and ~3.7-4.0M/sec full-stats on an 8-core/16-thread Ryzen 7 5800X. No Java Synthea baseline is measured in-repo, so no speedup multiplier is claimed.
 
 framework:
   cde_compliant: true
@@ -18,7 +18,7 @@ dimensions:
       encoding: "u64 seed + archetype index (u16)"
     - name: "Clinical Trajectory"
       description: "Conditions, medications, procedures"
-      encoding: "Sparse bitsets of code indices"
+      encoding: "Sparse lists of u16 code indices (SmallVec); a 512-bit EventBitset is used only for O(1) dedup during accumulation"
     - name: "Timing"
       description: "Event timestamps relative to birth"
       encoding: "Days since birth (u16) + offsets"
@@ -35,5 +35,5 @@ workload:
       description: "Validate distribution against Java Synthea baseline"
       complexity: "O(c) where c = condition count"
     - id: Q3
-      description: "Extract MSS fingerprint from Synthea module graph"
-      complexity: "O(m × s) where m = modules, s = states per module"
+      description: "Extract an MSS fingerprint by accumulating counts over a Java Synthea FHIR patient population (crates/chronosynthea-mss/src/extractor.rs). Note: the bundled calibrated_registry.json is the precomputed input; the extractor operates on FHIR output, not on Synthea module-graph state machines."
+      complexity: "O(p × e) where p = patients scanned, e = events per patient"

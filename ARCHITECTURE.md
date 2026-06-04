@@ -10,10 +10,12 @@ ChronoSynthea is a high-performance synthetic healthcare data generator built on
 
 > **WASP Encoding Tuple** `(k, E, I, T, {F_q})`:
 > - **k = 4**: Patient Seed, Clinical Trajectory, Timing, Output Schema
-> - **E(r)**: (seed:u64 + archetype:u16, condition/med/proc bitsets, age_days + offsets, format flags)
-> - **I(c)**: MssFingerprint + ArchetypeRegistry + AliasSampler + SIMD threshold arrays
+> - **E(r)**: (seed:u64 + archetype:u16, condition/med/proc index lists, age_days + offsets, format flags)
+> - **I(c)**: MssFingerprint + ArchetypeRegistry (Vose alias for archetype selection) + per-archetype f32 threshold arrays
 > - **T(q)**: BatchGenerator (Q1), JavaValidation (Q2), module extractor (Q3)
-> - **{F_q}**: SIMD `rand < threshold[i]` comparison + EventBitset dedup
+> - **{F_q}**: `rand < threshold[i]` comparison (scalar in the default condition path, SIMD f32x8 for meds/obs/procs) + EventBitset dedup
+
+> **Honesty scope.** The generator samples each condition independently at a precomputed base rate; it does **not** run Java Synthea's causal state machine, and co-occurrence is disabled in the default fingerprint. "Statistical validation" in §7 is self-consistency against the fingerprint's own base rates, not equivalence to Java Synthea. Bytes-per-patient and cache figures that were never measured have been removed.
 
 This document describes the technical architecture, design decisions, and implementation details.
 
@@ -63,10 +65,12 @@ Fingerprint → Sample(archetype) → Sample(conditions) → Record
 ```
 
 The MSS fingerprint contains:
-- Joint distribution over demographic buckets
-- Condition prevalence by demographics
+- A demographic-bucket distribution (built as the product of 4 marginal distributions: age × gender × race × ethnicity = 80 buckets — an independence approximation, not a measured joint)
+- Per-condition prevalence (the default registry uses uniform 1.0 demographic multipliers, so prevalence does not actually vary by bucket — see `java_compat.rs::fine_tune_age_multipliers`)
 - Medication/observation/procedure frequencies
-- Co-occurrence patterns (optional)
+- A co-occurrence map — present as a field but left **empty** by `CalibratedRegistry::to_fingerprint`, so generation samples conditions independently
+
+> The diagram below ("O(1)") is shorthand: the archetype draw is O(1), but the condition draw is O(c) over all conditions.
 
 ---
 
@@ -202,11 +206,14 @@ chronosynthea (binary)
 ### Per-Patient Flow
 
 ```
-1. Sample archetype (Vose alias, O(1))
+1. Sample archetype (Vose alias, O(1) scalar)
    └── Determines: age bucket, gender, race, condition thresholds
 
-2. Sample conditions (SIMD threshold comparison)
-   └── f32x8 random values vs pre-computed thresholds
+2. Sample conditions (per-condition `rand < threshold`)
+   └── Default `generate_stats_only` path: SCALAR loop over c thresholds
+       (`sample_conditions_flat`). The f32x8 SIMD routines in sampler.rs
+       are used for the medication/observation/procedure draws, not the
+       default condition path.
    └── Output: SmallVec<[u16; 8]> of condition indices
 
 3. Estimate encounters (deterministic from age/conditions)
@@ -256,39 +263,33 @@ impl AliasSampler {
 
 ### 2. SIMD Threshold Sampling
 
-**Purpose**: Sample multiple conditions in parallel using CPU vector instructions
+**Purpose**: Sample multiple events in parallel using CPU vector instructions
 
-**Used for**: Condition sampling, medication sampling, event sampling
+**Used for**: medication, observation, and procedure sampling (`sampler.rs`). The default `generate_stats_only` condition path is a **scalar** loop (`archetype.rs::sample_conditions_flat`), not this routine.
+
+Shape of the real code in `sampler.rs` (e.g. `sample_medications_simd`):
 
 ```rust
-pub fn sample_conditions_simd<R: Rng>(
-    thresholds: &[f32],  // Pre-computed condition probabilities
-    rng: &mut R,
-) -> SmallVec<[u16; 8]> {
-    let mut result = SmallVec::new();
-    
-    // Process 8 conditions at a time
-    for (chunk_idx, chunk) in thresholds.chunks(8).enumerate() {
-        // Generate 8 random values
-        let rand_vals: [f32; 8] = rng.gen();
-        let rand_vec = f32x8::new(rand_vals);
-        
-        // Load 8 thresholds
-        let thresh_vec = f32x8::from(chunk);
-        
-        // Compare all 8 in parallel
-        let mask = rand_vec.cmp_lt(thresh_vec);
-        
-        // Extract indices where random < threshold
-        for i in 0..chunk.len() {
-            if mask.extract(i) {
-                result.push((chunk_idx * 8 + i) as u16);
+let chunks = thresholds.len() / 8;
+for chunk in 0..chunks {
+    // fill an [f32; 8] scratch buffer with rng.gen() draws
+    for i in 0..8 { self.rand_buffer[i] = rng.gen(); }
+
+    let base = chunk * 8;
+    let thresh = f32x8::from(&thresholds[base..base + 8]);
+    let rands  = f32x8::new(self.rand_buffer);
+
+    let mask = rands.cmp_lt(thresh);   // wide::CmpLt
+    let mask_bits = mask.move_mask();  // bitmask of the 8 lanes
+    if mask_bits != 0 {
+        for bit in 0..8 {
+            if (mask_bits & (1 << bit)) != 0 && thresholds[base + bit] > 0.0 {
+                self.medication_buffer.push((base + bit) as u16);
             }
         }
     }
-    
-    result
 }
+// plus a scalar remainder loop for thresholds.len() % 8
 ```
 
 ### 3. Event Bitset Deduplication
@@ -324,60 +325,44 @@ impl EventBitset {
 
 ## Memory Model
 
-### Arena Allocation
+### Arena Allocation (`bumpalo`) — defined, but NOT on the throughput path
 
-We use `bumpalo` bump allocation for zero-GC patient generation:
+`WorkerArena` (in `arena.rs`) wraps a `bumpalo::Bump`. **The measured throughput paths do not use it.** `generate_stats_only` and `generate_full_stats_only` materialize no patient records — they update shared atomic counters and reuse a per-thread `SmallVec` scratch buffer. The arena type exists and is re-exported but is not exercised by the `*_stats_only` paths, so do not attribute their speed to arena allocation.
 
-```rust
-pub struct WorkerArena {
-    bump: Bump,
-    patient_count: usize,
-}
-
-impl WorkerArena {
-    pub fn allocate_patient(&self) -> &mut CompactPatient {
-        self.bump.alloc(CompactPatient::default())
-    }
-    
-    pub fn reset(&mut self) {
-        self.bump.reset();  // O(1) - just resets pointer
-        self.patient_count = 0;
-    }
-}
-```
-
-### Compact Data Structures
+### Compact Data Structures (actual layout from `arena.rs`)
 
 ```rust
-// 24 bytes per patient (conditions stored separately)
+// CompactPatient — a small fixed header PLUS an inline SmallVec of condition
+// indices. It is NOT 24 bytes (the SmallVec adds inline/heap storage).
 pub struct CompactPatient {
-    pub id: u64,           // 8 bytes
-    pub seed: u64,         // 8 bytes
-    pub archetype: u16,    // 2 bytes
-    pub age_days: u16,     // 2 bytes
-    pub gender: u8,        // 1 byte
-    pub race: u8,          // 1 byte
-    pub num_conditions: u8,// 1 byte
-    pub num_encounters: u8,// 1 byte
+    pub id: u64,                       // 8 bytes
+    pub birth_date_days: i32,          // 4 bytes
+    pub sex: u8,
+    pub race: u8,
+    pub ethnicity: u8,
+    pub encounter_count: u8,
+    pub condition_count: u8,
+    pub archetype_id: u16,
+    pub conditions: SmallVec<[u16; 8]>, // inline up to 8, else heap
 }
 
-// 8 bytes per event
+// CompactEvent — exactly 8 bytes (enforced by a const assert in arena.rs):
+//   const _: () = assert!(size_of::<CompactEvent>() == 8);
+#[repr(C, align(8))]
 pub struct CompactEvent {
-    pub code_index: u16,   // 2 bytes - index into code table
-    pub event_type: u8,    // 1 byte - diagnosis/med/obs/proc
-    pub day_offset: u16,   // 2 bytes - days since encounter
-    pub _padding: [u8; 3], // 3 bytes - alignment
+    pub event_type: u8,        // diagnosis=0, medication=1, procedure=2, observation=3, immunization=4
+    pub system_idx: u8,        // SNOMED=0, RxNorm=1, LOINC=2, CPT=3
+    pub code_idx: u16,         // index into code table
+    pub display_idx: u16,      // index into display table
+    pub timestamp_offset: u16, // offset from encounter
 }
 ```
 
-### Memory Usage Comparison
+### Memory Usage
 
-| Component | Java Synthea | ChronoSynthea |
-|-----------|--------------|---------------|
-| Patient struct | ~5 MB | 24 bytes |
-| Condition storage | Heap allocated | SmallVec inline |
-| String storage | Java Strings | u16 indices |
-| Per-million patients | ~5 GB | ~50 MB |
+The fastest paths store **0 bytes of per-patient records** (counters only). Exact byte sizes for `CompactPatient`/`FullPatient` and for the fingerprint/registry were **not benchmarked** in this repo. The previous comparison table ("Java ~5 MB / ChronoSynthea 24 bytes / ~5 GB / ~50 MB per million") was unmeasured — both the Java figures (no Java run here) and the ChronoSynthea figures — and has been removed.
+
+**Verifiable** structural facts: `CompactEvent` is exactly 8 bytes (const-asserted); condition/event references on the hot path are `u16` indices, not `Arc<str>`.
 
 ---
 
@@ -385,21 +370,20 @@ pub struct CompactEvent {
 
 ### Rayon Work-Stealing
 
-We use Rayon's `par_iter` with `for_each_init` for per-thread state:
+We use Rayon's `par_iter` with `for_each_init` for per-thread state (simplified from `batch.rs`):
 
 ```rust
 (0..count).into_par_iter().for_each_init(
     || {
         // Per-thread initialization (called once per thread)
         let thread_id = rayon::current_thread_index().unwrap_or(0);
-        let rng = Xoshiro256PlusPlus::seed_from_u64(base_seed + thread_id as u64);
-        let sampler = SimdSampler::new(&archetypes);
-        let event_sampler = EventSampler::new(max_conditions);
-        (rng, sampler, event_sampler)
+        let rng = Xoshiro256PlusPlus::seed_from_u64(/* per-thread seed */);
+        (rng, SmallVec::<[u16; 8]>::new(), EventSampler::new())
     },
-    |(rng, sampler, event_sampler), patient_idx| {
+    |(rng, condition_buffer, event_sampler), patient_id| {
         // Per-patient work (called count times total)
-        generate_patient(rng, sampler, event_sampler, patient_idx);
+        // sample archetype, sample conditions into condition_buffer,
+        // sample events into event_sampler, then record into atomics
     }
 );
 ```
@@ -410,47 +394,43 @@ We avoid locks entirely by using atomic counters:
 
 ```rust
 pub struct AtomicStatistics {
-    pub total_patients: AtomicU64,
-    pub total_encounters: AtomicU64,
+    pub patients: AtomicU64,
+    pub encounters: AtomicU64,
+    pub events: AtomicU64,
     pub condition_counts: Vec<AtomicU64>,  // One per condition
     pub medication_counts: Vec<AtomicU64>,
-    // ...
+    // observation_counts, procedure_counts ...
 }
 
-impl AtomicStatistics {
-    #[inline(always)]
-    pub fn record_condition(&self, idx: u16) {
-        // Relaxed ordering is sufficient - we don't need ordering guarantees
-        unsafe {
-            self.condition_counts
-                .get_unchecked(idx as usize)
-                .fetch_add(1, Ordering::Relaxed);
-        }
-    }
-}
+// record() / record_full() in batch.rs do fetch_add(1, Ordering::Relaxed)
+// per sampled index. Relaxed ordering is sufficient because the final counts
+// are order-independent (Assumption A3 in the README claim table).
 ```
 
-### Scaling Characteristics
+Note the per-condition counters are individual `AtomicU64`s in a `Vec`, so heavily-prevalent conditions can still cause cache-line contention across threads under high core counts — consistent with the sub-linear scaling measured above.
 
-| Cores | Throughput | Efficiency |
-|-------|------------|------------|
-| 1 | 200K pts/sec | 100% (baseline) |
-| 2 | 390K pts/sec | 97.5% |
-| 4 | 750K pts/sec | 93.8% |
-| 8 | 1.4M pts/sec | 87.5% |
-| 16 | 2.4M pts/sec | 75% |
+### Scaling Characteristics (measured)
 
-Near-linear scaling up to 8 cores; diminishing returns beyond due to memory bandwidth.
+On AMD Ryzen 7 5800X (8 cores / 16 threads), real 214-condition registry, `RAYON_NUM_THREADS` set explicitly:
+
+| Path | 1 thread | 16 threads | Speedup |
+|------|----------|------------|---------|
+| `generate_stats_only` (1M) | 2.03 M pts/sec | 8.57 M pts/sec | ~4.2x |
+| `generate_full_stats_only` (200K×5) | 0.62 M pts/sec | ~3.7–4.0 M pts/sec | ~6x |
+
+Scaling is **sub-linear** across 16 threads (8 physical cores + SMT). The previous per-core efficiency table (1→200K … 16→2.4M, "near-linear, 75%+ efficiency") was unmeasured and has been replaced with these two endpoints. A full per-thread-count sweep has not been run.
 
 ---
 
 ## Statistical Validation
 
+> **Scope:** despite the name `JavaValidation`, the reference distribution `self.fingerprint`/`self.reference` IS the same fingerprint the patients were generated from. So `validate()` measures **self-consistency** — how closely the sampler reproduces its own base rates — **not** agreement with actual Java Synthea output (no Java run exists in this repo). Read "expected" below as "the fingerprint's base rate."
+
 ### Validation Framework
 
 ```rust
 pub struct JavaValidation {
-    fingerprint: MssFingerprint,
+    reference: MssFingerprint,  // == the generation fingerprint
     tolerance: f64,
 }
 
@@ -488,42 +468,41 @@ impl JavaValidation {
 }
 ```
 
-### Validation Metrics
+### Validation Metrics (measured at n=100,000 against the fingerprint's own base rates)
 
-1. **Max Deviation**: Largest |observed - expected| across all conditions
-   - Target: < 1%
-   - Current: 0.31%
+1. **Max Deviation**: largest |observed − base rate| across the 214 conditions
+   - Measured: **0.31%** (0.0031)
 
 2. **KL Divergence**: D_KL(P || Q) = Σ P(x) log(P(x)/Q(x))
-   - Target: < 0.1
-   - Current: -0.006
+   - Measured: **-0.006132** (effectively zero; sign reflects floating-point summation, not a true negative divergence)
 
-3. **Chi-Squared**: Σ (O - E)² / E
-   - Target: < sqrt(n) × num_conditions / 10
-   - Current: 181.17 (threshold: ~677)
+3. **Chi-Squared**: Σ (O − E)² / E
+   - Measured: **181.17**
+   - Pass threshold used in `stats.rs::compare` is the **ad-hoc** `sqrt(n) × num_conditions / 10`. At n=100000, num_conditions=214 that is `316.23 × 214 / 10 ≈ 6767` (not ~677 as a previous version stated). This threshold is a heuristic chosen in code, **not** a standard chi-squared critical value — treat "passed" as "within this project's chosen bound," an Assumption rather than a statistical Guarantee.
 
 ---
 
 ## Future Considerations
 
-### Potential Enhancements
+### Potential Enhancements (aspirational — not implemented or benchmarked)
 
-1. **GPU Acceleration**: Port SIMD sampling to CUDA/Metal for 10-100x speedup
-2. **Streaming Output**: Direct Arrow/Parquet output without materialization
-3. **Custom Demographics**: User-defined demographic distributions
-4. **Temporal Modeling**: Add realistic event timing (currently deterministic)
-5. **FHIR R4 Export**: Native FHIR bundle generation
+1. **GPU Acceleration**: port the threshold draws to CUDA/Metal (any speedup is unmeasured/speculative)
+2. **Streaming Output**: direct Arrow/Parquet output without materialization
+3. **Co-occurrence / joint demographics**: actually populate the (currently empty) co-occurrence map and use non-uniform demographic multipliers, so generated data reflects comorbidity and demographic structure rather than independent marginals
+4. **A real Java Synthea baseline**: run Java Synthea on the same machine to obtain a true throughput ratio and a true distributional comparison (currently Unknown)
+5. **Temporal Modeling**: realistic event timing (currently approximate/deterministic)
+6. **FHIR R4 Export**: native FHIR bundle generation
 
 ### Trade-offs Made
 
 | Decision | Trade-off | Rationale |
 |----------|-----------|-----------|
-| Uniform demographic multipliers | Less age/gender variation | Exact prevalence matching |
-| No co-occurrence modeling | Less condition clustering | Simpler validation |
-| Pre-computed thresholds | More memory | O(1) sampling |
-| u16 code indices | Max 65K codes | Sufficient for healthcare |
+| Uniform (1.0) demographic multipliers | No age/gender/race variation in prevalence | Makes generated prevalence match the base rates exactly (so validation is self-consistent) |
+| Co-occurrence disabled by default | No condition clustering / comorbidity | Keeps each condition's marginal exact; avoids the variance the co-occurrence pass would add |
+| Pre-computed per-archetype thresholds | More memory | Avoids recomputing per-bucket probabilities per patient |
+| u16 code indices | Max 65K codes | Sufficient for the 214/122/226/282 codes in the registry |
 
 ---
 
-*Document Version: 2.0.0*
-*Last Updated: January 2026*
+*Document Version: 3.0.0 (MSS-honesty pass)*
+*Last Updated: 2026-06-04*

@@ -1,14 +1,16 @@
 # ChronoSynthea: Strategic Analysis & Market Positioning
 
+> **Honesty note (MSS pass, 2026-06-04).** This is a forward-looking strategy/marketing document. Several claims in earlier drafts (a fixed "16,000x faster" multiplier, "1M patients in under 1 second," "statistically indistinguishable from Java Synthea," and the cost/P&L figures derived from them) were **not supported by anything measured in this repo** and have been corrected or flagged. What is actually measured: ChronoSynthea generates patient *statistics* at roughly **8.4–9.0 M/sec (stats-only)** and **3.7–4.0 M/sec (full-stats)** on an 8-core/16-thread Ryzen 7 5800X (see PERFORMANCE.md), producing no materialized records on those paths. There is **no Java Synthea baseline measured here**, so no speedup multiple is asserted. The generator samples conditions independently from precomputed base rates (no causal model, no co-occurrence by default), so output is **not** demonstrated to be statistically equivalent to Java Synthea. Market-size, pricing, and P&L numbers below are unverified business projections, not facts.
+
 ## Executive Summary
 
-ChronoSynthea represents a **paradigm shift** in synthetic healthcare data generation. By achieving **1 million patient records in under 1 second** while maintaining statistical equivalence to the industry-standard Java Synthea, we have created a solution that is:
+ChronoSynthea is a high-throughput synthetic **patient-statistics** generator. On the machine in PERFORMANCE.md it produces aggregate statistics for millions of synthetic patients per second on a single multi-core CPU, with no per-record materialization on the fast paths. Its positioning rests on:
 
-- **16,000x faster** than existing approaches
-- **99.99% cheaper** in compute costs
-- **Statistically indistinguishable** from the gold standard (0.31% max deviation)
+- **Very high statistics-generation throughput** (measured millions/sec; see PERFORMANCE.md) — the speed advantage vs Java Synthea is plausible but **unquantified** here (no Java baseline measured)
+- **Low marginal compute cost** per generated population (qualitative; the dollar figures below are estimates, not measured)
+- **Self-consistent sampling**: generated prevalences reproduce the registry's base rates to within ~0.31% at n=100K — this is sampling noise vs its own base rates, **not** proven equivalence to Java Synthea
 
-This document outlines the technical foundations of this breakthrough, its market implications, competitive positioning, and monetization strategy.
+This document outlines the technical foundations, market implications, competitive positioning, and monetization strategy. Treat all numeric business claims as projections to be validated.
 
 ---
 
@@ -28,28 +30,26 @@ This document outlines the technical foundations of this breakthrough, its marke
 
 ## 1. The Breakthrough
 
-### Performance Comparison
+### Measured Throughput (ChronoSynthea, this repo)
 
-| Metric | Java Synthea | ChronoSynthea (Rust MSS) | Improvement |
-|--------|--------------|--------------------------|-------------|
-| **1M patients** | ~3.7 hours | **< 1 second** | **16,000x** |
-| **Patients/second** | ~75 | **1,600,000+** | **21,333x** |
-| **Max statistical deviation** | Baseline | **0.31%** | Equivalent |
-| **Memory per patient** | ~5 MB | ~0.5 KB | **10,000x** |
-| **Cost per 1M patients** | ~$15-30 | **~$0.00001** | **1,500,000x** |
+| Path | What it produces | Throughput (measured) | 1M patients |
+|------|------------------|-----------------------|-------------|
+| `generate_stats_only` | atomic counts, no records | ~8.4–9.0 M pts/sec | ~0.11–0.12 s |
+| `generate_full_stats_only` | counts incl. meds/obs/procs | ~3.7–4.0 M pts/sec | ~0.25–0.27 s |
 
-### Validation Results
+Measured on AMD Ryzen 7 5800X (8 cores / 16 threads), Rust 1.94.0, `--release`, real 214-condition registry, 2026-06-04. **No Java Synthea run was performed here**, so the "vs Java" column and any speedup multiplier have been removed — that comparison is an Unknown (see PERFORMANCE.md §7). Memory and cost-per-million figures were not measured and have been removed from this table.
+
+### Self-Consistency Check (n=100,000)
 
 ```
-Statistical Comparison (n=100,000)
-  Status: PASSED
+Statistical Comparison (n=100000)
   Max Deviation: 0.31%
   KL Divergence: -0.006132
-  Chi-Squared: 181.17
-  Failure Rate: 0.0% (0/214 conditions)
+  Chi-Squared:   181.17
+  Failure Rate:  0.0% (0/214 conditions, 10% tolerance)
 ```
 
-This means our output is **statistically indistinguishable** from Java Synthea for all practical purposes—same condition prevalences, demographic distributions, and clinical plausibility.
+This compares generated stats against **ChronoSynthea's own base rates** (the same fingerprint used to generate them). It demonstrates low sampling noise — **not** equivalence to Java Synthea. Because conditions are sampled independently (no co-occurrence) and demographic multipliers are uniform, comorbidity structure and demographic variation are explicitly *not* reproduced. Do not claim "statistically indistinguishable from Java Synthea."
 
 ---
 
@@ -67,16 +67,11 @@ Synthetic data solves this by generating clinically realistic but entirely fabri
 
 ### 2.2 Previous Limitations
 
-Java Synthea, the de facto standard for synthetic patient generation, has critical limitations:
+Java Synthea, the de facto standard for synthetic patient generation, is a full causal simulation (a week-by-week state machine over each patient's lifespan) and is correspondingly compute-intensive.
 
-> "Generating a population of 1 million patients takes approximately 7 hours on standard hardware."
-> — Synthea Wiki [2]
+> **Unverified.** Earlier drafts quoted a specific "~7 hours per 1M patients" / "~75 patients/sec" Java Synthea figure attributed to a "Synthea Wiki." No such measurement, source, or version is recorded in this repo, and reference [2] is the JAMIA paper, not a wiki page with that number. The figure has been removed. The qualitative point stands — a per-patient lifespan simulation is far slower than direct statistical sampling — but the exact ratio is **unmeasured** (Unknown).
 
-This makes synthetic data:
-- **Impractical for CI/CD pipelines** (can't wait hours for test data)
-- **Expensive for large-scale analytics** ($15-30 per million patients in compute)
-- **Impossible for real-time applications** (API endpoints, demos)
-- **Inaccessible to resource-constrained researchers**
+The practical implications of a slow generator (impractical for CI/CD test fixtures, costly at large scale, unsuitable for real-time endpoints) remain the motivation; the specific cost figures below are estimates, not measurements.
 
 ### 2.3 What Sub-Second Changes
 
@@ -85,7 +80,7 @@ This makes synthetic data:
 | **Sales demos** | Pre-generate data, hope it matches customer needs | Generate custom populations in real-time |
 | **CI/CD testing** | Maintain static test fixtures | Fresh, varied data for every test run |
 | **ML training** | Fixed dataset, risk of overfitting | Unlimited varied training data |
-| **Research** | Budget limits population size | 1 billion patient simulations feasible |
+| **Research** | Budget limits population size | Large synthetic-statistics runs become cheap (note: these are marginal-rate samples, not full causal simulations) |
 | **API endpoints** | Return pre-cached data | True on-demand generation |
 
 ---
@@ -102,34 +97,40 @@ Traditional simulation (Java Synthea) works by:
 
 This is computationally expensive because it simulates **causation**.
 
-Our approach captures **correlation**:
-1. Pre-compute statistical fingerprints from Java Synthea output
-2. Extract joint distributions of demographics, conditions, encounters
-3. Sample directly from these distributions using O(1) algorithms
-4. Output statistically equivalent records
+Our approach captures **marginal** statistics (not the full causal/joint structure):
+1. Pre-compute a base-rate fingerprint (the bundled `calibrated_registry.json`)
+2. Build per-demographic marginals; the joint demographic distribution is an *independence approximation* (product of marginals), and the condition co-occurrence map is left empty by default
+3. Sample each condition independently against its base rate; one O(1) Vose-alias draw selects the demographic archetype per patient
+4. Output records (or, on the fast paths, only aggregate counts)
+
+This is a deliberate fidelity trade-off: it makes generation fast and the marginals exact, but it does **not** reproduce comorbidity clustering, demographic-conditioned prevalence, or causal timing.
 
 ### 3.2 Key Optimizations
 
-| Technique | Impact | Reference |
-|-----------|--------|-----------|
-| **SIMD-accelerated sampling** | 8x parallel sampling per CPU instruction | [3] |
-| **Arena-based allocation** | Zero GC pressure, O(1) batch resets | [4] |
-| **Vose alias method** | O(1) weighted random sampling vs O(n) linear search | [5] |
-| **Lock-free atomic statistics** | No contention in parallel aggregation | [6] |
-| **Compile-time string interning** | Eliminate Arc<str> reference counting overhead | [7] |
+"Impact" describes the mechanism; per-technique speedups were not isolated in this repo.
 
-### 3.3 Statistical Equivalence
+| Technique | Where it actually applies | Reference |
+|-----------|---------------------------|-----------|
+| **SIMD threshold draws** | meds/obs/procs in the full-stats path (the default condition path is scalar) | [3] |
+| **Vose alias method** | O(1) archetype selection vs O(n) linear CDF search | [5] |
+| **Lock-free atomic statistics** | parallel count aggregation without a mutex | [6] |
+| **u16 code indices** | hot-path references avoid `Arc<str>` refcounting (code *strings* are still owned `String`s, not compile-time-interned) | [7] |
+| **Arena allocation (`bumpalo`)** | defined but **not** on the measured throughput paths — those materialize no records | [4] |
 
-We validate output using:
+### 3.3 Self-Consistency Validation (not Java equivalence)
 
-1. **Kullback-Leibler Divergence** [8]: Measures information lost when using our distribution to approximate the reference
-2. **Chi-Squared Test** [9]: Tests whether observed frequencies match expected frequencies
-3. **Per-Condition Prevalence**: Direct comparison of each condition's occurrence rate
+We compare generated stats against the fingerprint's own base rates using:
 
-Our validation shows:
-- **KL Divergence: -0.006** (essentially zero—distributions are nearly identical)
-- **Chi-Squared: 181** (well within acceptable bounds for 214 conditions)
-- **Max Deviation: 0.31%** (no condition differs by more than 0.31 percentage points)
+1. **Kullback-Leibler Divergence** [8]
+2. **Chi-Squared** [9] (against an ad-hoc in-code threshold `sqrt(n)·c/10 ≈ 6767` at n=100K, c=214 — a project heuristic, not a standard critical value)
+3. **Per-Condition Prevalence** vs base rate
+
+Measured (n=100,000, 2026-06-04):
+- **KL Divergence: -0.006132** (≈ 0 vs base rates)
+- **Chi-Squared: 181.17**
+- **Max Deviation: 0.31%** (vs the registry's base rates)
+
+These show the sampler reproduces its own base rates with low noise. They are **not** a comparison to Java Synthea output and do not establish clinical or distributional equivalence to it.
 
 ---
 
@@ -181,9 +182,11 @@ The synthetic data market is projected to reach **$3.1 billion by 2030**, with h
 
 ### 5.1 Direct Competitors
 
-| Competitor | Approach | Speed | Pricing | Weakness |
-|------------|----------|-------|---------|----------|
-| **Synthea (Open Source)** | State machine simulation | ~75 pts/sec | Free (compute costs) | Slow, resource-intensive |
+Competitor speeds and pricing below are **rough public estimates, not measured by us**; the Synthea speed cell is intentionally left unquantified because no Java baseline was measured here.
+
+| Competitor | Approach | Speed | Pricing (est.) | Weakness |
+|------------|----------|-------|----------------|----------|
+| **Synthea (Open Source)** | Causal state-machine simulation | not measured here (lifespan sim → much slower than direct sampling) | Free (compute costs) | Slow, resource-intensive |
 | **MDClone** | Real data transformation | N/A (batch) | $500K-2M/year | Requires source data, privacy concerns |
 | **Syntegra** | GAN-based synthesis | Minutes per cohort | $100K-500K/year | Slow, no FHIR native |
 | **Gretel.ai** | ML-based synthesis | Seconds-minutes | $50K-200K/year | Not healthcare-specific |
@@ -191,50 +194,30 @@ The synthetic data market is projected to reach **$3.1 billion by 2030**, with h
 
 ### 5.2 Competitive Advantages
 
-**1. Speed (Absolute Dominance)**
+**1. Speed**
 
-No competitor comes within 3 orders of magnitude:
+ChronoSynthea generates patient *statistics* at measured millions/sec (PERFORMANCE.md). It is very likely orders of magnitude faster than a lifespan simulator, but the exact ratio is **unmeasured** — no head-to-head Java Synthea run exists in this repo, so the previous "1,600,000 pts/sec vs 75 pts/sec, 3-orders-of-magnitude" bar chart has been removed as unsubstantiated.
 
-```
-ChronoSynthea:  ████████████████████████████████████████ 1,600,000 pts/sec
-Synthea:        █ 75 pts/sec
-MDClone:        Batch (not comparable)
-Syntegra:       Batch (not comparable)
-```
+**2. Statistical Fidelity — *marginals only*, not proven Java equivalence**
 
-**2. Statistical Fidelity (Proven Equivalence)**
-
-Unlike GAN/ML approaches that generate "realistic-looking" data, we generate data that is **mathematically equivalent** to the gold standard:
-
-> "The validation results show 0.31% maximum deviation across 214 conditions, with a chi-squared statistic of 181.17 confirming distributional equivalence."
+ChronoSynthea reproduces its registry's marginal base rates with low sampling noise (0.31% max deviation, chi-squared 181.17 at n=100K). This is **not** mathematical equivalence to Java Synthea, and it explicitly does **not** model comorbidity or demographic-conditioned prevalence. Earlier "mathematically equivalent to the gold standard / confirming distributional equivalence" language overstated this and has been removed.
 
 **3. Zero Privacy Risk (No Source Data)**
 
-Unlike MDClone and Hazy, we don't transform real data—we generate from pre-computed statistics. This eliminates:
-- Re-identification risk
-- Need for data use agreements
-- HIPAA/GDPR concerns about source data
+We generate from a pre-computed base-rate fingerprint rather than transforming real records, so there is no source PHI to re-identify. (This is a property of the *approach*; it is not a formal privacy guarantee and no de-identification proof is provided in this repo.)
 
-**4. Cost Structure (99.99% Lower)**
+**4. Cost Structure**
 
-| Solution | Cost per 1M Patients | Annual Cost for 1B Patients |
-|----------|---------------------|----------------------------|
-| Java Synthea (self-hosted) | $15-30 | $15,000-30,000 |
-| MDClone | N/A (enterprise pricing) | $500,000+ |
-| Syntegra | ~$100 (estimated) | $100,000+ |
-| **ChronoSynthea** | **$0.00001** | **$10** |
+The earlier per-million dollar figures ($0.00001/1M, "99.99% lower", "1,500,000x") were derived from the now-removed ~600ms/1.6M-per-second numbers and were not measured. Qualitatively, marginal compute per generated population is low because the fast paths allocate no per-patient records; concrete cloud costs should be benchmarked before being quoted to customers.
 
 ### 5.3 Barriers to Entry
 
-Competitors cannot easily replicate our approach because:
+These are arguable strategic claims, not measured facts:
 
-1. **MSS derivation requires deep domain expertise**: Understanding which statistics are "sufficient" for clinical equivalence requires healthcare informatics expertise
-
-2. **Rust systems programming is scarce**: The optimizations (SIMD, arena allocation, lock-free atomics) require rare systems programming expertise
-
-3. **Validation framework is non-trivial**: Proving statistical equivalence requires proper experimental design and statistical methodology
-
-4. **Calibration data is proprietary**: Our fingerprints are derived from extensive Java Synthea runs, representing significant compute investment
+1. **Domain expertise** to choose "sufficient" statistics for a given use case
+2. **Rust systems programming** for the SIMD / lock-free / cache-friendly implementation
+3. **Validation methodology** (note: the current in-repo validation is self-consistency, not equivalence to an external gold standard — a true equivalence study would be additional work)
+4. **Calibration data**: the bundled `calibrated_registry.json` is a precomputed base-rate file. Its provenance as the output of "extensive Java Synthea runs" is asserted by its `description` field but is **not** demonstrated in this repo.
 
 ---
 
@@ -242,7 +225,9 @@ Competitors cannot easily replicate our approach because:
 
 ### 6.1 Positioning Statement
 
-> **For healthcare organizations that need realistic patient data, ChronoSynthea is the only synthetic data platform that generates 1 million clinically accurate patient records in under 1 second—16,000 times faster than alternatives—enabling real-time data generation for testing, AI training, and research.**
+> **For healthcare organizations that need fast synthetic patient data, ChronoSynthea generates patient statistics at millions of patients per second on a single CPU—enabling real-time, on-demand generation for testing, AI training, and research.**
+
+> Avoid the claims "clinically accurate," "1M records in under 1 second," and "16,000x faster" in customer-facing copy until they are substantiated: the fast paths emit aggregate statistics (not per-patient records), output reflects marginal base rates only (no comorbidity/causal modeling), and no Java baseline has been measured.
 
 ### 6.2 Launch Strategy
 
@@ -282,7 +267,7 @@ Competitors cannot easily replicate our approach because:
 > "Eliminate synthetic data bottlenecks. Real-time generation means faster releases and better testing."
 
 **For Researchers:**
-> "Population-scale studies without population-scale budgets. 1 billion patients for the cost of a coffee."
+> "Population-scale synthetic *statistics* without population-scale wait times." (Cost-per-population claims should be benchmarked before use; the "1 billion patients for the cost of a coffee" line was based on unmeasured cost figures and is removed.)
 
 **For Compliance Officers:**
 > "True synthetic data with zero privacy risk. No source data, no re-identification, no HIPAA concerns."
@@ -333,9 +318,11 @@ We price on **patient volume** because:
 
 ## 8. Cost Structure & Unit Economics
 
+> **Caveat:** the cost and unit-economics tables in this section are illustrative business projections. They were originally derived from an unmeasured ~600ms/1M figure; the measured stats-only time on the reference machine is ~0.11–0.12s/1M (full-stats ~0.25–0.27s), but cloud-instance pricing, output serialization, and storage were **not** benchmarked. Re-derive these from real measurements before quoting them.
+
 ### 8.1 Compute Cost Analysis
 
-For 1M patients at ~600ms on modern cloud hardware:
+For 1M patients (stats-only) at ~0.11–0.12s measured on a Ryzen 7 5800X — cloud-hardware timing not separately measured:
 
 | Resource | Usage | Cost |
 |----------|-------|------|
@@ -464,18 +451,21 @@ All benchmarks can be reproduced with:
 
 ```bash
 # Clone and build
-git clone https://github.com/your-org/chronosynthea
+git clone https://github.com/chronomancy-io/chronosynthea
 cd chronosynthea
 cargo build --release
 
 # Run validation tests
 cargo test --package chronosynthea-mss --test java_validation --release -- --nocapture
 
-# Run performance benchmarks
-cargo test --package chronosynthea-mss --test java_validation --release -- test_full_generation_performance --nocapture
+# Run performance tests
+cargo test --package chronosynthea-mss --test java_validation --release \
+    -- test_high_volume_generation_with_validation --nocapture   # stats-only
+cargo test --package chronosynthea-mss --test java_validation --release \
+    -- test_full_generation_performance --nocapture              # full-stats
 ```
 
-Expected output:
+Measured output (AMD Ryzen 7 5800X, 16 threads, Rust 1.94.0, 2026-06-04):
 
 ```
 Statistical Comparison (n=100000)
@@ -484,9 +474,14 @@ Statistical Comparison (n=100000)
   Chi-Squared:   181.17
   Passed:        true
 
-Performance: 1,600,000+ patients/sec
-Projected time for 1M patients: ~600ms
+# stats-only path
+Generated 1M patients in 110.79ms (9.03M patients/sec)
+# full-stats path
+Full stats generation (avg of 5 runs): 200K patients in 52.26ms (3827.01K patients/sec)
+Projected time for 1M patients: 261.30ms
 ```
+
+(Throughput here is the count-generation path, which materializes no per-patient records; see PERFORMANCE.md.)
 
 ---
 
@@ -504,6 +499,6 @@ Projected time for 1M patients: ~600ms
 
 ---
 
-*Document Version: 1.0.0*  
-*Last Updated: January 2026*  
-*Classification: Internal Strategy Document*
+*Document Version: 2.0.0 (MSS-honesty pass)*  
+*Last Updated: 2026-06-04*  
+*Classification: Internal Strategy Document — contains forward-looking projections; technical claims reconciled to measured numbers in PERFORMANCE.md*
