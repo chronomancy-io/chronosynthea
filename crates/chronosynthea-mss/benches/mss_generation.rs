@@ -4,7 +4,8 @@
 
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 
-use ahash::AHashMap;
+use std::collections::BTreeMap;
+
 use chronosynthea_mss::batch::{BatchConfig, BatchGenerator};
 use chronosynthea_mss::fingerprint::{
     ConditionStats, DemographicBucket, EncounterStats, JointDemographics, MssFingerprint,
@@ -12,7 +13,7 @@ use chronosynthea_mss::fingerprint::{
 
 /// Creates a realistic test fingerprint with typical condition distributions.
 fn create_realistic_fingerprint() -> MssFingerprint {
-    let mut buckets = AHashMap::new();
+    let mut buckets = BTreeMap::new();
 
     // Realistic demographic distribution
     for age in &["0-17", "18-44", "45-64", "65+"] {
@@ -38,9 +39,9 @@ fn create_realistic_fingerprint() -> MssFingerprint {
             code: "38341003".to_string(),
             display: "Hypertension".to_string(),
             prevalence: 0.30,
-            by_age_bucket: AHashMap::new(),
-            by_gender: AHashMap::new(),
-            by_race: AHashMap::new(),
+            by_age_bucket: BTreeMap::new(),
+            by_gender: BTreeMap::new(),
+            by_race: BTreeMap::new(),
             chronic: true,
             mean_onset_age: 50.0,
         },
@@ -48,9 +49,9 @@ fn create_realistic_fingerprint() -> MssFingerprint {
             code: "44054006".to_string(),
             display: "Type 2 Diabetes".to_string(),
             prevalence: 0.10,
-            by_age_bucket: AHashMap::new(),
-            by_gender: AHashMap::new(),
-            by_race: AHashMap::new(),
+            by_age_bucket: BTreeMap::new(),
+            by_gender: BTreeMap::new(),
+            by_race: BTreeMap::new(),
             chronic: true,
             mean_onset_age: 55.0,
         },
@@ -58,9 +59,9 @@ fn create_realistic_fingerprint() -> MssFingerprint {
             code: "195967001".to_string(),
             display: "Asthma".to_string(),
             prevalence: 0.08,
-            by_age_bucket: AHashMap::new(),
-            by_gender: AHashMap::new(),
-            by_race: AHashMap::new(),
+            by_age_bucket: BTreeMap::new(),
+            by_gender: BTreeMap::new(),
+            by_race: BTreeMap::new(),
             chronic: true,
             mean_onset_age: 15.0,
         },
@@ -68,9 +69,9 @@ fn create_realistic_fingerprint() -> MssFingerprint {
             code: "13644009".to_string(),
             display: "Hypercholesterolemia".to_string(),
             prevalence: 0.25,
-            by_age_bucket: AHashMap::new(),
-            by_gender: AHashMap::new(),
-            by_race: AHashMap::new(),
+            by_age_bucket: BTreeMap::new(),
+            by_gender: BTreeMap::new(),
+            by_race: BTreeMap::new(),
             chronic: true,
             mean_onset_age: 45.0,
         },
@@ -78,9 +79,9 @@ fn create_realistic_fingerprint() -> MssFingerprint {
             code: "73211009".to_string(),
             display: "Type 1 Diabetes".to_string(),
             prevalence: 0.01,
-            by_age_bucket: AHashMap::new(),
-            by_gender: AHashMap::new(),
-            by_race: AHashMap::new(),
+            by_age_bucket: BTreeMap::new(),
+            by_gender: BTreeMap::new(),
+            by_race: BTreeMap::new(),
             chronic: true,
             mean_onset_age: 12.0,
         },
@@ -88,9 +89,9 @@ fn create_realistic_fingerprint() -> MssFingerprint {
             code: "40930008".to_string(),
             display: "COPD".to_string(),
             prevalence: 0.06,
-            by_age_bucket: AHashMap::new(),
-            by_gender: AHashMap::new(),
-            by_race: AHashMap::new(),
+            by_age_bucket: BTreeMap::new(),
+            by_gender: BTreeMap::new(),
+            by_race: BTreeMap::new(),
             chronic: true,
             mean_onset_age: 60.0,
         },
@@ -98,9 +99,9 @@ fn create_realistic_fingerprint() -> MssFingerprint {
             code: "53741008".to_string(),
             display: "Coronary Artery Disease".to_string(),
             prevalence: 0.07,
-            by_age_bucket: AHashMap::new(),
-            by_gender: AHashMap::new(),
-            by_race: AHashMap::new(),
+            by_age_bucket: BTreeMap::new(),
+            by_gender: BTreeMap::new(),
+            by_race: BTreeMap::new(),
             chronic: true,
             mean_onset_age: 62.0,
         },
@@ -108,9 +109,9 @@ fn create_realistic_fingerprint() -> MssFingerprint {
             code: "35489007".to_string(),
             display: "Depression".to_string(),
             prevalence: 0.08,
-            by_age_bucket: AHashMap::new(),
-            by_gender: AHashMap::new(),
-            by_race: AHashMap::new(),
+            by_age_bucket: BTreeMap::new(),
+            by_gender: BTreeMap::new(),
+            by_race: BTreeMap::new(),
             chronic: true,
             mean_onset_age: 30.0,
         },
@@ -123,9 +124,9 @@ fn create_realistic_fingerprint() -> MssFingerprint {
             code: format!("COND{:03}", i),
             display: format!("Condition {}", i),
             prevalence: 0.01 + (i as f64 * 0.002),
-            by_age_bucket: AHashMap::new(),
-            by_gender: AHashMap::new(),
-            by_race: AHashMap::new(),
+            by_age_bucket: BTreeMap::new(),
+            by_gender: BTreeMap::new(),
+            by_race: BTreeMap::new(),
             chronic: i % 3 == 0,
             mean_onset_age: 30.0 + (i as f64),
         });
@@ -144,12 +145,12 @@ fn create_realistic_fingerprint() -> MssFingerprint {
         medications: vec![],
         observations: vec![],
         procedures: vec![],
-        cooccurrence: AHashMap::new(),
-        cooccurrence_dependent_scale: AHashMap::new(),
+        cooccurrence: BTreeMap::new(),
+        cooccurrence_dependent_scale: BTreeMap::new(),
         onset_stats: Vec::new(),
         encounter_stats: EncounterStats {
-            mean_by_age: AHashMap::new(),
-            type_distribution: AHashMap::new(),
+            mean_by_age: BTreeMap::new(),
+            type_distribution: BTreeMap::new(),
             mean_events_per_encounter: 5.0,
         },
     }
