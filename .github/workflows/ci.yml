@@ -219,7 +219,6 @@ jobs:
             README.md
             ARCHITECTURE.md
             PERFORMANCE.md
-            STRATEGY.md
             CONTRIBUTING.md
             LICENSE
           )
