@@ -245,11 +245,10 @@ fn run_cohort(
         eprintln!("error reading filter {}: {}", filter_path.display(), e);
         std::process::exit(1);
     });
-    let filter: FilterExpr =
-        serde_json::from_str(&filter_text).unwrap_or_else(|e| {
-            eprintln!("error parsing filter JSON: {}", e);
-            std::process::exit(1);
-        });
+    let filter: FilterExpr = serde_json::from_str(&filter_text).unwrap_or_else(|e| {
+        eprintln!("error parsing filter JSON: {}", e);
+        std::process::exit(1);
+    });
 
     let registry_path = registry_path.unwrap_or_else(|| {
         let mut p = PathBuf::from(env!("CARGO_MANIFEST_DIR"));

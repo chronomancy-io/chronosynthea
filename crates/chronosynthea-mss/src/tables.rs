@@ -282,9 +282,11 @@ impl CodeTable {
         // SNOMED set.
         for (i, cond) in fp.conditions.iter().enumerate() {
             table.condition_index.insert(cond.code.clone(), i as u16);
-            table.condition_careplan
+            table
+                .condition_careplan
                 .push(crate::csv_writer::careplan_for(&cond.code));
-            table.condition_device
+            table
+                .condition_device
                 .push(crate::csv_writer::device_for(&cond.code));
             table.conditions.push(CodeEntry {
                 display_escaped: escape_csv_display(&cond.display),

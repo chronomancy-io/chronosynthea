@@ -10,7 +10,9 @@
 #[global_allocator]
 static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
 
-use chronosynthea_mss::{patient_uuid, BatchConfig, BatchGenerator, CalibratedRegistry, SyntheaCsvWriter};
+use chronosynthea_mss::{
+    patient_uuid, BatchConfig, BatchGenerator, CalibratedRegistry, SyntheaCsvWriter,
+};
 use std::path::PathBuf;
 use std::time::Instant;
 
@@ -63,7 +65,9 @@ fn csv_write_throughput() {
     let t1 = Instant::now();
     for p in &patients {
         let uuid = patient_uuid(p.id);
-        writer.write_patient(p, &uuid, archetypes, code_table).unwrap();
+        writer
+            .write_patient(p, &uuid, archetypes, code_table)
+            .unwrap();
     }
     writer.flush().unwrap();
     let write_dt = t1.elapsed();

@@ -170,9 +170,7 @@ impl SimdSampler {
             let u1 = rng.next_u64();
             let u2 = rng.next_u64();
             let u3 = rng.next_u64();
-            let mantissa_bits = |u: u32| -> f32 {
-                f32::from_bits((u >> 9) | 0x3F80_0000) - 1.0
-            };
+            let mantissa_bits = |u: u32| -> f32 { f32::from_bits((u >> 9) | 0x3F80_0000) - 1.0 };
             self.rand_buffer[0] = mantissa_bits(u0 as u32);
             self.rand_buffer[1] = mantissa_bits((u0 >> 32) as u32);
             self.rand_buffer[2] = mantissa_bits(u1 as u32);

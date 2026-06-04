@@ -138,14 +138,23 @@ fn csv_smoke_synthea_compatible() {
     };
 
     let p_hdr = read_first(&p_path);
-    assert!(p_hdr.starts_with("Id,BIRTHDATE,"), "patients.csv header: {p_hdr}");
+    assert!(
+        p_hdr.starts_with("Id,BIRTHDATE,"),
+        "patients.csv header: {p_hdr}"
+    );
     assert!(p_hdr.contains("RACE,ETHNICITY,GENDER"));
 
     let c_hdr = read_first(&c_path);
-    assert_eq!(c_hdr, "START,STOP,PATIENT,ENCOUNTER,SYSTEM,CODE,DESCRIPTION");
+    assert_eq!(
+        c_hdr,
+        "START,STOP,PATIENT,ENCOUNTER,SYSTEM,CODE,DESCRIPTION"
+    );
 
     let m_hdr = read_first(&m_path);
-    assert!(m_hdr.starts_with("START,STOP,PATIENT"), "medications.csv header: {m_hdr}");
+    assert!(
+        m_hdr.starts_with("START,STOP,PATIENT"),
+        "medications.csv header: {m_hdr}"
+    );
     assert!(m_hdr.contains("REASONCODE,REASONDESCRIPTION"));
 
     let pr_hdr = read_first(&pr_path);
@@ -173,13 +182,31 @@ fn csv_smoke_synthea_compatible() {
     // (smoke level — exhaustive row-count parity is in the manifesto's
     // honest-scope notes).
     for (path, expected_prefix) in [
-        (&e_path, "Id,START,STOP,PATIENT,ORGANIZATION,PROVIDER,PAYER,ENCOUNTERCLASS"),
-        (&o_path, "DATE,PATIENT,ENCOUNTER,CATEGORY,CODE,DESCRIPTION,VALUE,UNITS,TYPE"),
-        (&im_path, "DATE,PATIENT,ENCOUNTER,CODE,DESCRIPTION,BASE_COST"),
-        (&cp_path, "Id,START,STOP,PATIENT,ENCOUNTER,CODE,DESCRIPTION,REASONCODE,REASONDESCRIPTION"),
+        (
+            &e_path,
+            "Id,START,STOP,PATIENT,ORGANIZATION,PROVIDER,PAYER,ENCOUNTERCLASS",
+        ),
+        (
+            &o_path,
+            "DATE,PATIENT,ENCOUNTER,CATEGORY,CODE,DESCRIPTION,VALUE,UNITS,TYPE",
+        ),
+        (
+            &im_path,
+            "DATE,PATIENT,ENCOUNTER,CODE,DESCRIPTION,BASE_COST",
+        ),
+        (
+            &cp_path,
+            "Id,START,STOP,PATIENT,ENCOUNTER,CODE,DESCRIPTION,REASONCODE,REASONDESCRIPTION",
+        ),
         (&img_path, "Id,DATE,PATIENT,ENCOUNTER,SERIES_UID"),
-        (&al_path, "START,STOP,PATIENT,ENCOUNTER,CODE,SYSTEM,DESCRIPTION,TYPE,CATEGORY"),
-        (&dv_path, "START,STOP,PATIENT,ENCOUNTER,CODE,DESCRIPTION,UDI"),
+        (
+            &al_path,
+            "START,STOP,PATIENT,ENCOUNTER,CODE,SYSTEM,DESCRIPTION,TYPE,CATEGORY",
+        ),
+        (
+            &dv_path,
+            "START,STOP,PATIENT,ENCOUNTER,CODE,DESCRIPTION,UDI",
+        ),
         (&sp_path, "DATE,PATIENT,ENCOUNTER,CODE,DESCRIPTION,QUANTITY"),
     ] {
         let hdr = read_first(path);

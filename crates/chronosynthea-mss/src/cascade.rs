@@ -75,18 +75,19 @@ impl CausalCascadeModel {
     /// post-pass picks the single most-probable active trigger.
     pub fn from_rules(rules: &[CascadeRule], code_table: &CodeTable) -> Self {
         let n = code_table.num_conditions();
-        let mut by_downstream: Vec<SmallVec<[(u16, u32, u32, f32); 4]>> =
-            vec![SmallVec::new(); n];
+        let mut by_downstream: Vec<SmallVec<[(u16, u32, u32, f32); 4]>> = vec![SmallVec::new(); n];
         let code_to_idx: AHashMap<String, u16> = (0..n)
-            .filter_map(|i| code_table.condition(i as u16).map(|e| (e.code.clone(), i as u16)))
+            .filter_map(|i| {
+                code_table
+                    .condition(i as u16)
+                    .map(|e| (e.code.clone(), i as u16))
+            })
             .collect();
         for r in rules {
-            if let (Some(&t), Some(&d)) = (
-                code_to_idx.get(&r.trigger),
-                code_to_idx.get(&r.downstream),
-            ) {
-                by_downstream[d as usize]
-                    .push((t, r.mean_days, r.std_days, r.probability));
+            if let (Some(&t), Some(&d)) =
+                (code_to_idx.get(&r.trigger), code_to_idx.get(&r.downstream))
+            {
+                by_downstream[d as usize].push((t, r.mean_days, r.std_days, r.probability));
             }
         }
         for v in &mut by_downstream {
@@ -163,9 +164,7 @@ impl CausalCascadeModel {
                         continue;
                     }
                     let z = irwin_hall_normal(rng);
-                    let proposed = trigger_onset
-                        + mean_days as i32
-                        + (std_days as f32 * z) as i32;
+                    let proposed = trigger_onset + mean_days as i32 + (std_days as f32 * z) as i32;
                     let lo = trigger_onset + 1;
                     let hi = max_age_days as i32;
                     let candidate = proposed.clamp(lo, hi);
@@ -191,9 +190,7 @@ impl CausalCascadeModel {
                 _ => continue,
             };
             for &(trigger_idx, _, _, _) in rules.iter().take(1) {
-                if let Some(&(_, t_slot)) =
-                    slot_of.iter().find(|&&(c, _)| c == trigger_idx)
-                {
+                if let Some(&(_, t_slot)) = slot_of.iter().find(|&&(c, _)| c == trigger_idx) {
                     let t_onset = working[t_slot as usize] as i32;
                     let d_onset = working[dslot] as i32;
                     if d_onset <= t_onset && t_onset + 1 <= max_age_days as i32 {

@@ -18,9 +18,7 @@ fn main() {
     use chronosynthea_mss::cohort::FilterExpr;
     use chronosynthea_mss::parquet_writer::SyntheaStatsParquetWriter;
     use chronosynthea_mss::reproducibility::CohortManifest;
-    use chronosynthea_mss::{
-        BatchConfig, BatchGenerator, CalibratedRegistry,
-    };
+    use chronosynthea_mss::{BatchConfig, BatchGenerator, CalibratedRegistry};
     use std::path::PathBuf;
     use std::time::Instant;
 
@@ -91,13 +89,7 @@ fn main() {
     println!();
     println!(
         "{:>22}  {:>8}  {:>8}  {:>7}  {:>10}  {:>10}  {:>10}",
-        "cohort",
-        "target",
-        "matched",
-        "select",
-        "scanned",
-        "wall (s)",
-        "out (KB)",
+        "cohort", "target", "matched", "select", "scanned", "wall (s)", "out (KB)",
     );
     println!("{}", "-".repeat(86));
 

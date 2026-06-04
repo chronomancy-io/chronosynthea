@@ -112,11 +112,7 @@ enum ResolvedNode {
 impl FilterEvaluator {
     /// Build an evaluator from a `FilterExpr` + registries. Returns
     /// `None` if the expression is structurally invalid.
-    pub fn new(
-        expr: &FilterExpr,
-        _archetypes: &ArchetypeRegistry,
-        code_table: &CodeTable,
-    ) -> Self {
+    pub fn new(expr: &FilterExpr, _archetypes: &ArchetypeRegistry, code_table: &CodeTable) -> Self {
         Self {
             root: resolve(expr, code_table),
         }
@@ -136,7 +132,11 @@ fn resolve(expr: &FilterExpr, code_table: &CodeTable) -> ResolvedNode {
         FilterExpr::ArchetypeIn { ids } => ResolvedNode::ArchetypeIn(ids.clone()),
         FilterExpr::AgeRange { lo, hi } => ResolvedNode::AgeRange(*lo, *hi),
         FilterExpr::Sex { value } => {
-            let v = if value.eq_ignore_ascii_case("F") { 1 } else { 0 };
+            let v = if value.eq_ignore_ascii_case("F") {
+                1
+            } else {
+                0
+            };
             ResolvedNode::Sex(v)
         }
         FilterExpr::Race { value } => {
@@ -151,7 +151,11 @@ fn resolve(expr: &FilterExpr, code_table: &CodeTable) -> ResolvedNode {
             ResolvedNode::Race(v)
         }
         FilterExpr::Ethnicity { value } => {
-            let v = if value.eq_ignore_ascii_case("hispanic") { 1 } else { 0 };
+            let v = if value.eq_ignore_ascii_case("hispanic") {
+                1
+            } else {
+                0
+            };
             ResolvedNode::Ethnicity(v)
         }
         FilterExpr::HasCondition { code } => match code_table.condition_index.get(code) {
@@ -182,15 +186,13 @@ fn resolve(expr: &FilterExpr, code_table: &CodeTable) -> ResolvedNode {
                 ResolvedNode::HasAnyCondition(indices)
             }
         }
-        FilterExpr::And { children } => ResolvedNode::And(
-            children.iter().map(|c| resolve(c, code_table)).collect(),
-        ),
-        FilterExpr::Or { children } => ResolvedNode::Or(
-            children.iter().map(|c| resolve(c, code_table)).collect(),
-        ),
-        FilterExpr::Not { child } => {
-            ResolvedNode::Not(Box::new(resolve(child, code_table)))
+        FilterExpr::And { children } => {
+            ResolvedNode::And(children.iter().map(|c| resolve(c, code_table)).collect())
         }
+        FilterExpr::Or { children } => {
+            ResolvedNode::Or(children.iter().map(|c| resolve(c, code_table)).collect())
+        }
+        FilterExpr::Not { child } => ResolvedNode::Not(Box::new(resolve(child, code_table))),
     }
 }
 
@@ -225,8 +227,8 @@ impl ResolvedNode {
 fn age_years_from(birth_date_days: i32) -> u32 {
     use chrono::{Duration, NaiveDate, Utc};
     let today = Utc::now().naive_utc().date();
-    let birth = NaiveDate::from_ymd_opt(1970, 1, 1).unwrap()
-        + Duration::days(birth_date_days as i64);
+    let birth =
+        NaiveDate::from_ymd_opt(1970, 1, 1).unwrap() + Duration::days(birth_date_days as i64);
     today
         .signed_duration_since(birth)
         .num_days()

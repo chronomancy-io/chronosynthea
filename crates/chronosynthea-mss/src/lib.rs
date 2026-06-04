@@ -14,17 +14,17 @@ pub mod arena;
 pub mod batch;
 pub mod cascade;
 pub mod causal_dag;
+pub mod cohort;
 pub mod csv_writer;
 pub mod error;
 pub mod extractor;
 pub mod fingerprint;
 pub mod java_compat;
+pub mod reproducibility;
 pub mod sampler;
 pub mod stats;
 pub mod synthea_fixtures;
 pub mod synthehrella;
-pub mod cohort;
-pub mod reproducibility;
 pub mod tables;
 
 #[cfg(feature = "gpu")]
@@ -40,13 +40,13 @@ pub use arena::{
     WorkerArena,
 };
 pub use batch::{AtomicStatistics, BatchConfig, BatchGenerator, GenerationResult};
+pub use cascade::{CascadeRule, CausalCascadeModel};
+pub use causal_dag::{CausalDagModel, FitReport, GIBBS_ITERATIONS};
+pub use csv_writer::{patient_uuid, SyntheaCsvWriter};
 pub use error::{MssError, MssResult};
 pub use extractor::MssExtractor;
 pub use fingerprint::MssFingerprint;
 pub use java_compat::{CalibratedRegistry, JavaValidation};
-pub use cascade::{CascadeRule, CausalCascadeModel};
-pub use causal_dag::{CausalDagModel, FitReport, GIBBS_ITERATIONS};
-pub use csv_writer::{patient_uuid, SyntheaCsvWriter};
 pub use sampler::{EventBitset, EventSampler, SimdSampler};
 pub use stats::StreamingStatistics;
 pub use types::{ArchetypeId, ConditionIndex};

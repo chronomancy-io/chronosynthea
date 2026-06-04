@@ -204,20 +204,13 @@ pub fn write_temporal_records<P: AsRef<Path>>(
     }
     let f = File::create(output_path)?;
     let mut w = BufWriter::new(f);
-    writeln!(
-        w,
-        "patient_id,event_type,code,days_since_birth"
-    )?;
+    writeln!(w, "patient_id,event_type,code,days_since_birth")?;
 
     let mut rows = 1usize;
     for patient in patients {
         // Conditions stamped at their per-condition onset day.
         for (i, &c) in patient.conditions.iter().enumerate() {
-            let onset = patient
-                .condition_onset_days
-                .get(i)
-                .copied()
-                .unwrap_or(0);
+            let onset = patient.condition_onset_days.get(i).copied().unwrap_or(0);
             let code = code_table
                 .condition(c)
                 .map(|e| e.code.as_str())
@@ -234,7 +227,11 @@ pub fn write_temporal_records<P: AsRef<Path>>(
                     .medication(ev.code_idx)
                     .map(|e| e.code.as_str())
                     .unwrap_or("?");
-                writeln!(w, "{},medication,{},{}", patient.id, code, enc.days_since_birth)?;
+                writeln!(
+                    w,
+                    "{},medication,{},{}",
+                    patient.id, code, enc.days_since_birth
+                )?;
                 rows += 1;
             }
             for ev in &enc.procedures {
@@ -242,7 +239,11 @@ pub fn write_temporal_records<P: AsRef<Path>>(
                     .procedure(ev.code_idx)
                     .map(|e| e.code.as_str())
                     .unwrap_or("?");
-                writeln!(w, "{},procedure,{},{}", patient.id, code, enc.days_since_birth)?;
+                writeln!(
+                    w,
+                    "{},procedure,{},{}",
+                    patient.id, code, enc.days_since_birth
+                )?;
                 rows += 1;
             }
             for ev in &enc.observations {
@@ -250,7 +251,11 @@ pub fn write_temporal_records<P: AsRef<Path>>(
                     .observation(ev.code_idx)
                     .map(|e| e.code.as_str())
                     .unwrap_or("?");
-                writeln!(w, "{},observation,{},{}", patient.id, code, enc.days_since_birth)?;
+                writeln!(
+                    w,
+                    "{},observation,{},{}",
+                    patient.id, code, enc.days_since_birth
+                )?;
                 rows += 1;
             }
         }

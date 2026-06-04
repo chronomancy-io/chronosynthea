@@ -80,15 +80,13 @@ pub const SCHEMA_VERSION: u32 = 1;
 /// metadata that doesn't survive `to_fingerprint`); use this hash for
 /// the per-patient seed derivation, and the registry hash for the
 /// audit manifest's `registry_hash` field.
-pub fn fingerprint_content_hash(
-    fingerprint: &crate::fingerprint::MssFingerprint,
-) -> [u8; 32] {
+pub fn fingerprint_content_hash(fingerprint: &crate::fingerprint::MssFingerprint) -> [u8; 32] {
     // MsgPack (rmp-serde) rather than JSON: the fingerprint's
     // cooccurrence map uses tuple keys (u16, u16) which JSON cannot
     // represent. MsgPack handles arbitrary key types and is also
     // deterministic for `#[derive(Serialize)]` structs.
-    let bytes = rmp_serde::to_vec(fingerprint)
-        .expect("MssFingerprint MsgPack serialisation is total");
+    let bytes =
+        rmp_serde::to_vec(fingerprint).expect("MssFingerprint MsgPack serialisation is total");
     let mut hasher = Sha256::new();
     hasher.update(&bytes);
     hasher.finalize().into()
@@ -210,12 +208,7 @@ impl CohortManifest {
     ///
     /// Get the fingerprint hash from `BatchGenerator::fingerprint_hash()`
     /// or by calling `fingerprint_content_hash` directly.
-    pub fn new(
-        fingerprint_hash: &[u8; 32],
-        seed: u64,
-        count: usize,
-        format: &str,
-    ) -> Self {
+    pub fn new(fingerprint_hash: &[u8; 32], seed: u64, count: usize, format: &str) -> Self {
         Self {
             manifest_version: 1,
             generator_version: GENERATOR_VERSION,
@@ -223,9 +216,7 @@ impl CohortManifest {
             registry_hash: hash_hex(fingerprint_hash),
             seed,
             count,
-            generated_at: chrono::Utc::now()
-                .format("%Y-%m-%dT%H:%M:%SZ")
-                .to_string(),
+            generated_at: chrono::Utc::now().format("%Y-%m-%dT%H:%M:%SZ").to_string(),
             format: format.to_string(),
             output_sha256: None,
             output_bytes: 0,
@@ -233,9 +224,8 @@ impl CohortManifest {
     }
 
     pub fn write_json<P: AsRef<Path>>(&self, path: P) -> std::io::Result<()> {
-        let s = serde_json::to_string_pretty(self).map_err(|e| {
-            std::io::Error::new(std::io::ErrorKind::Other, e.to_string())
-        })?;
+        let s = serde_json::to_string_pretty(self)
+            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))?;
         std::fs::write(path, s)
     }
 }

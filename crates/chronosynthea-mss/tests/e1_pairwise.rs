@@ -79,9 +79,7 @@ fn e1_emit_pairwise_csv() {
     let mut pairs: Vec<((u16, u16), u64)> = pairwise.into_iter().collect();
     pairs.sort_by(|x, y| y.1.cmp(&x.1));
 
-    println!(
-        "chronosynthea_pairwise_csv_path=/tmp/e1-chronosynthea-pairwise.csv"
-    );
+    println!("chronosynthea_pairwise_csv_path=/tmp/e1-chronosynthea-pairwise.csv");
     println!("chronosynthea_n_patients={n_patients}");
     println!("chronosynthea_num_conditions={num_conditions}");
     println!("chronosynthea_num_pairs_observed={}", pairs.len());
@@ -100,7 +98,11 @@ fn e1_emit_pairwise_csv() {
         let pb = marginal[*b as usize] as f64 / n_f;
         let joint = *count as f64 / n_f;
         let expected = pa * pb;
-        let lift = if expected > 0.0 { joint / expected } else { 0.0 };
+        let lift = if expected > 0.0 {
+            joint / expected
+        } else {
+            0.0
+        };
         let (code_a, disp_a) = &code_table[*a as usize];
         let (code_b, disp_b) = &code_table[*b as usize];
         writeln!(
@@ -123,7 +125,11 @@ fn e1_emit_pairwise_csv() {
         let pb = marginal[*b as usize] as f64 / n_f;
         let joint = *count as f64 / n_f;
         let expected = pa * pb;
-        let lift = if expected > 0.0 { joint / expected } else { 0.0 };
+        let lift = if expected > 0.0 {
+            joint / expected
+        } else {
+            0.0
+        };
         let disp_a = &code_table[*a as usize].1;
         let disp_b = &code_table[*b as usize].1;
         println!(

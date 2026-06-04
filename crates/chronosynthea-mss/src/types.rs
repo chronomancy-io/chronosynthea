@@ -18,9 +18,7 @@ use serde::{Deserialize, Serialize};
 /// / `From<ArchetypeId>` impls or the public field for explicit conversion
 /// at deserialisation or test-data boundaries.
 #[repr(transparent)]
-#[derive(
-    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize,
-)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct ArchetypeId(pub u16);
 
 impl From<u16> for ArchetypeId {
@@ -55,9 +53,7 @@ impl ArchetypeId {
 ///
 /// Distinct from [`ArchetypeId`] so the compiler refuses to swap them.
 #[repr(transparent)]
-#[derive(
-    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize,
-)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct ConditionIndex(pub u16);
 
 impl From<u16> for ConditionIndex {

@@ -9,9 +9,7 @@
 
 #[cfg(not(feature = "gpu"))]
 fn main() {
-    eprintln!(
-        "gpu_uuid_bench requires --features gpu (wgpu not compiled in)"
-    );
+    eprintln!("gpu_uuid_bench requires --features gpu (wgpu not compiled in)");
     std::process::exit(2);
 }
 
@@ -37,8 +35,7 @@ fn main() {
     let mut cpu_out_serial = vec![0u8; n * 36];
     for (i, &id) in ids.iter().enumerate() {
         let s = chronosynthea_mss::patient_uuid(id);
-        cpu_out_serial[i * 36..i * 36 + 36]
-            .copy_from_slice(s.as_bytes());
+        cpu_out_serial[i * 36..i * 36 + 36].copy_from_slice(s.as_bytes());
     }
     let cpu_serial_dt = t0.elapsed();
     eprintln!(
@@ -52,9 +49,7 @@ fn main() {
     let t1 = Instant::now();
     let cpu_out_parallel: Vec<u8> = ids
         .par_iter()
-        .flat_map_iter(|&id| {
-            chronosynthea_mss::patient_uuid(id).into_bytes()
-        })
+        .flat_map_iter(|&id| chronosynthea_mss::patient_uuid(id).into_bytes())
         .collect();
     let cpu_par_dt = t1.elapsed();
     eprintln!(

@@ -13,11 +13,11 @@ use std::fs::File;
 use std::io::{BufReader, BufWriter, Read, Write};
 use std::path::Path;
 
-use std::collections::BTreeMap;
 use flate2::read::GzDecoder;
 use flate2::write::GzEncoder;
 use flate2::Compression;
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
 
 use crate::error::{MssError, MssResult};
 

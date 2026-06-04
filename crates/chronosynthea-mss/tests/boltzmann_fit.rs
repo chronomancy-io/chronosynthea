@@ -94,8 +94,7 @@ fn boltzmann_fit_closes_marginal_gap() {
     );
 
     // Target marginals = the archetype's calibrated per-condition prevalence.
-    let target_marginals: Vec<f32> =
-        archetype.conditions.iter().map(|(_, p)| *p).collect();
+    let target_marginals: Vec<f32> = archetype.conditions.iter().map(|(_, p)| *p).collect();
 
     // Target pairwise = P(a) * P(b | a) extracted from the fingerprint's
     // cooccurrence map. We only keep pairs where both conditions are in
@@ -112,8 +111,7 @@ fn boltzmann_fit_closes_marginal_gap() {
         .iter()
         .map(|c| c.prevalence as f32)
         .collect();
-    let active_set: ahash::AHashSet<u16> =
-        archetype.conditions.iter().map(|(c, _)| *c).collect();
+    let active_set: ahash::AHashSet<u16> = archetype.conditions.iter().map(|(c, _)| *c).collect();
 
     let mut target_pairs: Vec<(u16, u16, f32)> = Vec::new();
     for ((trigger_code, dep_code), &cond) in &fingerprint.cooccurrence {
@@ -138,8 +136,14 @@ fn boltzmann_fit_closes_marginal_gap() {
     let mut rng = Xoshiro256PlusPlus::seed_from_u64(11);
 
     // PRE-FIT measurement: 5k samples, check marginal & pairwise drift.
-    let (pre_max_marg, pre_max_pair) =
-        measure_residuals(&model, archetype, &target_marginals, &target_pairs, 5000, &mut rng);
+    let (pre_max_marg, pre_max_pair) = measure_residuals(
+        &model,
+        archetype,
+        &target_marginals,
+        &target_pairs,
+        5000,
+        &mut rng,
+    );
     eprintln!(
         "pre-fit: max marg residual = {:.4} ({:.2}%), max pair residual = {:.4} ({:.2}%)",
         pre_max_marg,

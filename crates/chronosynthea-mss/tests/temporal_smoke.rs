@@ -41,7 +41,11 @@ fn temporal_ordered_smoke() {
     let temporal_active = !fingerprint.onset_stats.is_empty();
     println!(
         "d5 temporal: {} ({} onset records loaded)",
-        if temporal_active { "ACTIVE" } else { "default (40y)" },
+        if temporal_active {
+            "ACTIVE"
+        } else {
+            "default (40y)"
+        },
         fingerprint.onset_stats.len()
     );
 
@@ -117,7 +121,10 @@ fn temporal_ordered_smoke() {
     }
 
     assert_eq!(total_conditions, total_onset_pairs);
-    assert_eq!(unsorted_patients, 0, "all per-patient onsets must be sorted");
+    assert_eq!(
+        unsorted_patients, 0,
+        "all per-patient onsets must be sorted"
+    );
     assert_eq!(out_of_range, 0, "no onset may exceed patient age");
     if temporal_active {
         assert!(

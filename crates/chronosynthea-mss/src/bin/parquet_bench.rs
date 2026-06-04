@@ -14,9 +14,7 @@ fn main() {
 
 #[cfg(feature = "parquet")]
 fn main() {
-    use chronosynthea_mss::parquet_writer::{
-        SyntheaParquetWriter, SyntheaStatsParquetWriter,
-    };
+    use chronosynthea_mss::parquet_writer::{SyntheaParquetWriter, SyntheaStatsParquetWriter};
     use chronosynthea_mss::{
         patient_uuid, BatchConfig, BatchGenerator, CalibratedRegistry, SyntheaCsvWriter,
     };
@@ -27,8 +25,7 @@ fn main() {
         .nth(1)
         .and_then(|s| s.parse().ok())
         .unwrap_or(10_000);
-    let skip_csv =
-        std::env::args().any(|a| a == "--parquet-only") || n > 50_000;
+    let skip_csv = std::env::args().any(|a| a == "--parquet-only") || n > 50_000;
 
     let mut p = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     p.pop();

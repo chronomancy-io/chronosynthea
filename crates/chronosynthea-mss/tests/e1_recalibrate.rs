@@ -65,10 +65,16 @@ fn e1_recalibrate_marginals() {
         .map(|c| c.prevalence)
         .collect();
     let num_conditions = target_marginals.len();
-    let condition_codes: Vec<String> =
-        fingerprint.conditions.iter().map(|c| c.code.clone()).collect();
-    let fingerprint_displays: Vec<String> =
-        fingerprint.conditions.iter().map(|c| c.display.clone()).collect();
+    let condition_codes: Vec<String> = fingerprint
+        .conditions
+        .iter()
+        .map(|c| c.code.clone())
+        .collect();
+    let fingerprint_displays: Vec<String> = fingerprint
+        .conditions
+        .iter()
+        .map(|c| c.display.clone())
+        .collect();
 
     let config = BatchConfig {
         seed: 42,
@@ -214,8 +220,7 @@ fn e1_recalibrate_marginals() {
     let n_pairwise = 10_000;
     let patients = generator.generate_compact(n_pairwise);
     let mut marginal = vec![0u64; num_conditions];
-    let mut pairwise: std::collections::HashMap<(u16, u16), u64> =
-        std::collections::HashMap::new();
+    let mut pairwise: std::collections::HashMap<(u16, u16), u64> = std::collections::HashMap::new();
     for p in &patients {
         let conds = p.conditions.as_slice();
         for &c in conds {
@@ -233,10 +238,8 @@ fn e1_recalibrate_marginals() {
         }
     }
     let n_f = n_pairwise as f64;
-    let mut out_csv = File::create(
-        "/tmp/e1-chronosynthea-pairwise-pairwise-empirical-calibrated.csv",
-    )
-    .unwrap();
+    let mut out_csv =
+        File::create("/tmp/e1-chronosynthea-pairwise-pairwise-empirical-calibrated.csv").unwrap();
     writeln!(
         out_csv,
         "cond_a_code,cond_a_display,cond_b_code,cond_b_display,joint_count,joint_prev,marginal_a,marginal_b,expected_under_indep,lift"
@@ -249,7 +252,11 @@ fn e1_recalibrate_marginals() {
         let pb = marginal[*b as usize] as f64 / n_f;
         let joint = *count as f64 / n_f;
         let expected = pa * pb;
-        let lift = if expected > 0.0 { joint / expected } else { 0.0 };
+        let lift = if expected > 0.0 {
+            joint / expected
+        } else {
+            0.0
+        };
         let (code_a, disp_a) = (
             &condition_codes[*a as usize],
             &fingerprint_displays[*a as usize],

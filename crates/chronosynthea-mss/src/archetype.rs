@@ -420,8 +420,8 @@ impl ArchetypeRegistry {
                 if let Some(&idx) = condition_code_to_idx.get(code.as_str()) {
                     if (idx as usize) < num_conditions {
                         onset_mean_days[idx as usize] = (*mean_years as f32) * 365.25;
-                        onset_std_days[idx as usize] =
-                            ((*std_years as f32) * 365.25).max(30.0); // floor at 1 month
+                        onset_std_days[idx as usize] = ((*std_years as f32) * 365.25).max(30.0);
+                        // floor at 1 month
                     }
                 }
             }
@@ -698,12 +698,7 @@ impl ArchetypeRegistry {
     /// draws) and approximate but indistinguishable from Java's empirical
     /// distribution at the population scale we generate.
     #[inline(always)]
-    pub fn sample_onset_days<R: Rng>(
-        &self,
-        cond_idx: u16,
-        max_age_days: u32,
-        rng: &mut R,
-    ) -> u16 {
+    pub fn sample_onset_days<R: Rng>(&self, cond_idx: u16, max_age_days: u32, rng: &mut R) -> u16 {
         let i = cond_idx as usize;
         let mean = self.onset_mean_days.get(i).copied().unwrap_or(14_610.0);
         let std = self.onset_std_days.get(i).copied().unwrap_or(3_653.0);
@@ -776,8 +771,7 @@ impl ArchetypeRegistry {
                 continue;
             }
             let m = multipliers[cond_idx];
-            self.active_thresholds_flat[i] =
-                (self.active_thresholds_flat[i] * m).max(0.0);
+            self.active_thresholds_flat[i] = (self.active_thresholds_flat[i] * m).max(0.0);
         }
 
         // 4. Re-populate `prob_by_condition` from the (possibly-clamped)
@@ -1206,8 +1200,8 @@ mod tests {
             ConditionStats, DemographicBucket as FpDemo, EncounterStats, JointDemographics,
             MssFingerprint,
         };
-        use std::collections::BTreeMap;
         use crate::sampler::SimdSampler;
+        use std::collections::BTreeMap;
 
         // Two demographic buckets: a populated one and a "ghost" one.
         let populated = FpDemo::new("45-64", "male", "white", "nonhispanic");
@@ -1269,18 +1263,14 @@ mod tests {
         // Identify the populated vs ghost archetype by inspecting the
         // condition list each one carries (populated has 3, ghost has 0).
         let (pop_id, ghost_id) = if registry.archetypes[0].conditions.is_empty() {
-            (
-                crate::types::ArchetypeId(1),
-                crate::types::ArchetypeId(0),
-            )
+            (crate::types::ArchetypeId(1), crate::types::ArchetypeId(0))
         } else {
-            (
-                crate::types::ArchetypeId(0),
-                crate::types::ArchetypeId(1),
-            )
+            (crate::types::ArchetypeId(0), crate::types::ArchetypeId(1))
         };
         assert!(
-            registry.archetypes[ghost_id.as_index()].conditions.is_empty(),
+            registry.archetypes[ghost_id.as_index()]
+                .conditions
+                .is_empty(),
             "ghost archetype should have zero active conditions"
         );
         assert_eq!(

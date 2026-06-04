@@ -105,7 +105,11 @@ fn e1_joint_mode_emit_pairwise() {
         let pb = marginal[*b as usize] as f64 / n_f;
         let joint = *count as f64 / n_f;
         let expected = pa * pb;
-        let lift = if expected > 0.0 { joint / expected } else { 0.0 };
+        let lift = if expected > 0.0 {
+            joint / expected
+        } else {
+            0.0
+        };
         let (code_a, disp_a) = &code_table[*a as usize];
         let (code_b, disp_b) = &code_table[*b as usize];
         writeln!(

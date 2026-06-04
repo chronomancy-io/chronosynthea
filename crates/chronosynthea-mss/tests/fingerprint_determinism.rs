@@ -28,8 +28,8 @@ fn fingerprint_hash_stable_across_loads() {
 
     let mut hashes = Vec::new();
     for _ in 0..5 {
-        let registry = CalibratedRegistry::load(REGISTRY_PATH)
-            .expect("registry loads from on-disk JSON");
+        let registry =
+            CalibratedRegistry::load(REGISTRY_PATH).expect("registry loads from on-disk JSON");
         let fp = registry.to_fingerprint();
         hashes.push(fingerprint_content_hash(&fp));
     }
