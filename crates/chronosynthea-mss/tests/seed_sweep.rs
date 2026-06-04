@@ -36,8 +36,7 @@ fn seed_sweep_50() {
         };
         let generator = BatchGenerator::new(fingerprint.clone(), config);
         let stats = generator.generate_stats_only(n_patients);
-        let validator =
-            JavaValidation::from_fingerprint(fingerprint.clone()).with_tolerance(0.10);
+        let validator = JavaValidation::from_fingerprint(fingerprint.clone()).with_tolerance(0.10);
         let result = validator.validate(&stats);
         max_devs.push(result.max_deviation);
         kls.push(result.kl_divergence);

@@ -227,9 +227,7 @@ impl CalibratedRegistry {
         let coocc_path = std::env::var("CHRONOSYNTHEA_COOCCURRENCE_PATH")
             .ok()
             .map(std::path::PathBuf::from)
-            .or_else(|| {
-                path_ref.parent().map(|p| p.join("cooccurrence.json"))
-            });
+            .or_else(|| path_ref.parent().map(|p| p.join("cooccurrence.json")));
         if let Some(cp) = coocc_path {
             if cp.exists() {
                 let f = File::open(&cp)?;
@@ -332,8 +330,11 @@ impl CalibratedRegistry {
             .iter()
             .map(|m| {
                 let (indications, indication_weights) = if !m.indication_distribution.is_empty() {
-                    let codes: Vec<String> =
-                        m.indication_distribution.iter().map(|(c, _)| c.clone()).collect();
+                    let codes: Vec<String> = m
+                        .indication_distribution
+                        .iter()
+                        .map(|(c, _)| c.clone())
+                        .collect();
                     let weights: Vec<f64> =
                         m.indication_distribution.iter().map(|(_, w)| *w).collect();
                     (codes, weights)
@@ -375,8 +376,11 @@ impl CalibratedRegistry {
             .iter()
             .map(|p| {
                 let (indications, indication_weights) = if !p.indication_distribution.is_empty() {
-                    let codes: Vec<String> =
-                        p.indication_distribution.iter().map(|(c, _)| c.clone()).collect();
+                    let codes: Vec<String> = p
+                        .indication_distribution
+                        .iter()
+                        .map(|(c, _)| c.clone())
+                        .collect();
                     let weights: Vec<f64> =
                         p.indication_distribution.iter().map(|(_, w)| *w).collect();
                     (codes, weights)
@@ -418,11 +422,8 @@ impl CalibratedRegistry {
         // Recalibration: apply prevalence multipliers to the conditions list
         // and copy boost multipliers into the fingerprint for the
         // CooccurrenceModel constructor to read.
-        let prev_mult: AHashMap<String, f32> = self
-            .recalibration_prevalence
-            .iter()
-            .cloned()
-            .collect();
+        let prev_mult: AHashMap<String, f32> =
+            self.recalibration_prevalence.iter().cloned().collect();
         let mut conditions = conditions;
         if !prev_mult.is_empty() {
             for c in conditions.iter_mut() {
@@ -456,7 +457,10 @@ impl CalibratedRegistry {
             onset_stats,
             encounter_stats: EncounterStats {
                 mean_by_age: self.build_encounter_stats_by_age().into_iter().collect(),
-                type_distribution: self.build_encounter_type_distribution().into_iter().collect(),
+                type_distribution: self
+                    .build_encounter_type_distribution()
+                    .into_iter()
+                    .collect(),
                 mean_events_per_encounter: 5.0,
             },
         }
@@ -614,10 +618,10 @@ impl CalibratedRegistry {
     /// total volume.
     fn build_encounter_stats_by_age(&self) -> AHashMap<String, f64> {
         let mut stats = AHashMap::new();
-        stats.insert("0-17".to_string(), 18.0);   // Pediatric, ~15-year span
-        stats.insert("18-44".to_string(), 30.0);  // Working-age, ~25-year span
-        stats.insert("45-64".to_string(), 55.0);  // Middle age, chronic-onset
-        stats.insert("65+".to_string(), 90.0);    // Elderly, heaviest utilization
+        stats.insert("0-17".to_string(), 18.0); // Pediatric, ~15-year span
+        stats.insert("18-44".to_string(), 30.0); // Working-age, ~25-year span
+        stats.insert("45-64".to_string(), 55.0); // Middle age, chronic-onset
+        stats.insert("65+".to_string(), 90.0); // Elderly, heaviest utilization
         stats
     }
 

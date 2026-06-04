@@ -33,8 +33,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use arrow::array::{
-    ArrayBuilder, ArrayRef, Float64Builder, Int64Builder, ListBuilder, StringBuilder,
-    UInt32Builder,
+    ArrayBuilder, ArrayRef, Float64Builder, Int64Builder, ListBuilder, StringBuilder, UInt32Builder,
 };
 use arrow::datatypes::{DataType, Field, Schema, SchemaRef};
 use arrow::record_batch::RecordBatch;
@@ -257,18 +256,12 @@ impl SyntheaParquetWriter {
         Self::create_inner(output_dir, true)
     }
 
-    fn create_inner<P: AsRef<Path>>(
-        output_dir: P,
-        slim: bool,
-    ) -> arrow::error::Result<Self> {
+    fn create_inner<P: AsRef<Path>>(output_dir: P, slim: bool) -> arrow::error::Result<Self> {
         let parquet_dir = output_dir.as_ref().join("parquet");
         create_dir_all(&parquet_dir)?;
         let file = File::create(parquet_dir.join("patients.parquet"))?;
-        let patients_writer = ArrowWriter::try_new(
-            file,
-            PatientsBuilder::schema(slim),
-            Some(writer_props()),
-        )?;
+        let patients_writer =
+            ArrowWriter::try_new(file, PatientsBuilder::schema(slim), Some(writer_props()))?;
         Ok(Self {
             patients_builder: PatientsBuilder::new(slim),
             patients_writer,
@@ -277,10 +270,7 @@ impl SyntheaParquetWriter {
         })
     }
 
-    pub fn write_patient(
-        &mut self,
-        patient: &FullPatient,
-    ) -> arrow::error::Result<()> {
+    pub fn write_patient(&mut self, patient: &FullPatient) -> arrow::error::Result<()> {
         let pii = derive_patient_pii(patient);
 
         let b = &mut self.patients_builder;
@@ -470,11 +460,7 @@ impl SyntheaStatsParquetWriter {
         let parquet_dir = output_dir.as_ref().join("parquet");
         create_dir_all(&parquet_dir)?;
         let file = File::create(parquet_dir.join("summary.parquet"))?;
-        let writer = ArrowWriter::try_new(
-            file,
-            StatsBuilder::schema(),
-            Some(writer_props()),
-        )?;
+        let writer = ArrowWriter::try_new(file, StatsBuilder::schema(), Some(writer_props()))?;
         Ok(Self {
             builder: StatsBuilder::new(),
             writer,
@@ -482,10 +468,7 @@ impl SyntheaStatsParquetWriter {
         })
     }
 
-    pub fn write_patient(
-        &mut self,
-        patient: &FullPatient,
-    ) -> arrow::error::Result<()> {
+    pub fn write_patient(&mut self, patient: &FullPatient) -> arrow::error::Result<()> {
         let pii = derive_patient_pii(patient);
         let counts = patient.event_counts();
 
@@ -505,8 +488,7 @@ impl SyntheaStatsParquetWriter {
         b.n_procedures.append_value(counts.procedures);
         b.n_observations.append_value(counts.observations);
         b.income.append_value(pii.income);
-        b.healthcare_expenses
-            .append_value(pii.healthcare_expenses);
+        b.healthcare_expenses.append_value(pii.healthcare_expenses);
 
         if b.len() >= FLUSH_ROWS {
             self.flush()?;
@@ -616,9 +598,7 @@ fn derive_patient_pii(patient: &FullPatient) -> PatientPii {
     } else {
         String::new()
     };
-    let passport = if age_years >= 18
-        && (hash_pick(patient.id, b"PASSPORTCHK", 100) < 35)
-    {
+    let passport = if age_years >= 18 && (hash_pick(patient.id, b"PASSPORTCHK", 100) < 35) {
         format!("X{:08}X", hash_pick(patient.id, b"PASSPORT", 100_000_000))
     } else {
         String::new()
@@ -642,19 +622,15 @@ fn derive_patient_pii(patient: &FullPatient) -> PatientPii {
     let city_idx = hash_pick(patient.id, b"CITY", MA_CITIES.len());
     let (city, county, fips, zip, lat, lon) = MA_CITIES[city_idx];
     let street_no = 100 + hash_pick(patient.id, b"STREETNO", 9900);
-    let street_name =
-        STREET_NAMES[hash_pick(patient.id, b"STREETNAME", STREET_NAMES.len())];
-    let street_suffix = STREET_SUFFIXES
-        [hash_pick(patient.id, b"STREETSFX", STREET_SUFFIXES.len())];
+    let street_name = STREET_NAMES[hash_pick(patient.id, b"STREETNAME", STREET_NAMES.len())];
+    let street_suffix = STREET_SUFFIXES[hash_pick(patient.id, b"STREETSFX", STREET_SUFFIXES.len())];
     let address = format!("{} {} {}", street_no, street_name, street_suffix);
     let birthplace = format!(
         "{}  Massachusetts  US",
         MA_CITIES[hash_pick(patient.id, b"BIRTHPLACE", MA_CITIES.len())].0
     );
 
-    let income =
-        lognormal_sample(patient.id, b"INCOME", INCOME_MEAN, INCOME_STD)
-            .max(0.0) as i64;
+    let income = lognormal_sample(patient.id, b"INCOME", INCOME_MEAN, INCOME_STD).max(0.0) as i64;
     let healthcare_expenses = lognormal_sample(
         patient.id,
         b"EXPENSES",
@@ -710,12 +686,11 @@ fn derive_patient_pii(patient: &FullPatient) -> PatientPii {
 // =====================================================================
 
 use crate::archetype::ArchetypeRegistry;
-use crate::tables::CodeTable;
 use crate::csv_writer::{
-    encounter_class_info, encounter_uuid, epoch_to_iso8601,
-    iso8601_plus_minutes, lookup_condition, lookup_medication,
-    lookup_procedure,
+    encounter_class_info, encounter_uuid, epoch_to_iso8601, iso8601_plus_minutes, lookup_condition,
+    lookup_medication, lookup_procedure,
 };
+use crate::tables::CodeTable;
 
 const NO_INSURANCE_UUID: &str = "b1c428d6-4f07-31e0-90f0-68ffa6ff8c76";
 
@@ -1144,11 +1119,10 @@ impl SyntheaParquetFullWriter {
         create_dir_all(&parquet_dir)?;
 
         let props = writer_props();
-        let make =
-            |name: &str, schema: SchemaRef| -> arrow::error::Result<ArrowWriter<File>> {
-                let f = File::create(parquet_dir.join(name))?;
-                Ok(ArrowWriter::try_new(f, schema, Some(props.clone()))?)
-            };
+        let make = |name: &str, schema: SchemaRef| -> arrow::error::Result<ArrowWriter<File>> {
+            let f = File::create(parquet_dir.join(name))?;
+            Ok(ArrowWriter::try_new(f, schema, Some(props.clone()))?)
+        };
 
         Ok(Self {
             patients_builder: PatientsBuilder::new(false),
@@ -1158,15 +1132,9 @@ impl SyntheaParquetFullWriter {
             conditions_builder: ConditionsBuilder::new(),
             conditions_writer: make("conditions.parquet", ConditionsBuilder::schema())?,
             observations_builder: ObservationsBuilder::new(),
-            observations_writer: make(
-                "observations.parquet",
-                ObservationsBuilder::schema(),
-            )?,
+            observations_writer: make("observations.parquet", ObservationsBuilder::schema())?,
             medications_builder: MedicationsBuilder::new(),
-            medications_writer: make(
-                "medications.parquet",
-                MedicationsBuilder::schema(),
-            )?,
+            medications_writer: make("medications.parquet", MedicationsBuilder::schema())?,
             procedures_builder: ProceduresBuilder::new(),
             procedures_writer: make("procedures.parquet", ProceduresBuilder::schema())?,
             patient_conditions_builder: PatientConditionsBuilder::new(),
@@ -1244,7 +1212,8 @@ impl SyntheaParquetFullWriter {
                 pc.condition_codes.values().append_value(code);
             }
             pc.condition_codes.append(true);
-            pc.n_conditions.append_value(patient.conditions.len() as u32);
+            pc.n_conditions
+                .append_value(patient.conditions.len() as u32);
             if pc.len() >= FLUSH_ROWS {
                 self.flush_patient_conditions()?;
             }
@@ -1264,12 +1233,8 @@ impl SyntheaParquetFullWriter {
         // patient id. Cheaper than the city-routed lookup the CSV writer
         // does — the Parquet path doesn't need the exact same providers
         // for now, just stable per-patient ones. Dictionary-encodes fine.
-        let provider_uuid = format!(
-            "{:016x}-prov", pii_seed_hash(patient.id, b"PROV")
-        );
-        let organization_uuid = format!(
-            "{:016x}-org", pii_seed_hash(patient.id, b"ORG")
-        );
+        let provider_uuid = format!("{:016x}-prov", pii_seed_hash(patient.id, b"PROV"));
+        let organization_uuid = format!("{:016x}-org", pii_seed_hash(patient.id, b"ORG"));
         let payer_uuid = NO_INSURANCE_UUID; // simplified for v1; matches CSV writer's stub payer logic for most patients
 
         // First-encounter UUID — used as the ENCOUNTER fallback for
@@ -1282,11 +1247,7 @@ impl SyntheaParquetFullWriter {
 
         // ---- conditions.parquet ----
         for (i, &cond_idx) in patient.conditions.iter().enumerate() {
-            let onset_offset = patient
-                .condition_onset_days
-                .get(i)
-                .copied()
-                .unwrap_or(0) as i32;
+            let onset_offset = patient.condition_onset_days.get(i).copied().unwrap_or(0) as i32;
             let onset_date = epoch_to_date(patient.birth_date_days + onset_offset);
             let (code, display) = lookup_condition(archetypes, code_table, cond_idx);
             // Encounter that linked the condition: first whose day >= onset.
@@ -1368,8 +1329,7 @@ impl SyntheaParquetFullWriter {
 
             // medications.parquet rows
             for ev in encounter.medications.iter() {
-                let (code, display) =
-                    lookup_medication(archetypes, code_table, ev.code_idx);
+                let (code, display) = lookup_medication(archetypes, code_table, ev.code_idx);
                 let b = &mut self.medications_builder;
                 b.start.append_value(&start_ts);
                 b.stop.append_option(None::<&str>);
@@ -1379,9 +1339,12 @@ impl SyntheaParquetFullWriter {
                 b.code.append_value(code);
                 b.description.append_value(display);
                 b.base_cost.append_value(20.0);
-                b.payer_coverage.append_value(
-                    if payer_uuid == NO_INSURANCE_UUID { 0.0 } else { 18.0 },
-                );
+                b.payer_coverage
+                    .append_value(if payer_uuid == NO_INSURANCE_UUID {
+                        0.0
+                    } else {
+                        18.0
+                    });
                 b.dispenses.append_value(1);
                 b.totalcost.append_value(20.0);
                 b.reasoncode.append_option(None::<&str>);
@@ -1393,8 +1356,7 @@ impl SyntheaParquetFullWriter {
 
             // procedures.parquet rows
             for ev in encounter.procedures.iter() {
-                let (code, display) =
-                    lookup_procedure(archetypes, code_table, ev.code_idx);
+                let (code, display) = lookup_procedure(archetypes, code_table, ev.code_idx);
                 let cost = code_table
                     .procedure_cost_str
                     .get(ev.code_idx as usize)
@@ -1525,8 +1487,7 @@ fn hash_pick(id: u64, salt: &[u8], modulo: usize) -> usize {
 
 fn lognormal_sample(id: u64, salt: &[u8], mean: f64, std: f64) -> f64 {
     let u1 = (hash_pick(id, salt, 10_000_000) as f64 + 1.0) / 10_000_001.0;
-    let u2 = (hash_pick(id, &[salt, b"_u2"].concat(), 10_000_000) as f64 + 1.0)
-        / 10_000_001.0;
+    let u2 = (hash_pick(id, &[salt, b"_u2"].concat(), 10_000_000) as f64 + 1.0) / 10_000_001.0;
     let z = (-2.0 * u1.ln()).sqrt() * (2.0 * std::f64::consts::PI * u2).cos();
     let mu = (mean * mean / (mean * mean + std * std).sqrt()).ln();
     let sigma = (1.0 + (std * std) / (mean * mean)).ln().sqrt();
@@ -1535,8 +1496,7 @@ fn lognormal_sample(id: u64, salt: &[u8], mean: f64, std: f64) -> f64 {
 
 fn epoch_to_date(days_since_epoch: i32) -> String {
     use chrono::{Duration, NaiveDate};
-    let d = NaiveDate::from_ymd_opt(1970, 1, 1).unwrap()
-        + Duration::days(days_since_epoch as i64);
+    let d = NaiveDate::from_ymd_opt(1970, 1, 1).unwrap() + Duration::days(days_since_epoch as i64);
     d.format("%Y-%m-%d").to_string()
 }
 
@@ -1561,8 +1521,8 @@ fn age_band_str(age_years: u32) -> &'static str {
 fn years_since(birth_date_days: i32) -> u32 {
     use chrono::{Duration, NaiveDate, Utc};
     let today = Utc::now().naive_utc().date();
-    let birth = NaiveDate::from_ymd_opt(1970, 1, 1).unwrap()
-        + Duration::days(birth_date_days as i64);
+    let birth =
+        NaiveDate::from_ymd_opt(1970, 1, 1).unwrap() + Duration::days(birth_date_days as i64);
     let years = today.signed_duration_since(birth).num_days() / 365;
     years.max(0) as u32
 }

@@ -13,9 +13,7 @@
 //!     `pairwise-empirical`, or `causal-dag` (default `marginal-only`)
 //!   * `CHRONOSYNTHEA_SEED`             — base seed (default 42)
 
-use chronosynthea_mss::synthehrella::{
-    write_binary_matrix, write_temporal_records, MatrixOptions,
-};
+use chronosynthea_mss::synthehrella::{write_binary_matrix, write_temporal_records, MatrixOptions};
 use chronosynthea_mss::{BatchConfig, BatchGenerator, CalibratedRegistry};
 use std::path::PathBuf;
 

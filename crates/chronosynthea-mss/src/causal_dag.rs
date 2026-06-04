@@ -54,12 +54,7 @@ pub struct FitReport {
 }
 
 #[inline]
-fn upsert_interaction(
-    table: &mut AHashMap<u16, Vec<(u16, f32)>>,
-    src: u16,
-    dst: u16,
-    delta: f32,
-) {
+fn upsert_interaction(table: &mut AHashMap<u16, Vec<(u16, f32)>>, src: u16, dst: u16, delta: f32) {
     let entry = table.entry(src).or_default();
     for slot in entry.iter_mut() {
         if slot.0 == dst {
@@ -138,11 +133,7 @@ impl CausalDagModel {
             .enumerate()
             .map(|(i, c)| (c.code.as_str(), i as u16))
             .collect();
-        let marginal: Vec<f32> = fp
-            .conditions
-            .iter()
-            .map(|c| c.prevalence as f32)
-            .collect();
+        let marginal: Vec<f32> = fp.conditions.iter().map(|c| c.prevalence as f32).collect();
 
         for ((trigger_code, dep_code), &cond_prob) in &fp.cooccurrence {
             if let (Some(&t), Some(&d)) = (
@@ -153,7 +144,11 @@ impl CausalDagModel {
                     if p_d > 1e-6 {
                         let j = ((cond_prob as f32) / p_d).ln();
                         model.interactions.entry(t).or_default().push((d, j));
-                        model.reverse_interactions.entry(d).or_default().push((t, j));
+                        model
+                            .reverse_interactions
+                            .entry(d)
+                            .or_default()
+                            .push((t, j));
                     }
                 }
             }
@@ -323,18 +318,8 @@ impl CausalDagModel {
                 // fitting.
                 upsert_interaction(&mut self.interactions, cond_a, cond_b, lr * resid);
                 upsert_interaction(&mut self.interactions, cond_b, cond_a, lr * resid);
-                upsert_interaction(
-                    &mut self.reverse_interactions,
-                    cond_b,
-                    cond_a,
-                    lr * resid,
-                );
-                upsert_interaction(
-                    &mut self.reverse_interactions,
-                    cond_a,
-                    cond_b,
-                    lr * resid,
-                );
+                upsert_interaction(&mut self.reverse_interactions, cond_b, cond_a, lr * resid);
+                upsert_interaction(&mut self.reverse_interactions, cond_a, cond_b, lr * resid);
             }
 
             report.iterations = iter + 1;

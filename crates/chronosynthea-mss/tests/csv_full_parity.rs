@@ -4,7 +4,9 @@
 //! tables can be copied from a Java baseline alongside the generated
 //! event files.
 
-use chronosynthea_mss::{BatchConfig, BatchGenerator, CalibratedRegistry, SyntheaCsvWriter, patient_uuid};
+use chronosynthea_mss::{
+    patient_uuid, BatchConfig, BatchGenerator, CalibratedRegistry, SyntheaCsvWriter,
+};
 use std::io::BufRead;
 use std::path::PathBuf;
 
@@ -65,19 +67,58 @@ fn java_full_csv_parity() {
     let generated_files = [
         ("patients.csv", "Id,BIRTHDATE,DEATHDATE,SSN"),
         ("encounters.csv", "Id,START,STOP,PATIENT,ORGANIZATION"),
-        ("conditions.csv", "START,STOP,PATIENT,ENCOUNTER,SYSTEM,CODE,DESCRIPTION"),
-        ("observations.csv", "DATE,PATIENT,ENCOUNTER,CATEGORY,CODE,DESCRIPTION,VALUE,UNITS,TYPE"),
-        ("medications.csv", "START,STOP,PATIENT,PAYER,ENCOUNTER,CODE,DESCRIPTION,BASE_COST"),
-        ("procedures.csv", "START,STOP,PATIENT,ENCOUNTER,SYSTEM,CODE,DESCRIPTION,BASE_COST"),
-        ("immunizations.csv", "DATE,PATIENT,ENCOUNTER,CODE,DESCRIPTION,BASE_COST"),
-        ("careplans.csv", "Id,START,STOP,PATIENT,ENCOUNTER,CODE,DESCRIPTION,REASONCODE"),
-        ("imaging_studies.csv", "Id,DATE,PATIENT,ENCOUNTER,SERIES_UID"),
-        ("allergies.csv", "START,STOP,PATIENT,ENCOUNTER,CODE,SYSTEM,DESCRIPTION,TYPE,CATEGORY"),
-        ("devices.csv", "START,STOP,PATIENT,ENCOUNTER,CODE,DESCRIPTION,UDI"),
-        ("supplies.csv", "DATE,PATIENT,ENCOUNTER,CODE,DESCRIPTION,QUANTITY"),
-        ("claims.csv", "Id,PATIENTID,PROVIDERID,PRIMARYPATIENTINSURANCEID"),
-        ("claims_transactions.csv", "ID,CLAIMID,CHARGEID,PATIENTID,TYPE,AMOUNT,METHOD"),
-        ("payer_transitions.csv", "PATIENT,MEMBERID,START_DATE,END_DATE,PAYER"),
+        (
+            "conditions.csv",
+            "START,STOP,PATIENT,ENCOUNTER,SYSTEM,CODE,DESCRIPTION",
+        ),
+        (
+            "observations.csv",
+            "DATE,PATIENT,ENCOUNTER,CATEGORY,CODE,DESCRIPTION,VALUE,UNITS,TYPE",
+        ),
+        (
+            "medications.csv",
+            "START,STOP,PATIENT,PAYER,ENCOUNTER,CODE,DESCRIPTION,BASE_COST",
+        ),
+        (
+            "procedures.csv",
+            "START,STOP,PATIENT,ENCOUNTER,SYSTEM,CODE,DESCRIPTION,BASE_COST",
+        ),
+        (
+            "immunizations.csv",
+            "DATE,PATIENT,ENCOUNTER,CODE,DESCRIPTION,BASE_COST",
+        ),
+        (
+            "careplans.csv",
+            "Id,START,STOP,PATIENT,ENCOUNTER,CODE,DESCRIPTION,REASONCODE",
+        ),
+        (
+            "imaging_studies.csv",
+            "Id,DATE,PATIENT,ENCOUNTER,SERIES_UID",
+        ),
+        (
+            "allergies.csv",
+            "START,STOP,PATIENT,ENCOUNTER,CODE,SYSTEM,DESCRIPTION,TYPE,CATEGORY",
+        ),
+        (
+            "devices.csv",
+            "START,STOP,PATIENT,ENCOUNTER,CODE,DESCRIPTION,UDI",
+        ),
+        (
+            "supplies.csv",
+            "DATE,PATIENT,ENCOUNTER,CODE,DESCRIPTION,QUANTITY",
+        ),
+        (
+            "claims.csv",
+            "Id,PATIENTID,PROVIDERID,PRIMARYPATIENTINSURANCEID",
+        ),
+        (
+            "claims_transactions.csv",
+            "ID,CLAIMID,CHARGEID,PATIENTID,TYPE,AMOUNT,METHOD",
+        ),
+        (
+            "payer_transitions.csv",
+            "PATIENT,MEMBERID,START_DATE,END_DATE,PAYER",
+        ),
     ];
 
     println!("\nRow counts (1000 patients):");
@@ -98,7 +139,12 @@ fn java_full_csv_parity() {
             .lines()
             .count();
         let rows = line_count.saturating_sub(1);
-        println!("  {:24} {:>9} rows  ({:.1} per patient)", filename, rows, rows as f64 / patients.len() as f64);
+        println!(
+            "  {:24} {:>9} rows  ({:.1} per patient)",
+            filename,
+            rows,
+            rows as f64 / patients.len() as f64
+        );
     }
 
     // Sanity-check PII: read a sample of patient rows and confirm
@@ -111,17 +157,29 @@ fn java_full_csv_parity() {
     let mut sample = String::new();
     p_reader.read_line(&mut sample).unwrap();
     let fields: Vec<&str> = sample.trim_end().split(',').collect();
-    assert!(fields.len() >= 28, "patients.csv row has {} fields, want >=28", fields.len());
+    assert!(
+        fields.len() >= 28,
+        "patients.csv row has {} fields, want >=28",
+        fields.len()
+    );
     let ssn = fields[3];
     let first = fields[7];
     let last = fields[9];
     let city = fields[18];
     let income = fields[27];
-    assert!(ssn.starts_with("999-"), "SSN `{}` should start with `999-`", ssn);
+    assert!(
+        ssn.starts_with("999-"),
+        "SSN `{}` should start with `999-`",
+        ssn
+    );
     assert!(!first.is_empty(), "FIRST name should not be empty");
     assert!(!last.is_empty(), "LAST name should not be empty");
     assert!(!city.is_empty(), "CITY should not be empty");
-    assert!(income.parse::<i64>().is_ok(), "INCOME `{}` should be a number", income);
+    assert!(
+        income.parse::<i64>().is_ok(),
+        "INCOME `{}` should be a number",
+        income
+    );
     println!(
         "\nPII sanity (first non-header row): FIRST={}, LAST={}, SSN={}, CITY={}, INCOME={}",
         first, last, ssn, city, income

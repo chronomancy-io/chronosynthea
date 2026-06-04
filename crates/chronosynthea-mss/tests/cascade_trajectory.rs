@@ -59,7 +59,11 @@ fn cascade_enforces_trajectory_ordering() {
         // Java's state-machine behaviour where one trigger fires at a
         // time.
         ("127013003", "431855005", "DKD → CKD stage 1"),
-        ("90781000119102", "431856006", "Diabetic proteinuria → CKD stage 2"),
+        (
+            "90781000119102",
+            "431856006",
+            "Diabetic proteinuria → CKD stage 2",
+        ),
         ("59621000", "44054006", "Stress → Diabetes"),
     ];
 
@@ -97,8 +101,7 @@ fn cascade_enforces_trajectory_ordering() {
                 // cascade — both conditions land on the same day at
                 // end-of-life. Count them separately so the cascade's
                 // actual enforcement rate is observable.
-                let max_age =
-                    p.condition_onset_days.iter().copied().max().unwrap_or(0) as i32;
+                let max_age = p.condition_onset_days.iter().copied().max().unwrap_or(0) as i32;
                 if t_onset >= max_age - 30 {
                     clamp_bound += 1;
                     continue;
@@ -149,7 +152,12 @@ fn cascade_enforces_trajectory_ordering() {
             100.0 * ordered as f64 / assessable as f64,
             assessable
         );
-        assert!(mean_lag > 0.0, "{}: mean lag {} is not positive", label, mean_lag);
+        assert!(
+            mean_lag > 0.0,
+            "{}: mean lag {} is not positive",
+            label,
+            mean_lag
+        );
     }
     assert!(
         any_observed,

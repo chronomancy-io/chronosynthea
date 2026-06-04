@@ -315,8 +315,7 @@ impl BatchGenerator {
         // PairwiseEmpirical when cooccurrence is loaded; promotes further
         // to CausalDag when the env var asks for it (and there's data to
         // build a meaningful Ising model from).
-        let joint_mode = if std::env::var("CHRONOSYNTHEA_JOINT_MODE").as_deref()
-            == Ok("causal-dag")
+        let joint_mode = if std::env::var("CHRONOSYNTHEA_JOINT_MODE").as_deref() == Ok("causal-dag")
             && !causal_dag.is_empty()
         {
             JointMode::CausalDag
@@ -331,30 +330,28 @@ impl BatchGenerator {
         // trigger-indexed `CausalCascadeModel`. Failure to load (file
         // missing, malformed JSON) is non-fatal — the cascade post-pass
         // becomes a no-op.
-        let cascade_rules =
-            std::env::var("CHRONOSYNTHEA_CASCADE_PATH")
+        let cascade_rules = std::env::var("CHRONOSYNTHEA_CASCADE_PATH")
+            .ok()
+            .map(std::path::PathBuf::from)
+            .and_then(|p| crate::cascade::load_default_rules(p.parent()?.to_path_buf()).ok())
+            .or_else(|| {
+                // Fallback: try a default path next to the binary's
+                // workspace.
+                crate::cascade::load_default_rules(
+                    std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                        .parent()?
+                        .parent()?
+                        .join("data")
+                        .join("prevalence"),
+                )
                 .ok()
-                .map(std::path::PathBuf::from)
-                .and_then(|p| crate::cascade::load_default_rules(p.parent()?.to_path_buf()).ok())
-                .or_else(|| {
-                    // Fallback: try a default path next to the binary's
-                    // workspace.
-                    crate::cascade::load_default_rules(
-                        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-                            .parent()?
-                            .parent()?
-                            .join("data")
-                            .join("prevalence"),
-                    )
-                    .ok()
-                })
-                .unwrap_or_default();
+            })
+            .unwrap_or_default();
         let cascade = Arc::new(CausalCascadeModel::from_rules(&cascade_rules, &code_table));
 
         // Reproducibility: hash the fingerprint's canonical JSON once
         // at construction. Folded into every per-patient seed below.
-        let fingerprint_hash =
-            crate::reproducibility::fingerprint_content_hash(&fingerprint);
+        let fingerprint_hash = crate::reproducibility::fingerprint_content_hash(&fingerprint);
 
         let fingerprint = Arc::new(fingerprint);
 
@@ -438,55 +435,28 @@ impl BatchGenerator {
                     let archetype = archetypes.sample(&mut s.rng);
 
                     match joint_mode {
-
-
                         JointMode::CausalDag => {
-
-
                             causal_dag.sample(archetype, &mut s.condition_buffer, &mut s.rng);
-
-
                         }
-
 
                         JointMode::PairwiseEmpirical => {
-
-
                             archetype.sample_conditions_with_cooccurrence(
-
-
                                 &mut s.rng,
-
-
                                 &mut s.condition_buffer,
-
-
                                 &cooccurrence,
-
-
                             );
-
-
                         }
-
 
                         JointMode::MarginalOnly => {
-
-
                             let (thr, idx) = archetypes.active_view(archetype.id);
 
-
-                            s.sampler.sample_active(thr, idx, &mut s.rng, &mut s.condition_buffer);
-
-
+                            s.sampler
+                                .sample_active(thr, idx, &mut s.rng, &mut s.condition_buffer);
                         }
-
-
                     }
 
                     let encounter_count = self.estimate_encounters(archetype, &mut s.rng);
-                    let event_count =
-                        self.estimate_events(archetype, encounter_count, &mut s.rng);
+                    let event_count = self.estimate_events(archetype, encounter_count, &mut s.rng);
 
                     s.patients += 1;
                     s.encounters += encounter_count;
@@ -625,8 +595,12 @@ impl BatchGenerator {
         }
         // d6 = causal-cascade: rewrite downstream onsets to follow their
         // trigger. No-op when no rules loaded.
-        self.cascade
-            .apply(condition_buffer, &mut condition_onset_days, max_age_days, rng);
+        self.cascade.apply(
+            condition_buffer,
+            &mut condition_onset_days,
+            max_age_days,
+            rng,
+        );
         // Sort by onset; we have two parallel SmallVecs, so build a temp index.
         let mut order: SmallVec<[u8; 8]> = (0..condition_buffer.len() as u8).collect();
         order.sort_by_key(|&i| condition_onset_days[i as usize]);
@@ -815,11 +789,7 @@ impl BatchGenerator {
 
                     match joint_mode {
                         JointMode::CausalDag => {
-                            causal_dag.sample(
-                                archetype,
-                                &mut s.condition_buffer,
-                                &mut s.cond_rng,
-                            );
+                            causal_dag.sample(archetype, &mut s.condition_buffer, &mut s.cond_rng);
                         }
                         JointMode::PairwiseEmpirical => {
                             archetype.sample_conditions_with_cooccurrence(
@@ -847,8 +817,7 @@ impl BatchGenerator {
                     let encounter_count = (mean
                         + (s.evt_rng.gen::<f32>() - 0.5) * mean.sqrt() * 2.0)
                         .max(1.0)
-                        .min(max_encounters_f)
-                        as u64;
+                        .min(max_encounters_f) as u64;
 
                     s.event_sampler.sample_events_batch(
                         obs_freqs,
@@ -996,12 +965,8 @@ impl BatchGenerator {
     /// Determinism: byte-identical to `generate_full(count)` for the
     /// same seed and count — patient ids are 0..count regardless of
     /// chunk size, so the same patient produces the same record.
-    pub fn generate_full_chunked<F>(
-        &self,
-        count: usize,
-        chunk_size: usize,
-        mut on_chunk: F,
-    ) where
+    pub fn generate_full_chunked<F>(&self, count: usize, chunk_size: usize, mut on_chunk: F)
+    where
         F: FnMut(Vec<FullPatient>),
     {
         let chunk_size = chunk_size.max(1);
@@ -1076,14 +1041,9 @@ impl BatchGenerator {
         // d6 = causal-cascade: rewrite downstream onset days so they
         // follow their trigger by the empirical lag. No-op when no
         // cascade rules are loaded.
-        self.cascade.apply(
-            condition_buffer,
-            &mut raw_onsets,
-            max_age_days,
-            rng,
-        );
-        let mut order: SmallVec<[u8; 8]> =
-            (0..condition_buffer.len() as u8).collect();
+        self.cascade
+            .apply(condition_buffer, &mut raw_onsets, max_age_days, rng);
+        let mut order: SmallVec<[u8; 8]> = (0..condition_buffer.len() as u8).collect();
         order.sort_by_key(|&i| raw_onsets[i as usize]);
         let sorted_conds: SmallVec<[u16; 8]> = order
             .iter()
@@ -1120,8 +1080,9 @@ impl BatchGenerator {
         // the BatchConfig's `max_encounters` (default 200, matching Java's
         // long-tail distribution where heavy-utilisation elderly patients
         // hit 150+ encounters over their lifespan).
-        let encounter_count =
-            self.estimate_encounters(archetype, rng).min(self.config.max_encounters as u64) as u32;
+        let encounter_count = self
+            .estimate_encounters(archetype, rng)
+            .min(self.config.max_encounters as u64) as u32;
         let proc_freqs = archetypes.procedure_frequencies();
 
         // Encounter type distribution

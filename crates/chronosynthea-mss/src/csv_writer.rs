@@ -134,10 +134,7 @@ impl SyntheaCsvWriter {
         const CSV_BUF_CAPACITY: usize = 1024 * 1024;
         macro_rules! open {
             ($name:literal) => {
-                BufWriter::with_capacity(
-                    CSV_BUF_CAPACITY,
-                    File::create(csv_dir.join($name))?,
-                )
+                BufWriter::with_capacity(CSV_BUF_CAPACITY, File::create(csv_dir.join($name))?)
             };
         }
         let mut w = Self {
@@ -290,9 +287,7 @@ impl<W: std::io::Write> SyntheaCsvWriterImpl<W> {
         } else {
             String::new()
         };
-        let passport = if age_years >= 18
-            && (hash_pick(patient.id, b"PASSPORTCHK", 100) < 35)
-        {
+        let passport = if age_years >= 18 && (hash_pick(patient.id, b"PASSPORTCHK", 100) < 35) {
             format!("X{:08}X", hash_pick(patient.id, b"PASSPORT", 100_000_000))
         } else {
             String::new()
@@ -320,9 +315,13 @@ impl<W: std::io::Write> SyntheaCsvWriterImpl<W> {
         let (city, county, fips, zip, lat, lon) = MA_CITIES[city_idx];
         let street_no = 100 + hash_pick(patient.id, b"STREETNO", 9900);
         let street_name = STREET_NAMES[hash_pick(patient.id, b"STREETNAME", STREET_NAMES.len())];
-        let street_suffix = STREET_SUFFIXES[hash_pick(patient.id, b"STREETSFX", STREET_SUFFIXES.len())];
+        let street_suffix =
+            STREET_SUFFIXES[hash_pick(patient.id, b"STREETSFX", STREET_SUFFIXES.len())];
         let address = format!("{} {} {}", street_no, street_name, street_suffix);
-        let birthplace = format!("{}  Massachusetts  US", MA_CITIES[hash_pick(patient.id, b"BIRTHPLACE", MA_CITIES.len())].0);
+        let birthplace = format!(
+            "{}  Massachusetts  US",
+            MA_CITIES[hash_pick(patient.id, b"BIRTHPLACE", MA_CITIES.len())].0
+        );
 
         // Provider serving this city (or first provider if no match).
         let provider_entry = PROVIDER_CATALOG
@@ -330,7 +329,9 @@ impl<W: std::io::Write> SyntheaCsvWriterImpl<W> {
             .filter(|p| p.4 == city)
             .nth(hash_pick(patient.id, b"PROVPICK", 4) % 4)
             .or_else(|| PROVIDER_CATALOG.iter().find(|p| p.4 == city))
-            .unwrap_or(&PROVIDER_CATALOG[hash_pick(patient.id, b"PROVFALL", PROVIDER_CATALOG.len())]);
+            .unwrap_or(
+                &PROVIDER_CATALOG[hash_pick(patient.id, b"PROVFALL", PROVIDER_CATALOG.len())],
+            );
         let organization_uuid = provider_entry.0.to_string();
         let _organization_name = provider_entry.1;
         let provider_uuid = provider_entry.2.to_string();
@@ -346,9 +347,8 @@ impl<W: std::io::Write> SyntheaCsvWriterImpl<W> {
             .unwrap_or_else(|| NO_INSURANCE_UUID.to_string());
 
         for transition in &payer_history {
-            let start_date = epoch_to_date(
-                patient.birth_date_days + (transition.start_age_years as i32 * 365),
-            );
+            let start_date =
+                epoch_to_date(patient.birth_date_days + (transition.start_age_years as i32 * 365));
             let end_date = match transition.end_age_years {
                 Some(end) => epoch_to_date(patient.birth_date_days + (end as i32 * 365)),
                 None => String::new(),
@@ -372,7 +372,8 @@ impl<W: std::io::Write> SyntheaCsvWriterImpl<W> {
 
         // Income + healthcare-expenses sampled from log-normal-ish
         // distributions centred on US census averages.
-        let income = lognormal_sample(patient.id, b"INCOME", INCOME_MEAN, INCOME_STD).max(0.0) as i64;
+        let income =
+            lognormal_sample(patient.id, b"INCOME", INCOME_MEAN, INCOME_STD).max(0.0) as i64;
         let healthcare_expenses = lognormal_sample(
             patient.id,
             b"EXPENSES",
@@ -426,12 +427,20 @@ impl<W: std::io::Write> SyntheaCsvWriterImpl<W> {
         self.scratch.proc_cause.resize(num_proc, u16::MAX);
         let med_cause = &mut self.scratch.med_cause;
         let proc_cause = &mut self.scratch.proc_cause;
-        for (&m, &c) in patient.medications.iter().zip(patient.medication_causes.iter()) {
+        for (&m, &c) in patient
+            .medications
+            .iter()
+            .zip(patient.medication_causes.iter())
+        {
             if (m as usize) < med_cause.len() {
                 med_cause[m as usize] = c;
             }
         }
-        for (&p, &c) in patient.procedures.iter().zip(patient.procedure_causes.iter()) {
+        for (&p, &c) in patient
+            .procedures
+            .iter()
+            .zip(patient.procedure_causes.iter())
+        {
             if (p as usize) < proc_cause.len() {
                 proc_cause[p as usize] = c;
             }
@@ -455,15 +464,10 @@ impl<W: std::io::Write> SyntheaCsvWriterImpl<W> {
         // at `first_encounter_uuid` — empty when no encounters exist.
         let first_enc_uuid_str: &str = first_enc_uuid.as_ref().map(Uuid36::as_str).unwrap_or("");
         for (i, &cond_idx) in patient.conditions.iter().enumerate() {
-            let onset_offset = patient
-                .condition_onset_days
-                .get(i)
-                .copied()
-                .unwrap_or(0) as i32;
+            let onset_offset = patient.condition_onset_days.get(i).copied().unwrap_or(0) as i32;
             let onset_date = epoch_to_date(patient.birth_date_days + onset_offset);
             let (code, display) = lookup_condition(archetypes, code_table, cond_idx);
-            let enc_uuid_opt =
-                encounter_uuid_for_onset(patient, onset_offset as u16);
+            let enc_uuid_opt = encounter_uuid_for_onset(patient, onset_offset as u16);
             let enc_uuid_str: &str = enc_uuid_opt
                 .as_ref()
                 .map(Uuid36::as_str)
@@ -471,11 +475,7 @@ impl<W: std::io::Write> SyntheaCsvWriterImpl<W> {
             writeln!(
                 self.conditions,
                 "{},,{},{},SNOMED-CT,{},\"{}\"",
-                onset_date,
-                patient_uuid,
-                enc_uuid_str,
-                code,
-                display,
+                onset_date, patient_uuid, enc_uuid_str, code, display,
             )?;
         }
 
@@ -512,7 +512,11 @@ impl<W: std::io::Write> SyntheaCsvWriterImpl<W> {
             let (enc_class, enc_class_upper, enc_code, enc_display, enc_cost) =
                 encounter_class_info(encounter.encounter_type);
             let total_cost = enc_cost + (enc_idx as f32 * 17.3) % 200.0;
-            let payer_coverage = if payer_uuid == NO_INSURANCE_UUID { 0.0 } else { total_cost * 0.8 };
+            let payer_coverage = if payer_uuid == NO_INSURANCE_UUID {
+                0.0
+            } else {
+                total_cost * 0.8
+            };
             writeln!(
                 self.encounters,
                 "{},{},{},{},{},{},{},{},{},\"{}\",{:.2},{:.2},{:.2},,",
@@ -535,10 +539,7 @@ impl<W: std::io::Write> SyntheaCsvWriterImpl<W> {
             // claim-header structure. Diagnoses1-8 are populated with the
             // patient's active conditions at this encounter (deduped,
             // capped at 8); the encounter cost is the claim total.
-            let claim_uuid = stable_uuid(
-                patient.id.wrapping_add(enc_idx as u64),
-                b"CLAIM",
-            );
+            let claim_uuid = stable_uuid(patient.id.wrapping_add(enc_idx as u64), b"CLAIM");
             // Borrowed view of the patient's first 8 condition codes — no
             // allocation per encounter (the previous `[String; 8]` form
             // cloned each code into a fresh String per encounter, ~12 per
@@ -549,10 +550,7 @@ impl<W: std::io::Write> SyntheaCsvWriterImpl<W> {
                 diagnoses[i] = code;
             }
             let dept_id = hash_pick(patient.id, b"DEPT", 100);
-            let appt_uuid = stable_uuid(
-                patient.id.wrapping_add(enc_idx as u64),
-                b"APPT",
-            );
+            let appt_uuid = stable_uuid(patient.id.wrapping_add(enc_idx as u64), b"APPT");
             writeln!(
                 self.claims,
                 "{},{},{},{},,{},{},{},{},{},{},{},{},{},{},,,{},{},{},BILLED,BILLED,BILLED,0.00,0.00,0.00,{},{},{},1,1",
@@ -586,10 +584,8 @@ impl<W: std::io::Write> SyntheaCsvWriterImpl<W> {
             // service lines). We mirror that with: 1 encounter charge,
             // 1 charge per procedure, payments for each, and a transfer
             // pair per insured charge.
-            let charge_uuid_enc = stable_uuid(
-                patient.id.wrapping_add(enc_idx as u64),
-                b"CHARGE_ENC",
-            );
+            let charge_uuid_enc =
+                stable_uuid(patient.id.wrapping_add(enc_idx as u64), b"CHARGE_ENC");
             // Encounter charge
             writeln!(
                 self.claims_transactions,
@@ -677,11 +673,12 @@ impl<W: std::io::Write> SyntheaCsvWriterImpl<W> {
             // insured (one set per procedure event on this encounter).
             for (proc_event_idx, ev) in encounter.procedures.iter().enumerate() {
                 let proc_idx = ev.code_idx;
-                let (proc_code, _) =
-                    lookup_procedure(archetypes, code_table, proc_idx);
+                let (proc_code, _) = lookup_procedure(archetypes, code_table, proc_idx);
                 let proc_cost = base_cost_for_procedure(&proc_code);
                 let proc_charge_uuid = stable_uuid(
-                    patient.id.wrapping_add((enc_idx * 1000 + proc_event_idx) as u64),
+                    patient
+                        .id
+                        .wrapping_add((enc_idx * 1000 + proc_event_idx) as u64),
                     b"CHARGE_PROC",
                 );
                 writeln!(
@@ -796,12 +793,8 @@ impl<W: std::io::Write> SyntheaCsvWriterImpl<W> {
             };
             for ev in encounter.medications.iter() {
                 let med_idx = ev.code_idx;
-                let (code, display) =
-                    lookup_medication(archetypes, code_table, med_idx);
-                let cause = med_cause
-                    .get(med_idx as usize)
-                    .copied()
-                    .unwrap_or(u16::MAX);
+                let (code, display) = lookup_medication(archetypes, code_table, med_idx);
+                let cause = med_cause.get(med_idx as usize).copied().unwrap_or(u16::MAX);
                 let (reason_code, reason_desc): (&str, &str) = if cause == u16::MAX {
                     ("", "")
                 } else {
@@ -834,8 +827,7 @@ impl<W: std::io::Write> SyntheaCsvWriterImpl<W> {
             // once at registry load.
             for ev in encounter.procedures.iter() {
                 let proc_idx = ev.code_idx;
-                let (code, display) =
-                    lookup_procedure(archetypes, code_table, proc_idx);
+                let (code, display) = lookup_procedure(archetypes, code_table, proc_idx);
                 let cost_str = code_table
                     .procedure_cost_str
                     .get(proc_idx as usize)
@@ -880,13 +872,17 @@ impl<W: std::io::Write> SyntheaCsvWriterImpl<W> {
                     .procedure(proc_idx)
                     .map(|e| e.is_imaging_hint)
                     .unwrap_or(false);
-                let is_imaging = display_match
-                    || (next_rand(&mut rng_state) % 100) < 30;
+                let is_imaging = display_match || (next_rand(&mut rng_state) % 100) < 30;
                 if is_imaging {
-                    let series_uid = dicom_uid(patient.id, enc_idx as u32, 0, &mut rng_state, &next_rand);
-                    let instance_uid = dicom_uid(patient.id, enc_idx as u32, 1, &mut rng_state, &next_rand);
+                    let series_uid =
+                        dicom_uid(patient.id, enc_idx as u32, 0, &mut rng_state, &next_rand);
+                    let instance_uid =
+                        dicom_uid(patient.id, enc_idx as u32, 1, &mut rng_state, &next_rand);
                     let study_uuid = stable_uuid(
-                        patient.id.wrapping_add(enc_idx as u64).wrapping_add(proc_idx as u64),
+                        patient
+                            .id
+                            .wrapping_add(enc_idx as u64)
+                            .wrapping_add(proc_idx as u64),
                         b"IMG",
                     );
                     writeln!(
@@ -921,17 +917,12 @@ impl<W: std::io::Write> SyntheaCsvWriterImpl<W> {
             if matches!(enc_class, "ambulatory" | "wellness" | "urgentcare")
                 && (next_rand(&mut rng_state) % 100) < 55
             {
-                let (s_code, s_desc) = SUPPLY_CATALOG[
-                    (next_rand(&mut rng_state) as usize) % SUPPLY_CATALOG.len()
-                ];
+                let (s_code, s_desc) =
+                    SUPPLY_CATALOG[(next_rand(&mut rng_state) as usize) % SUPPLY_CATALOG.len()];
                 writeln!(
                     self.supplies,
                     "{},{},{},{},\"{}\",1",
-                    enc_date,
-                    patient_uuid,
-                    enc_uuid,
-                    s_code,
-                    s_desc,
+                    enc_date, patient_uuid, enc_uuid, s_code, s_desc,
                 )?;
             }
         }
@@ -941,8 +932,7 @@ impl<W: std::io::Write> SyntheaCsvWriterImpl<W> {
         // emits ~3.3 care plans/patient on average — one per chronic
         // condition × roughly the number of years since onset).
         for (i, &cond_idx) in patient.conditions.iter().enumerate() {
-            let (cond_code, cond_desc) =
-                lookup_condition(archetypes, code_table, cond_idx);
+            let (cond_code, cond_desc) = lookup_condition(archetypes, code_table, cond_idx);
             // Probe the pre-resolved per-condition careplan array (built
             // once at registry load via `careplan_for`) instead of running
             // the string-match per event.
@@ -952,17 +942,10 @@ impl<W: std::io::Write> SyntheaCsvWriterImpl<W> {
                 .copied()
                 .flatten();
             if let Some((cp_code, cp_desc)) = careplan_hit {
-                let onset_offset = patient
-                    .condition_onset_days
-                    .get(i)
-                    .copied()
-                    .unwrap_or(0) as i32;
-                let onset_date =
-                    epoch_to_date(patient.birth_date_days + onset_offset);
-                let careplan_uuid = stable_uuid(
-                    patient.id.wrapping_add(cond_idx as u64),
-                    b"CAREPLAN",
-                );
+                let onset_offset = patient.condition_onset_days.get(i).copied().unwrap_or(0) as i32;
+                let onset_date = epoch_to_date(patient.birth_date_days + onset_offset);
+                let careplan_uuid =
+                    stable_uuid(patient.id.wrapping_add(cond_idx as u64), b"CAREPLAN");
                 writeln!(
                     self.careplans,
                     "{},{},,{},{},{},\"{}\",{},\"{}\"",
@@ -998,8 +981,7 @@ impl<W: std::io::Write> SyntheaCsvWriterImpl<W> {
                             .wrapping_add(renewal_idx as u64),
                         b"CAREPLAN",
                     );
-                    let renewal_enc_uuid =
-                        encounter_uuid(patient.id, renewal_idx as u32);
+                    let renewal_enc_uuid = encounter_uuid(patient.id, renewal_idx as u32);
                     writeln!(
                         self.careplans,
                         "{},{},,{},{},{},\"{}\",{},\"{}\"",
@@ -1023,11 +1005,7 @@ impl<W: std::io::Write> SyntheaCsvWriterImpl<W> {
                 .copied()
                 .flatten();
             if let Some((dev_code, dev_desc)) = device_hit {
-                let onset_offset = patient
-                    .condition_onset_days
-                    .get(i)
-                    .copied()
-                    .unwrap_or(0) as i32;
+                let onset_offset = patient.condition_onset_days.get(i).copied().unwrap_or(0) as i32;
                 let start_ts = epoch_to_iso8601(
                     patient.birth_date_days + onset_offset,
                     &mut rng_state,
@@ -1044,12 +1022,7 @@ impl<W: std::io::Write> SyntheaCsvWriterImpl<W> {
                 writeln!(
                     self.devices,
                     "{},,{},{},{},\"{}\",{}",
-                    start_ts,
-                    patient_uuid,
-                    first_enc_uuid_str,
-                    dev_code,
-                    dev_desc,
-                    udi,
+                    start_ts, patient_uuid, first_enc_uuid_str, dev_code, dev_desc, udi,
                 )?;
             }
         }
@@ -1067,12 +1040,14 @@ impl<W: std::io::Write> SyntheaCsvWriterImpl<W> {
             ("469224009", "Pillow case (physical object)", 0),
             ("256173007", "Walking aid, function (physical object)", 65),
             ("259206009", "Glucometer (physical object)", 45),
-            ("706180004", "Single use thermometer probe cover (physical object)", 0),
+            (
+                "706180004",
+                "Single use thermometer probe cover (physical object)",
+                0,
+            ),
         ];
         for (dev_code, dev_desc, age_threshold) in generic_devices {
-            if age_years >= *age_threshold
-                && (next_rand(&mut rng_state) % 100) < 65
-            {
+            if age_years >= *age_threshold && (next_rand(&mut rng_state) % 100) < 65 {
                 let assign_day = patient.birth_date_days
                     + (*age_threshold as i32 * 365)
                     + (next_rand(&mut rng_state) % 365) as i32;
@@ -1088,12 +1063,7 @@ impl<W: std::io::Write> SyntheaCsvWriterImpl<W> {
                 writeln!(
                     self.devices,
                     "{},,{},{},{},\"{}\",{}",
-                    start_ts,
-                    patient_uuid,
-                    first_enc_uuid_str,
-                    dev_code,
-                    dev_desc,
-                    udi,
+                    start_ts, patient_uuid, first_enc_uuid_str, dev_code, dev_desc, udi,
                 )?;
             }
         }
@@ -1521,8 +1491,8 @@ fn years_since(birth_date_days: i32) -> u32 {
     // chronosynthea uses the synthetic "today" of 2024-01-01 as the
     // generation reference.
     let today = NaiveDate::from_ymd_opt(2024, 1, 1).unwrap();
-    let birth = NaiveDate::from_ymd_opt(1970, 1, 1).unwrap()
-        + Duration::days(birth_date_days as i64);
+    let birth =
+        NaiveDate::from_ymd_opt(1970, 1, 1).unwrap() + Duration::days(birth_date_days as i64);
     let years = today.signed_duration_since(birth).num_days() / 365;
     years.max(0) as u32
 }
@@ -1699,28 +1669,46 @@ pub fn encounter_class_info(
 ) -> (&'static str, &'static str, &'static str, &'static str, f32) {
     match t {
         0 => (
-            "wellness", "WELLNESS", "410620009",
-            "Well child visit (procedure)", 136.80,
+            "wellness",
+            "WELLNESS",
+            "410620009",
+            "Well child visit (procedure)",
+            136.80,
         ),
         1 => (
-            "ambulatory", "AMBULATORY", "185349003",
-            "Encounter for check up (procedure)", 138.36,
+            "ambulatory",
+            "AMBULATORY",
+            "185349003",
+            "Encounter for check up (procedure)",
+            138.36,
         ),
         2 => (
-            "urgentcare", "URGENTCARE", "702927004",
-            "Urgent care clinic (environment)", 200.31,
+            "urgentcare",
+            "URGENTCARE",
+            "702927004",
+            "Urgent care clinic (environment)",
+            200.31,
         ),
         3 => (
-            "emergency", "EMERGENCY", "50849002",
-            "Emergency room admission (procedure)", 600.81,
+            "emergency",
+            "EMERGENCY",
+            "50849002",
+            "Emergency room admission (procedure)",
+            600.81,
         ),
         4 => (
-            "inpatient", "INPATIENT", "183452005",
-            "Emergency hospital admission (procedure)", 1500.00,
+            "inpatient",
+            "INPATIENT",
+            "183452005",
+            "Emergency hospital admission (procedure)",
+            1500.00,
         ),
         _ => (
-            "ambulatory", "AMBULATORY", "185349003",
-            "Encounter for check up (procedure)", 138.36,
+            "ambulatory",
+            "AMBULATORY",
+            "185349003",
+            "Encounter for check up (procedure)",
+            138.36,
         ),
     }
 }
@@ -1739,16 +1727,86 @@ pub(crate) fn base_cost_for_procedure(code: &str) -> f32 {
 /// Common allergens used to populate `allergies.csv`. Format:
 /// `(SNOMED code, system, description, category, reaction_code, severity)`.
 const ALLERGEN_CATALOG: &[(&str, &str, &str, &str, &str, &str)] = &[
-    ("762952008", "SNOMED-CT", "Peanut (substance)", "food", "247472004", "MODERATE"),
-    ("260147004", "SNOMED-CT", "House dust mite (substance)", "environment", "402387002", "MILD"),
-    ("256277009", "SNOMED-CT", "Grass pollen (substance)", "environment", "247472004", "MILD"),
-    ("373270004", "SNOMED-CT", "Penicillin G (substance)", "medication", "126485001", "SEVERE"),
-    ("256350002", "SNOMED-CT", "Animal dander (substance)", "environment", "402387002", "MILD"),
-    ("412071004", "SNOMED-CT", "Latex (substance)", "environment", "402387002", "MODERATE"),
-    ("102263004", "SNOMED-CT", "Eggs (edible) (substance)", "food", "247472004", "MODERATE"),
-    ("3718001", "SNOMED-CT", "Cow's milk (substance)", "food", "247472004", "MILD"),
-    ("227037002", "SNOMED-CT", "Fish - dietary (substance)", "food", "402387002", "MODERATE"),
-    ("44027008", "SNOMED-CT", "Tree nut (substance)", "food", "247472004", "SEVERE"),
+    (
+        "762952008",
+        "SNOMED-CT",
+        "Peanut (substance)",
+        "food",
+        "247472004",
+        "MODERATE",
+    ),
+    (
+        "260147004",
+        "SNOMED-CT",
+        "House dust mite (substance)",
+        "environment",
+        "402387002",
+        "MILD",
+    ),
+    (
+        "256277009",
+        "SNOMED-CT",
+        "Grass pollen (substance)",
+        "environment",
+        "247472004",
+        "MILD",
+    ),
+    (
+        "373270004",
+        "SNOMED-CT",
+        "Penicillin G (substance)",
+        "medication",
+        "126485001",
+        "SEVERE",
+    ),
+    (
+        "256350002",
+        "SNOMED-CT",
+        "Animal dander (substance)",
+        "environment",
+        "402387002",
+        "MILD",
+    ),
+    (
+        "412071004",
+        "SNOMED-CT",
+        "Latex (substance)",
+        "environment",
+        "402387002",
+        "MODERATE",
+    ),
+    (
+        "102263004",
+        "SNOMED-CT",
+        "Eggs (edible) (substance)",
+        "food",
+        "247472004",
+        "MODERATE",
+    ),
+    (
+        "3718001",
+        "SNOMED-CT",
+        "Cow's milk (substance)",
+        "food",
+        "247472004",
+        "MILD",
+    ),
+    (
+        "227037002",
+        "SNOMED-CT",
+        "Fish - dietary (substance)",
+        "food",
+        "402387002",
+        "MODERATE",
+    ),
+    (
+        "44027008",
+        "SNOMED-CT",
+        "Tree nut (substance)",
+        "food",
+        "247472004",
+        "SEVERE",
+    ),
 ];
 
 /// Common supplies dispensed during ambulatory + wellness encounters.
@@ -1759,7 +1817,10 @@ const SUPPLY_CATALOG: &[(&str, &str)] = &[
     ("363753007", "Surgical dressing (physical object)"),
     ("469224009", "Pillow case (physical object)"),
     ("258159007", "Vinyl glove, single use (physical object)"),
-    ("706173002", "Single-use medication syringe (physical object)"),
+    (
+        "706173002",
+        "Single-use medication syringe (physical object)",
+    ),
 ];
 
 /// Maps a chronic condition SNOMED code → its associated care plan
@@ -1787,14 +1848,18 @@ pub(crate) fn careplan_for(condition_code: &str) -> Option<(&'static str, &'stat
 pub(crate) fn device_for(condition_code: &str) -> Option<(&'static str, &'static str)> {
     match condition_code {
         // Cardiac
-        "53741008" => Some(("72506001", "Implantable defibrillator, device (physical object)")),
+        "53741008" => Some((
+            "72506001",
+            "Implantable defibrillator, device (physical object)",
+        )),
         "194828000" => Some(("69277002", "Coronary artery bypass graft (physical object)")),
         "22298006" => Some(("465211002", "Coronary stent (physical object)")),
         // Stroke
         "230690007" => Some(("271436005", "Walking stick (physical object)")),
         // Kidney disease
-        "431855005" | "431856006" | "433144002" | "431857002" =>
-            Some(("303132006", "Vascular access device (physical object)")),
+        "431855005" | "431856006" | "433144002" | "431857002" => {
+            Some(("303132006", "Vascular access device (physical object)"))
+        }
         // Hypertension
         "38341003" => Some(("23366006", "Sphygmomanometer (physical object)")),
         // Diabetes
@@ -1806,7 +1871,10 @@ pub(crate) fn device_for(condition_code: &str) -> Option<(&'static str, &'static
         // Mobility (osteoarthritis hip / knee)
         "239873007" | "239872002" => Some(("113081003", "Walking frame (physical object)")),
         // Sleep apnea
-        "73430006" => Some(("704708001", "Positive airway pressure device (physical object)")),
+        "73430006" => Some((
+            "704708001",
+            "Positive airway pressure device (physical object)",
+        )),
         // Atrial fibrillation
         "49436004" => Some(("14106009", "Cardiac pacemaker, device (physical object)")),
         _ => None,
@@ -1832,12 +1900,20 @@ fn emit_vital_signs<W: Write>(
     // Java's child schedule has its own LOINC codes (occipital-frontal
     // circumference, weight-for-length percentile, etc.) we don't model.
     let height_cm = if age_years >= 18 {
-        if gender == "F" { 163.0 } else { 178.0 }
+        if gender == "F" {
+            163.0
+        } else {
+            178.0
+        }
     } else {
         (age_years as f32 * 6.0 + 50.0).min(180.0)
     };
     let weight_kg = if age_years >= 18 {
-        if gender == "F" { 73.0 } else { 89.0 }
+        if gender == "F" {
+            73.0
+        } else {
+            89.0
+        }
     } else {
         (age_years as f32 * 3.5 + 3.0).min(90.0)
     };
@@ -1964,13 +2040,7 @@ fn emit_condition_labs<W: Write>(
         writeln!(
             out,
             "{},{},{},laboratory,{},\"{}\",{:.2},{},numeric",
-            timestamp,
-            patient_uuid,
-            encounter_uuid,
-            spec.code,
-            spec.desc,
-            value,
-            spec.units,
+            timestamp, patient_uuid, encounter_uuid, spec.code, spec.desc, value, spec.units,
         )?;
     }
     Ok(())
@@ -2028,4 +2098,3 @@ fn emit_immunizations_for_age<W: Write>(
     }
     Ok(())
 }
-

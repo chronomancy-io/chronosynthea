@@ -7,9 +7,7 @@
 //!   * at least some 1s exist (patients have events)
 //!   * the temporal records file has one row per (condition + encounter event)
 
-use chronosynthea_mss::synthehrella::{
-    write_binary_matrix, write_temporal_records, MatrixOptions,
-};
+use chronosynthea_mss::synthehrella::{write_binary_matrix, write_temporal_records, MatrixOptions};
 use chronosynthea_mss::{BatchConfig, BatchGenerator, CalibratedRegistry};
 use std::io::BufRead;
 use std::path::PathBuf;
@@ -59,7 +57,11 @@ fn synthehrella_exporters_smoke() {
     )
     .unwrap();
     println!("wrote binary matrix to {:?} ({} rows)", bm_path, bm_rows);
-    assert_eq!(bm_rows, patients.len() + 1, "matrix rows = patients + header");
+    assert_eq!(
+        bm_rows,
+        patients.len() + 1,
+        "matrix rows = patients + header"
+    );
 
     // Verify the matrix header has the expected number of columns.
     let f = std::fs::File::open(&bm_path).unwrap();
@@ -86,11 +88,17 @@ fn synthehrella_exporters_smoke() {
             break;
         }
     }
-    assert!(found_one, "binary matrix has no `1` values — exporter not picking up events");
+    assert!(
+        found_one,
+        "binary matrix has no `1` values — exporter not picking up events"
+    );
 
     // Temporal records
     let tr_path = out_dir.join("temporal_records.csv");
     let tr_rows = write_temporal_records(&patients, archetypes, code_table, &tr_path).unwrap();
     println!("wrote temporal records to {:?} ({} rows)", tr_path, tr_rows);
-    assert!(tr_rows > 1 + patients.len(), "temporal records should have many event rows");
+    assert!(
+        tr_rows > 1 + patients.len(),
+        "temporal records should have many event rows"
+    );
 }

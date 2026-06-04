@@ -40,12 +40,7 @@ fn main() {
     let mut entries: Vec<_> = fs::read_dir(&csv_dir)
         .expect("read csv_dir")
         .filter_map(|r| r.ok())
-        .filter(|e| {
-            e.path()
-                .extension()
-                .map(|x| x == "csv")
-                .unwrap_or(false)
-        })
+        .filter(|e| e.path().extension().map(|x| x == "csv").unwrap_or(false))
         .collect();
     entries.sort_by_key(|e| e.path());
 
@@ -124,8 +119,7 @@ fn main() {
             .build(f)?;
 
         let out = File::create(parq_path)?;
-        let mut writer =
-            ArrowWriter::try_new(out, std::sync::Arc::new(schema), Some(props))?;
+        let mut writer = ArrowWriter::try_new(out, std::sync::Arc::new(schema), Some(props))?;
         for batch_res in reader {
             let batch = batch_res?;
             writer.write(&batch)?;

@@ -3,12 +3,12 @@
 //! These tests verify that generated patients match the expected
 //! statistical distributions from the MSS fingerprint.
 
-use std::collections::BTreeMap;
 use chronosynthea_mss::batch::{BatchConfig, BatchGenerator};
 use chronosynthea_mss::fingerprint::{
     ConditionStats, DemographicBucket, EncounterStats, JointDemographics, MssFingerprint,
 };
 use chronosynthea_mss::stats::StreamingStatistics;
+use std::collections::BTreeMap;
 
 /// Creates a test fingerprint with known distributions.
 fn create_test_fingerprint() -> MssFingerprint {

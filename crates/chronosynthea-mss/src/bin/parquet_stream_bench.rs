@@ -19,8 +19,7 @@ fn main() {
 #[cfg(feature = "parquet")]
 fn main() {
     use chronosynthea_mss::parquet_writer::{
-        SyntheaParquetFullWriter, SyntheaParquetWriter,
-        SyntheaStatsParquetWriter,
+        SyntheaParquetFullWriter, SyntheaParquetWriter, SyntheaStatsParquetWriter,
     };
     use chronosynthea_mss::reproducibility::CohortManifest;
     use chronosynthea_mss::{BatchConfig, BatchGenerator, CalibratedRegistry};
@@ -96,8 +95,7 @@ fn main() {
         let dt = t.elapsed();
         let path = dir.join("parquet/patients.parquet");
         let bytes = std::fs::metadata(&path).map(|m| m.len()).unwrap_or(0);
-        let mut manifest =
-            CohortManifest::new(&fp_hash, seed, n, "parquet-full");
+        let mut manifest = CohortManifest::new(&fp_hash, seed, n, "parquet-full");
         manifest.output_bytes = bytes;
         manifest.output_sha256 = Some(sha256_of_file(&path));
         manifest
@@ -222,7 +220,9 @@ fn sha256_of_file(p: &std::path::Path) -> String {
 fn dir_size_recursive(p: &std::path::Path) -> u64 {
     use std::fs;
     let mut total = 0u64;
-    let Ok(entries) = fs::read_dir(p) else { return 0 };
+    let Ok(entries) = fs::read_dir(p) else {
+        return 0;
+    };
     for e in entries.flatten() {
         if let Ok(meta) = e.metadata() {
             total += if meta.is_file() {

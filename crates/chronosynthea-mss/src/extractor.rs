@@ -676,7 +676,10 @@ impl MssExtractor {
                 pairs.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
                 let indications: Vec<String> = pairs.iter().map(|(c, _)| c.clone()).collect();
                 let indication_weights: Vec<f64> = if total > 0 {
-                    pairs.iter().map(|(_, n)| *n as f64 / total as f64).collect()
+                    pairs
+                        .iter()
+                        .map(|(_, n)| *n as f64 / total as f64)
+                        .collect()
                 } else {
                     vec![]
                 };
@@ -717,7 +720,10 @@ impl MssExtractor {
                 pairs.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
                 let indications: Vec<String> = pairs.iter().map(|(c, _)| c.clone()).collect();
                 let indication_weights: Vec<f64> = if total > 0 {
-                    pairs.iter().map(|(_, n)| *n as f64 / total as f64).collect()
+                    pairs
+                        .iter()
+                        .map(|(_, n)| *n as f64 / total as f64)
+                        .collect()
                 } else {
                     vec![]
                 };
